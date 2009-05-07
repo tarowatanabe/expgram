@@ -20,13 +20,10 @@
 #include <utils/map_file.hpp>
 #include <utils/vertical_coded_vector.hpp>
 #include <utils/vertical_coded_device.hpp>
+#include <utils/packed_vector.hpp>
+#include <utils/packed_device.hpp>
 #include <utils/repository.hpp>
 #include <utils/filesystem.hpp>
-
-#include <codec/quicklz_codec.hpp>
-#include <codec/zlib_codec.hpp>
-#include <codec/block_file.hpp>
-#include <codec/block_device.hpp>
 
 namespace succinctdb
 {
@@ -169,8 +166,8 @@ namespace succinctdb
     typedef typename Alloc::template rebind<key_type>::other  key_alloc_type;
     typedef typename Alloc::template rebind<off_type>::other  off_alloc_type;
     
-    typedef utils::map_file<pos_type, pos_alloc_type> bin_set_type;
-    typedef utils::map_file<pos_type, pos_alloc_type> next_set_type;
+    typedef utils::packed_vector_mapped<pos_type, pos_alloc_type> bin_set_type;
+    typedef utils::packed_vector_mapped<pos_type, pos_alloc_type> next_set_type;
     typedef utils::map_file<key_type, key_alloc_type> key_set_type;
     typedef utils::vertical_coded_vector_mapped<off_type, off_alloc_type> off_set_type;
 
@@ -215,8 +212,8 @@ namespace succinctdb
       const size_type hash_mask = bins.size() - 1;
       const size_type key = hash & hash_mask;
       pos_type i = bins[key];
-      for (/**/; i != npos() && ! equal_to(i, buf, size); i = nexts[i]);
-      return i;
+      for (/**/; i && ! equal_to(i - 1, buf, size); i = nexts[i - 1]);
+      return i - 1;
     }
 
     void close() { clear(); }
@@ -313,7 +310,7 @@ namespace succinctdb
       const size_type pos = hash & hash_mask;
 
       os_nexts->write((char*) &bins[pos], sizeof(pos_type));
-      bins[pos] = __size;
+      bins[pos] = __size + 1;
       ++ __size;
       
       os_keys->write((char*) buf, sizeof(key_type) * size);
@@ -335,7 +332,7 @@ namespace succinctdb
 	typedef utils::repository repository_type;
 	
 	repository_type rep(__path, repository_type::read);
-	dump_file(rep.path("bins"), bins);
+	dump_file(rep.path("bins"), bins, true);
       }
       
       bins.clear();
@@ -361,15 +358,14 @@ namespace succinctdb
       
       bins.clear();
       bins.reserve(bin_size_power2);
-      bins.resize(bin_size_power2, npos());
+      bins.resize(bin_size_power2, 0);
       
       os_nexts.reset(new boost::iostreams::filtering_ostream());
       os_keys.reset(new boost::iostreams::filtering_ostream());
       os_offs.reset(new boost::iostreams::filtering_ostream());
       
-      //os_nexts->push(utils::zlib_block_sink(rep.path("nexts"), 1024 * 1024));
-      //os_keys->push(utils::zlib_block_sink(rep.path("keys"), 1024 * 1024));
-      os_nexts->push(boost::iostreams::file_sink(rep.path("nexts").file_string()), 1024 * 1024);
+      //os_nexts->push(boost::iostreams::file_sink(rep.path("nexts").file_string()), 1024 * 1024);
+      os_nexts->push(utils::packed_sink<pos_type, pos_alloc_type>(rep.path("nexts")));
       os_keys->push(boost::iostreams::file_sink(rep.path("keys").file_string()), 1024 * 1024);
       os_offs->push(utils::vertical_coded_sink<off_type, off_alloc_type>(rep.path("offs")));
       
@@ -380,11 +376,14 @@ namespace succinctdb
   private:
     template <typename _Path, typename _Data>
     inline
-    void dump_file(const _Path& file, const _Data& data, const bool compressed=false)
+    void dump_file(const _Path& file, const _Data& data, const bool packed=false)
     {
+      typedef typename _Data::value_type value_type;
+      typedef typename Alloc::template rebind<value_type>::other value_alloc_type;
+
       std::auto_ptr<boost::iostreams::filtering_ostream> os(new boost::iostreams::filtering_ostream());
-      if (compressed)
-	os->push(codec::block_sink<codec::quicklz_codec>(file, 1024 * 1024));
+      if (packed)
+	os->push(utils::packed_sink<value_type, value_alloc_type>(file));
       else
 	os->push(boost::iostreams::file_sink(file.native_file_string(), std::ios_base::out | std::ios_base::trunc), 1024 * 1024);
       
@@ -439,14 +438,14 @@ namespace succinctdb
     
   public:
     succinct_hash(size_type __bucket_size = 1024 * 1024 * 4)
-      : bins(utils::bithack::is_power2(__bucket_size) ? __bucket_size : utils::bithack::next_largest_power2(__bucket_size), npos()),
+      : bins(utils::bithack::is_power2(__bucket_size) ? __bucket_size : utils::bithack::next_largest_power2(__bucket_size), 0),
 	nexts(), keys(), offs() { clear(); }
     
 
     void close() { clear(); }
     void clear()
     {
-      std::fill(bins.begin(), bins.end(), npos());
+      std::fill(bins.begin(), bins.end(), 0);
       nexts.clear();
       keys.clear();
       offs.clear();
@@ -483,18 +482,18 @@ namespace succinctdb
       const size_type hash_mask = bins.size() - 1;
       const size_type key = hash & hash_mask;
       pos_type i = bins[key];
-      for (/**/; i != npos() && ! equal_to(i, buf, size); i = nexts[i]);
-      if (i != npos())
-	return i;
+      for (/**/; i && ! equal_to(i - 1, buf, size); i = nexts[i - 1]);
+      if (i)
+	return i - 1;
       
-      i = nexts.size();
+      i = nexts.size() + 1;
       
       keys.insert(keys.end(), buf, buf + size);
       offs.push_back(keys.size());
       nexts.push_back(bins[key]);
       
       bins[key] = i;
-      return i;
+      return i - 1;
     }
     
     pos_type find(const key_type* buf, size_type size, hash_value_type hash) const
@@ -502,8 +501,8 @@ namespace succinctdb
       const size_type hash_mask = bins.size() - 1;
       const size_type key = hash & hash_mask;
       pos_type i = bins[key];
-      for (/**/; i != npos() && ! equal_to(i, buf, size); i = nexts[i]);
-      return i;
+      for (/**/; i && ! equal_to(i - 1, buf, size); i = nexts[i - 1]);
+      return i - 1;
     }
   
     void write(const path_type& path)
@@ -512,8 +511,8 @@ namespace succinctdb
       
       repository_type rep(path, repository_type::write);
       rep["type"] = "succinct-hash";
-      dump_file(rep.path("bins"), bins);
-      dump_file(rep.path("nexts"), nexts, false);
+      dump_file(rep.path("bins"), bins, true);
+      dump_file(rep.path("nexts"), nexts, true);
       dump_file(rep.path("keys"), keys, false);
       offs.write(rep.path("offs"));
     }
@@ -521,11 +520,14 @@ namespace succinctdb
   private:
     template <typename _Path, typename _Data>
     inline
-    void dump_file(const _Path& file, const _Data& data, const bool compressed=false)
+    void dump_file(const _Path& file, const _Data& data, const bool packed=false)
     {
+      typedef typename _Data::value_type value_type;
+      typedef typename Alloc::template rebind<value_type>::other value_alloc_type;
+      
       std::auto_ptr<boost::iostreams::filtering_ostream> os(new boost::iostreams::filtering_ostream());
-      if (compressed)
-	os->push(codec::block_sink<codec::quicklz_codec>(file, 1024 * 1024));
+      if (packed)
+	os->push(utils::packed_sink<value_type, value_alloc_type>(file));
       else
 	os->push(boost::iostreams::file_sink(file.native_file_string(), std::ios_base::out | std::ios_base::trunc), 1024 * 1024);
       

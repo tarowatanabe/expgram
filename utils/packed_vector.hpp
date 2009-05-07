@@ -526,8 +526,12 @@ namespace utils
       __index.write(rep.path("index"));
       
       std::ostringstream stream_size;
+      std::ostringstream stream_integral_size;
       stream_size << __size;
+      stream_integral_size << sizeof(Tp);
+      
       rep["size"] = stream_size.str();
+      rep["integral-size"] = stream_integral_size.str();
       rep["type"] = "packed";
     }
     
