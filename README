@@ -1,0 +1,6 @@
+expgram: EXPonential-order-n GRAM toolkit
+
+This is an ngram package with efficient handling of large data in mind, based on succinct storage.
+
+The target is to index Google's ngrams into 10GB
+
