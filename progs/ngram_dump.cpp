@@ -24,7 +24,7 @@ int main(int argc, char** argv)
     if (getoptions(argc, argv) != 0) 
       return 1;
     
-    expgram::NGram ngram(ngram_file, shards);
+    expgram::NGram ngram(ngram_file, shards, debug);
     if (! output_file.empty())
       ngram.dump(output_file);
   }

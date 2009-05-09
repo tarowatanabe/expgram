@@ -73,10 +73,11 @@ namespace expgram
     typedef NGram                                                          ngram_type;
 
   public:
-    NGramCounts() { clear(); }
+    NGramCounts(const int _debug=0) : debug(_debug) { clear(); }
     NGramCounts(const path_type& path,
 		const size_type shard_size=16,
-		const bool unique=false)  { open(path, shard_size, unique); }
+		const bool unique=false,
+		const int _debug)  : debug(_debug) { open(path, shard_size, unique); }
     
   public:
     template <typename Iterator>
@@ -139,6 +140,8 @@ namespace expgram
     shard_index_type    index;
     shard_data_set_type counts;
     shard_data_set_type counts_modified;
+    
+    int debug;
   };
 };
 

@@ -439,7 +439,23 @@ namespace utils
     void write(const path_type& file) const
     {
       if (path() == file) return;
-      utils::filesystem::copy_files(path(), file);
+      
+      // remove first...
+      if (boost::filesystem::exists(file) && ! boost::filesystem::is_directory(file))
+	boost::filesystem::remove_all(file);
+      
+      // create directory
+      if (! boost::filesystem::exists(file))
+	boost::filesystem::create_directories(file);
+      
+      // remove all the files...
+      boost::filesystem::directory_iterator iter_end;
+      for (boost::filesystem::directory_iterator iter(file); iter != iter_end; ++ iter)
+	boost::filesystem::remove_all(*iter);
+      
+      // copy all...
+      for (boost::filesystem::directory_iterator iter(path()); iter != iter_end; ++ iter)
+	utils::filesystem::copy_files(*iter, file);
     }
 
   public:

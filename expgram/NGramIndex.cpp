@@ -104,15 +104,18 @@ namespace expgram
   {
     typedef utils::repository repository_type;
     
-    if (path() == file) return;
+    if (! path().empty() && path() == file) return;
     
     repository_type rep(file, repository_type::write);
     
+    std::cerr << "dump vocab" << std::endl;
     __vocab.write(rep.path("vocab"));
     
     for (int shard = 0; shard < __shards.size(); ++ shard) {
       std::ostringstream stream_shard;
       stream_shard << "ngram-" << std::setfill('0') << std::setw(6) << shard;
+
+      std::cerr << "dump index shard: " << shard << std::endl;
       
       __shards[shard].write(rep.path(stream_shard.str()));
     }

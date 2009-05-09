@@ -84,8 +84,8 @@ namespace expgram
     typedef NGramIndex shard_index_type;
     
   public:
-    NGram() { clear(); }
-    NGram(const path_type& path, const size_type shard_size=16) { open(path, shard_size); }
+    NGram(const int _debug=0) : debug(_debug) { clear(); }
+    NGram(const path_type& path, const size_type shard_size=16, const int _debug=0) : debug(_debug) { open(path, shard_size); }
     
   public:
     static const logprob_type logprob_min() { return boost::numeric::bounds<logprob_type>::lowest(); }
@@ -219,6 +219,7 @@ namespace expgram
     shard_data_set_type logbounds;
     
     logprob_type   smooth;
+    int debug;
   };
   
 };

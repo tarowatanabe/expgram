@@ -19,7 +19,7 @@ namespace expgram
     
     template <typename Counts, typename LogProb, typename CodeBook, typename CodeMap>
     static inline
-    void quantize(Counts& counts, const LogProb& logprob_min, CodeBook& codebook, CodeMap& codemap)
+    void quantize(Counts& counts, const LogProb& logprob_min, CodeBook& codebook, CodeMap& codemap, const int debug=0)
     {
       typedef LogProb logprob_type;
       typedef std::pair<logprob_type, size_type> logprob_count_type;
@@ -124,6 +124,7 @@ namespace expgram
 	if (code_id > 255)
 	  throw std::runtime_error("invalid code-id?");
 	
+
 	const size_type& count = qiter->first;
 	const logprob_set_type& logprobs = qiter->second;
 	
@@ -133,8 +134,11 @@ namespace expgram
 	  logsum = utils::mathop::logsum(logsum, double(liter->first) + utils::mathop::log(double(liter->second)));
 	  codemap[liter->first] = code_id;
 	}
+
+	if (debug)
+	  std::cerr << "code: " << code_id << " count: " << count << std::endl;
 	
-	codebook[code_id] = logsum - utils::mathop::log(count);
+	codebook[code_id] = logsum - utils::mathop::log(double(count));
       }
     }
   };

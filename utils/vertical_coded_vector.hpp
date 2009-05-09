@@ -165,9 +165,15 @@ namespace utils
       else {
 	const off_type pos_bound_first = read(compressed, off, pos >> 8,       iter + 1);
 	const off_type pos_bound_last  = read(compressed, off, (pos >> 8) + 1, iter + 1);
+
+	const size_type pos_bound_first_mask = size_type(pos_bound_first == off_type(-1)) - 1;
+	const size_type pos_bound_last_mask  = size_type(pos_bound_last == off_type(-1)) - 1;
+
+	const size_type pos_access_first = ((~pos_bound_first_mask) & pos_last) | (pos_bound_first_mask & (pos_first + pos_bound_first));
+	const size_type pos_access_last  = ((~pos_bound_last_mask)  & pos_last) | (pos_bound_last_mask  & (pos_first + pos_bound_last));
 	
-	const size_type pos_access_first = (pos_bound_first == off_type(-1) ? pos_last : pos_first + pos_bound_first);
-	const size_type pos_access_last  = (pos_bound_last  == off_type(-1) ? pos_last : pos_first + pos_bound_last);
+	//const size_type pos_access_first = (pos_bound_first == off_type(-1) ? pos_last : pos_first + pos_bound_first);
+	//const size_type pos_access_last  = (pos_bound_last  == off_type(-1) ? pos_last : pos_first + pos_bound_last);
 	
 	return upper_bound(compressed, pos_access_first, pos_access_last, pos & 0xff) - pos_first - 1;
       }
@@ -332,7 +338,23 @@ template <typename Tp, typename Alloc=std::allocator<Tp> >
     void write(const path_type& file) const
     {
       if (path() == file) return;
-      utils::filesystem::copy_files(path(), file);
+      
+      // remove first...
+      if (boost::filesystem::exists(file) && ! boost::filesystem::is_directory(file))
+	boost::filesystem::remove_all(file);
+      
+      // create directory
+      if (! boost::filesystem::exists(file))
+	boost::filesystem::create_directories(file);
+      
+      // remove all the files...
+      boost::filesystem::directory_iterator iter_end;
+      for (boost::filesystem::directory_iterator iter(file); iter != iter_end; ++ iter)
+	boost::filesystem::remove_all(*iter);
+      
+      // copy all...
+      for (boost::filesystem::directory_iterator iter(path()); iter != iter_end; ++ iter)
+	utils::filesystem::copy_files(*iter, file);
     }
     
   private:

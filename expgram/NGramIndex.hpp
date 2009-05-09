@@ -79,14 +79,25 @@ namespace expgram
       }
       size_type children_first(size_type pos) const
       {
-	return children_last(pos - 1);
+	if (pos == size_type(-1) || pos == 0)
+	  return (~pos) & offsets[1];
+	else
+	  return children_last(pos - 1);
       }
       size_type children_last(size_type pos) const
       {
-	if (pos >= position_size()) return size();
+	if (pos == size_type(-1) || pos >= position_size()) {
+	  const size_type is_root_mask = size_type(pos == size_type(-1)) - 1;
+	  return ((~is_root_mask) & offsets[1]) | (is_root_mask & size());
+	}
 	
 	position_set_type::size_type last = positions.select(pos + 2 - 1, false);
-	return (last == position_set_type::size_type(-1) ? size() : (last + 1 + offsets[1] + 1) - (pos + 2));
+
+	const size_type last_mask = size_type(last == position_set_type::size_type(-1)) - 1;
+	
+	return ((~last_mask) & size()) | (last_mask & ((last + 1 + offsets[1] + 1) - (pos + 2)));
+	
+	//return (last == position_set_type::size_type(-1) ? size() : (last + 1 + offsets[1] + 1) - (pos + 2));
       }
       
       template <typename Iterator>
@@ -99,12 +110,13 @@ namespace expgram
       size_type find(size_type pos, const id_type& id) const
       {
 	// we do caching, here...?
-	const size_type pos_first = (pos == size_type(-1) ? 0          : children_first(pos));
-	const size_type pos_last  = (pos == size_type(-1) ? offsets[1] : children_last(pos));
-      
+	const size_type pos_first = children_first(pos);
+	const size_type pos_last  = children_last(pos);
+	
 	const size_type child = lower_bound(pos_first, pos_last, id);
-      
-	return (child != pos_last && ! (id < index(child)) ? child : size_type(-1));
+	const size_type found_child_mask = size_type(child != pos_last && ! (id < operator[](child))) - 1;
+	
+	return ((~found_child_mask) & child) | found_child_mask;
       }
     
       size_type lower_bound(size_type first, size_type last, const id_type& id) const
@@ -139,9 +151,9 @@ namespace expgram
       std::pair<Iterator, size_type> __traverse_dispatch(Iterator first, Iterator last, const vocab_type& vocab, _Word) const
       {
 	size_type pos = size_type(-1);
-	size_type node = 0;
 	for (/**/; first != last; ++ first) {
 	  const size_type node = find(pos, vocab[word_type(*first)]);
+	  
 	  if (node == size_type(-1))
 	    return std::make_pair(first, pos);
 	  pos = node;
@@ -149,13 +161,13 @@ namespace expgram
 	return std::make_pair(first, pos);
       }
       
-      template <typename Iterator, typename _Word>
+      template <typename Iterator>
       std::pair<Iterator, size_type> __traverse_dispatch(Iterator first, Iterator last, const vocab_type& vocab, id_type) const
       {
 	size_type pos = size_type(-1);
-	size_type node = 0;
 	for (/**/; first != last; ++ first) {
 	  const size_type node = find(pos, *first);
+	  
 	  if (node == size_type(-1))
 	    return std::make_pair(first, pos);
 	  pos = node;

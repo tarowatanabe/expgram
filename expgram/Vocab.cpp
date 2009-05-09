@@ -62,8 +62,8 @@ namespace expgram
 	// finally, dump!
 	succinct_hash.close();
 	
-      } else if (__succinct_hash_mapped->path() != path)
-	utils::filesystem::copy_files(__succinct_hash_mapped->path(), path);
+      } else
+	__succinct_hash_mapped->write(path);
       
     } else if (__succinct_hash) {
       // we have only dynamic db... dump!

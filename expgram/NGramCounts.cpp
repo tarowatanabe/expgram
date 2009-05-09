@@ -179,26 +179,331 @@ namespace expgram
       threads_reducer[shard]->join();
   }
   
+  struct NGramCountsEstimateDiscountMapper
+  {
+    typedef std::map<count_type, count_type, std::less<count_type> std::allocator<std::pair<const count_type, count_type> > > count_set_type;
+    typedef std::vector<count_set_type, std::allocator<count_set_type> > count_map_type;
+
+    const expgram::NGramCounts& ngram;
+    count_map_type& count_of_counts;
+    int shard;
+    
+    NGramCountsEstimateDiscountMapper(const expgram::NGramCounts& _ngram,
+				      count_map_type&             _count_of_counts,
+				      const int                   _shard)
+      : ngram(_ngram),
+	count_of_counts(_count_of_counts),
+	shard(_shard) {}
+    
+    void operator()()
+    {
+      const id_type bos_id = ngram.index.vocab()[vocab_type::BOS];
+      const id_type unk_id = ngram.index.vocab()[vocab_type::UNK];
+      
+      count_of_counts.clear();
+      count_of_counts.reserve(ngram.index.order() + 1);
+      count_of_counts.resize(ngram.index.order() + 1);
+      
+      for (int order = (shard == 0 ? 1 : 2); order <= ngram.index.order(); ++ order) {
+	const size_type pos_first = ngram.index[shard].offsets[order - 1];
+	const size_type pos_last  = ngram.index[shard].offsets[order];
+	
+	for (size_tyepe pos = pos_first; pos != pos_last; ++ pos) {
+	  const count_type count = ngram.counts_modified[shard][pos];
+	  if (count > 0)
+	    ++ count_of_counts[order][count];
+	}
+      }
+    }
+  };
+
   struct NGramCountsEstimateMapReduce
   {
     
     
   };
   
+
+  struct NGramCountsEstimateMapper
+  {
+    
+    void operator()()
+    {
+      const id_type bos_id = ngram.index.vocab()[vocab_type::BOS];
+      const id_type unk_id = ngram.index.vocab()[vocab_type::UNK];
+      
+      
+    }
+  };
+  
+  
+  
   
   void NGramCounts::esimtate(ngram_type& ngram) const
   {
+    // collect count of counts...
     
     
+    // distouncts...
     
+    discount_set_type discounts(index.order() + 1);
+    
+    for (int order = 1; order <= index.order(); ++ order)
+      discounts[order].estimate(count_of_counts[order].begin(), count_of_counts[order].end());
+    count_of_counts.clear();
+    
+    if (debug) {
+      for (int order = 1; order <= index.order(); ++ order)
+	if (discounts[order].modified)
+	  std::cerr << "order: " << order 
+		    << " mincount1: " << discounts[order].mincount1
+		    << " mincount2: " << discounts[order].mincount2
+		    << " mincount3: " << discounts[order].mincount3
+		    << " mincount4: " << discounts[order].mincount4
+		    << " discount1: " << discounts[order].discount1
+		    << " discount2: " << discounts[order].discount2
+		    << " discount3plus: " << discounts[order].discount3plus
+		    << std::endl;
+	else if (discounts[order].discount1 >= 0.0)
+	  std::cerr << "order: " << order 
+		    << " mincount1: " << discounts[order].mincount1
+		    << " mincount2: " << discounts[order].mincount2
+		    << " discount1: " << discounts[order].discount1
+		    << std::endl;
+	else
+	  std::cerr << "order: " << order
+		    << " witten-bell"
+		    << std::endl;
+    }
   }
   
+  struct NGramCountsDumpMapReduce
+  {
+    typedef boost::thread                                                  thread_type;
+    typedef boost::shared_ptr<thread_type>                                 thread_ptr_type;
+    typedef std::vector<thread_ptr_type, std::allocator<thread_ptr_type> > thread_ptr_set_type;
+    
+    typedef expgram::Word                   word_type;
+    typedef expgram::Vocab                  vocab_type;
+    typedef word_type::id_type              id_type;
+    
+    typedef expgram::NGramCounts::count_type      count_type;
+    typedef expgram::NGramCounts::size_type       size_type;
+    typedef expgram::NGramCounts::difference_type difference_type;
+    typedef expgram::NGramCounts::shard_data_type shard_data_type;
+    
+    typedef boost::filesystem::path         path_type;
+    
+    typedef std::vector<id_type, std::allocator<id_type> >                 context_type;
+    typedef std::pair<id_type, count_type>                                 word_count_type;
+    typedef std::vector<word_count_type, std::allocator<word_count_type> > word_set_type;
+    typedef std::pair<context_type, word_set_type>                         context_count_type;
+    
+    typedef utils::lockfree_queue<context_count_type, std::allocator<context_count_type> > queue_type;
+    typedef boost::shared_ptr<queue_type>                                                  queue_ptr_type;
+    typedef std::vector<queue_ptr_type, std::allocator<queue_ptr_type> >                   queue_ptr_set_type;
+  };
+  
+  inline
+  void swap(NGramCountsDumpMapReduce::context_logprob_type& x,
+	    NGramCountsDumpMapReduce::context_logprob_type& y)
+  {
+    x.first.swap(y.first);
+    x.second.swap(y.second);
+  }
+  
+  struct NGramCountsDumpMapper
+  {
+    typedef NGramCountsDumpMapReduce map_reduce_type;
+    
+    typedef map_reduce_type::id_type    id_type;
+    typedef map_reduce_type::size_type  size_type;
+    typedef map_reduce_type::count_type count_type;
+    
+    typedef map_reduce_type::context_type       context_type;
+    typedef map_reduce_type::word_set_type      word_set_type;
+    typedef map_reduce_type::context_count_type context_count_type;
+    
+    typedef map_reduce_type::queue_type queue_type;
+
+    const expgram::NGramCounts& ngram;
+    queue_type&                 queue;
+    int                         shard;
+    
+    NGramCountsDumpMapper(const expgram::NGramCounts& _ngram,
+			  queue_type&                 _queue,
+			  const int                   _shard)
+      : ngram(_ngram),
+	queue(_queue),
+	shard(_shard) {}
+    
+    void operator()()
+    {
+      const int max_order = ngram.index.order();
+
+      context_type       context;
+      context_count_type context_count;
+
+      for (int order_prev = 1; order_prev < max_order; ++ order_prev) {
+	const size_type pos_context_first = ngram.index[shard].offsets[order_prev - 1];
+	const size_type pos_context_last  = ngram.index[shard].offsets[order_prev];
+	
+	context.resize(order_prev);
+	
+	size_type pos_last_prev = pos_context_last;
+	for (size_type pos_context = pos_context_first; pos_context < pos_context_last; ++ pos_context) {
+	  const size_type pos_first = pos_last_prev;
+	  const size_type pos_last = ngram.index[shard].children_last(pos_context);
+	  pos_last_prev = pos_last;
+	  
+	  if (pos_first == pos_last) continue;
+	  
+	  context_type::iterator citer_curr = context.end() - 1;
+	  for (size_type pos_curr = pos_context; pos_curr != size_type(-1); pos_curr = ngram.index[shard].parent(pos_curr), -- citer_curr)
+	    *citer_curr = ngram.index[shard][pos_curr];
+	  
+	  context_count.first = context;
+	  context_count.second.clear();
+	  
+	  word_set_type& words = context_count.second;
+	  for (size_type pos = pos_first; pos != pos_last; ++ pos) {
+	    const count_type count(ngram.counts.empty() ? ngram.counts_modified[shard][pos] : ngram.counts[shard][pos]);
+	    
+	    if (count > 0)
+	      words.push_back(std::make_pair(ngram.index[shard][pos], count));
+	  }
+	  
+	  queue.push_swap(context_count);
+	}
+      }
+      
+      queue.push(context_count_type(context_type(), word_set_type()));
+    }
+  };
+
+  template <typename Tp>
+  struct greater_pfirst_size_value
+  {
+    bool operator()(const boost::shared_ptr<Tp>& x, const boost::shared_ptr<Tp>& y) const
+    {
+      return x->first.size() > y->first.size() || (x->first.size() == y->first.size() && x->first > y->first);
+    }
+    
+    bool operator()(const Tp* x, const Tp* y) const
+    {
+      return x->first.size() > y->first.size() || (x->first.size() == y->first.size() && x->first > y->first);
+    }
+  };
   
   
   void NGramCounts::dump(const path_type& path) const
   {
+    typedef NGramCountsDumpMapReduce map_reduce_type;
+    typedef NGramCountsDumpMapper    mapper_type;
     
+    typedef map_reduce_type::thread_type         thread_type;
+    typedef map_reduce_type::thread_ptr_set_type thread_ptr_set_type;
+    typedef map_reduce_type::queue_type          queue_type;
+    typedef map_reduce_type::queue_ptr_set_type  queue_ptr_set_type;
     
+    typedef map_reduce_type::context_type       context_type;
+    typedef map_reduce_type::word_set_type      word_set_type;
+    typedef map_reduce_type::context_count_type context_count_type;
+    
+    typedef std::vector<const char*, std::allocator<const char*> > vocab_map_type;
+
+    typedef std::pair<word_set_type, queue_type*>       words_queue_type;
+    typedef std::pair<context_type, words_queue_type>   context_words_queue_type;
+    typedef boost::shared_ptr<context_words_queue_type> context_words_queue_ptr_type;
+    
+    typedef std::vector<context_words_queue_ptr_type, std::allocator<context_words_queue_ptr_type> > pqueue_base_type;
+    typedef std::priority_queue<context_words_queue_ptr_type, pqueue_base_type, greater_pfirst_size_value<context_words_queue_type> > pqueue_type;
+    
+    if (index.empty()) return;
+    
+    thread_ptr_set_type threads(index.size());
+    queue_ptr_set_type  queues(index.size());
+    
+    for (int shard = 0; shard < index.size(); ++ shard) {
+      queues[shard].reset(new queue_type(1024 * 64));
+      threads[shard].reset(new thread_type(mapper_type(*this, *queues[shard], shard)));
+    }
+    
+    vocab_map_type vocab_map;
+    vocab_map.reserve(index[0].offsets[1]);
+    
+    utils::compress_ostream os(path, 1024 * 1024);
+    
+    // unigrams
+    for (size_type pos = 0; pos < index[0].offsets[1]; ++ pos) {
+      const count_type count = counts[0][pos];
+      if (count > 0) {
+	const id_type id(pos);
+	
+	if (id >= vocab_map.size())
+	  vocab_map.resize(id + 1, 0);
+	if (! vocab_map[id])
+	  vocab_map[id] = static_cast<const std::string&>(index.vocab()[id]).c_str();
+	
+	os << vocab_map[id] << '\t' << count << '\n';
+      }
+    }
+    
+    pqueue_type pqueue;
+    for (int shard = 0; shard < index.size(); ++ shard) {
+      context_count_type context_count;
+      queues[shard]->pop_swap(context_count);
+      
+      if (! context_count.first.empty()) {
+	context_words_queue_ptr_type context_queue(new context_words_queue_type());
+	context_queue->first.swap(context_count.first);
+	context_queue->second.first.swap(context_count.second);
+	context_queue->second.second = &(*queues[shard]);
+	
+	pqueue.push(context_queue);
+      }
+    }
+
+    typedef std::vector<const char*, std::allocator<const char*> > phrase_type;
+    phrase_type phrase;
+    
+    while (! pqueue.empty()) {
+      context_words_queue_ptr_type context_queue(pqueue.top());
+      pqueue.pop();
+      
+      phrase.clear();
+      context_type::const_iterator citer_end = context_queue->first.end();
+      for (context_type::const_iterator citer = context_queue->first.begin(); citer != citer_end; ++ citer) {
+	if (*citer >= vocab_map.size())
+	  vocab_map.resize(*citer + 1, 0);
+	if (! vocab_map[*citer])
+	  vocab_map[*citer] = static_cast<const std::string&>(index.vocab()[*citer]).c_str();
+	
+	phrase.push_back(vocab_map[*citer]);
+      }
+      
+      word_set_type::const_iterator witer_end = context_queue->second.first.end();
+      for (word_set_type::const_iterator witer = context_queue->second.first.begin(); witer != witer_end; ++ witer) {
+	const id_type id = witer->first;
+	
+	if (id >= vocab_map.size())
+	  vocab_map.resize(id + 1, 0);
+	if (! vocab_map[id])
+	  vocab_map[id] = static_cast<const std::string&>(index.vocab()[id]).c_str();
+	
+	std::copy(phrase.begin(), phrase.end(), std::ostream_iterator<const char*>(os, " "));
+	os << vocab_map[id] << '\t' << witer->second << '\n';
+      }
+      
+      context_count_type context_count;
+      context_queue->second.second->pop_swap(context_count);
+      if (! context_count.first.empty()) {
+	context_queue->first.swap(context_count.first);
+	context_queue->second.first.swap(context_count.second);
+	
+	pqueue.push(context_queue);
+      }
+    }
   }
   
   void NGramCounts::ShardData::open(const path_type& path)
@@ -223,9 +528,9 @@ namespace expgram
     
     if (path() == file) return;
     
-    repository_type rep(file, repository_type::read);
-    
-    utils::filesystem::copy_files(counts.path(), rep.path("counts"));
+    repository_type rep(file, repository_type::write);
+
+    counts.write(rep.path("counts"));
     
     std::ostringstream stream_offset;
     stream_offset << offset;
@@ -324,7 +629,7 @@ namespace expgram
   static const std::string& __UNK = static_cast<const std::string&>(Vocab::UNK);
   
   inline
-  NGram::word_type escape_word(const std::string& word)
+  NGramCounts::word_type escape_word(const std::string& word)
   {
     if (strcasecmp(word.c_str(), __BOS.c_str()) == 0)
       return Vocab::BOS;
@@ -336,7 +641,7 @@ namespace expgram
       return word;
   }
   
-  struct NGramCountsIndexMapReduce
+  struct NGramCountsIndexUniqueMapReduce
   {
     typedef expgram::Word                   word_type;
     typedef expgram::Vocab                  vocab_type;
@@ -574,15 +879,127 @@ namespace expgram
     }
   };
 
+  struct NGramCountsIndexMapReduce
+  {
+    typedef expgram::Word                   word_type;
+    typedef expgram::Vocab                  vocab_type;
+    typedef word_type::id_type              id_type;
+  
+    
+    typedef expgram::NGramCounts::count_type      count_type;
+    typedef expgram::NGramCounts::size_type       size_type;
+    typedef expgram::NGramCounts::difference_type difference_type;
+    typedef expgram::NGramCounts::shard_data_type shard_data_type;
+    
+    typedef boost::filesystem::path                            path_type;
+    typedef std::vector<path_type, std::allocator<path_type> > path_set_type;
+    
+  };
 
   struct NGramCountsIndexMapper
   {
     
-    
+    void operator()()
+    {
+      
+      std::vector<istream_ptr_type, std::allocator<istream_ptr_type> > streams(paths.size());
+      
+      for (int i = 0; i < paths.size(); ++ i) {
+	strams[i].reset(new utils::compress_istream(paths[i], 1024 * 1024));
+	
+	while (std::getline(*streams[i], line)) {
+	  tokenizer_type tokenizer(line);
+	  tokens.clear();
+	  tokens.insert(tokens.end(), tokenizer.begin(), tokenizer.end());
+	  if (tokens.size() != order + 1)
+	    continue;
+	  
+	  context_count_stream_ptr_type context_stream(new context_count_stream_type());
+	  context_stream->first = ngram_context_type(tokens.begin(), tokens.end() - 1);
+	  context_stream->second.first  = atoll(tokens.back().c_str());
+	  context_stream->second.second = &(*streams[i]);
+	  
+	  pqueue.push(context_stream);
+	  break;
+	}
+      }
+      
+      int ngram_shard = 0;
+      ngram_context_type prefix_shard;
+      ngram_context_type context;
+
+      while (! pqueue.empty()) {
+	context_count_stream_ptr_type context_stream(pqueue.top());
+	pqueue.pop();
+	
+	if (context != context_stream->first) {
+	  if (count > 0) {
+	    if (order == 2)
+	      ngram_shard = ngram.index.shard_index(context.begin(), context.end());
+	    else if (prefix_shard.empty() || ! std::equal(prefix_shard.begin(), prefix_shard.end(), context.begin())) {
+	      ngram_shard = ngram.index.shard_index(context.begin(), context.end());
+	      
+	      prefix_shard.clear();
+	      prefix_shard.insert(prefix_shard.end(), context.begin(), context.begin() + 2);
+	    }
+	    
+	    queues[ngram_shard]->push(std::make_pair(context, count));
+	  }
+	  
+	  context.swap(context_stream->first);
+	  count = 0;
+	}
+	
+	count += context_stream->second.first;
+	
+	while (std::getline(*(context_stream->second.second), line)) {
+	  tokenizer_type tokenizer(line);
+	  
+	  tokens.clear();
+	  tokens.insert(tokens.end(), tokenizer.begin(), tokenizer.end());
+	  if (tokens.size() != order + 1)
+	    continue;
+	  
+	  context_stream->first.clear();
+	  context_stream->first.insert(context_stream->first.end(), tokens.begin(), tokens.end() - 1);
+	  context_stream->second.first  = atoll(tokens.back().c_str());
+	  
+	  pqueue.push(context_stream);
+	  break;
+	}
+      }
+      
+      if (count > 0) {
+	if (order == 2)
+	  ngram_shard = ngram.index.shard_index(context.begin(), context.end());
+	else if (prefix_shard.empty() || ! std::equal(prefix_shard.begin(), prefix_shard.end(), context.begin())) {
+	  ngram_shard = ngram.index.shard_index(context.begin(), context.end());
+	      
+	  prefix_shard.clear();
+	  prefix_shard.insert(prefix_shard.end(), context.begin(), context.begin() + 2);
+	}
+	
+	queues[ngram_shard]->push(std::make_pair(context, count));
+      }
+    }
   };
   
   struct NGramCountsIndexReducer
   {
+    
+    
+    void index_ngram(const context_type& prefix, const word_cont_set_tyep& words)
+    {
+      const int order_prev = ngram.index[shard].offsets.size() - 1;
+      const size_type positions_size = ngram.index[shard].offsets[order_prev] - ngram.index[shard].offsets[order_prev - 1];
+      
+      if (positions_first.empty())
+	positions_first.resize(positions_size, size_type(0));
+      if (positions_last.empty())
+	positions_last.resize(positions_size, size_type(0));
+      
+      
+    }
     
     void operator()()
     {
@@ -601,13 +1018,43 @@ namespace expgram
 	}
       }
       
+      context_type        context;
+      context_type        prefix;
+      word_count_set_type words;
+
+      int order = 2;
+      
       while (! pqueue.empty()) {
 	context_count_queue_ptr_type context_queue(pqueue.top());
 	pqueue.pop();
 	
-	if () {
+	context.clear();
+	ngram_context_type::const_iterator niter_end = context_queue->first.end();
+	for (ngram_context_type::const_iterator niter = context_queue->first.begin(); niter != niter_end; ++ niter) {
+	  const id_type id = escape_word(*niter).id();
 	  
+	  if (id >= vocab_map.size() || vocab_map[id] == id_type(-1))
+	    throw std::runtime_error("invalid vocbulary");
+	  
+	  context.push_back(vocab_map[id]);
 	}
+	
+	if (prefix.size() + 1 != context.size() || ! std::equal(prefix.begin(), prefix.end(), context.begin())) {
+	  
+	  if (! words.empty()) {
+	    index_ngram(prefix, words);
+	    words.clear();
+	  }
+	  
+	  prefix.cler();
+	  prefix.insert(prefix.end(), context.begin(), context.end() - 1);
+	  order = context.size();
+	}
+	
+	if (words.empty() || words.back().first != context.back())
+	  words.push_back(std::make_pair(context.back(), context_queue->second.first));
+	else
+	  words.back().second += context_queue->second.first;
 	
 	context_queue->second.second->pop_swap(context_logprob);
 	if (! context_logprob.first.empty()) {
@@ -618,6 +1065,13 @@ namespace expgram
 	}
       }
       
+      if (! words.empty()) {
+	index_ngram(prefix, words);
+	words.clear();
+      } 
+      
+      
+      // perform final indexing...
       
     }
   };
@@ -626,10 +1080,11 @@ namespace expgram
 				const size_type shard_size=16,
 				const bool unique=false)
   {
-    
     // first, index unigram...
     
-    //
+    
+    
+    // second, ngrams...
     if (unique) {
       
       for (int order = 2; /**/; ++ order) {
