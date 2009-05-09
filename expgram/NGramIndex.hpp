@@ -66,6 +66,7 @@ namespace expgram
       void write(const path_type& file) const;
       
     public:
+      id_type operator[](size_type pos) const { return index(pos); }
       id_type index(size_type pos) const { return (pos < offsets[1] ? id_type(pos) : ids[pos - offsets[1]]); }
       size_type position_size() const { return offsets[offsets.size() - 2]; }
       size_type size() const { return offsets.back(); }

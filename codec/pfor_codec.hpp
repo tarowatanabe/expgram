@@ -171,17 +171,24 @@ namespace codec
       double    min_estimate = boost::numeric::bounds<double>::highest();
       size_type min_bits = 32;
       Tp        min_value = 0;
+
+      //std::cerr << "start estimation" << std::endl;
       for (int bits = 1; bits < sizeof(Tp) * 8; ++ bits) {
 	std::pair<typename buffer_type::iterator, size_type> result = analyze(sorted.begin(), sorted.end(), bits);
 	const double exception_rate = double(sample_size - result.second) / sample_size;
 	const double rate = bits + exception_rate * 8 * sizeof(Tp);
 	
-	const bool found = (rate < min_estimate);
+	//std::cerr << "bits: " << bits <<  " rate: " << rate << std::endl;
 
-	min_estimate = (found - 1) * min_estimate + found * rate;
-	min_bits = (size_type(found - 1) & min_bits) | ((~size_type(found - 1)) & bits);
-	min_value = (value_type(found - 1) & min_value) | ((~value_type(found - 1)) & *(result.first));
+	if (rate < min_estimate) {
+	  min_estimate = rate;
+	  min_bits = bits;
+	  min_value = *(result.first);
+	}
       }
+      
+      //std::cerr << "minimum: bits: " << min_bits << std::endl;
+
       return std::make_pair(min_value, min_bits);
     }
     

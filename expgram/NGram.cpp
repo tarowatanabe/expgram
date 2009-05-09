@@ -457,7 +457,7 @@ namespace expgram
 	  
 	  context_type::iterator citer_curr = context.end() - 1;
 	  for (size_type pos_curr = pos_context; pos_curr != size_type(-1); pos_curr = ngram.index[shard].parent(pos_curr), -- citer_curr)
-	    *citer_curr = ngram.index[shard].index(pos_curr);
+	    *citer_curr = ngram.index[shard][pos_curr];
 	  
 	  context_logprob.first = context;
 	  context_logprob.second.clear();
@@ -467,7 +467,7 @@ namespace expgram
 	    const logprob_type logprob = ngram.logprobs[shard](pos, order_prev + 1);
 	    if (logprob != ngram.logprob_min()) {
 	      const logprob_type backoff = (pos < ngram.backoffs[shard].size() ? ngram.backoffs[shard](pos, order_prev + 1) : logprob_type(0.0));
-	      words.push_back(std::make_pair(ngram.index[shard].index(pos), std::make_pair(logprob, backoff)));
+	      words.push_back(std::make_pair(ngram.index[shard][pos], std::make_pair(logprob, backoff)));
 	    }
 	  }
 	  
@@ -626,6 +626,15 @@ namespace expgram
 	  os << '\t' << backoff;
 	os << '\n';
       }
+      
+      context_logprob_type context_logprob;
+      context_queue->second.second->pop_swap(context_logprob);
+      if (! context_logprob.first.empty()) {
+	context_queue->first.swap(context_logprob.first);
+	context_queue->second.first.swap(context_logprob.second);
+	pqueue.push(context_queue);
+      }
+      
     }
     
     os << '\n';
@@ -699,10 +708,10 @@ namespace expgram
 	  
 	  context_type::iterator citer_curr = context.end() - 2;
 	  for (size_type pos_curr = pos_context; pos_curr != size_type(-1); pos_curr = ngram.index[shard].parent(pos_curr), -- citer_curr)
-	    *citer_curr = ngram.index[shard].index(pos_curr);
+	    *citer_curr = ngram.index[shard][pos_curr];
 	  
 	  for (size_type pos = pos_first; pos != pos_last; ++ pos) {
-	    context.back() = ngram.index[shard].index(pos);
+	    context.back() = ngram.index[shard][pos];
 	    
 	    const logprob_type logprob = ngram.logprobs[shard](pos, order_prev + 1);
 	    if (logprob != ngram.logprob_min()) {
@@ -914,7 +923,7 @@ namespace expgram
     typedef std::pair<id_type, logprob_pair_type>                                        word_logprob_pair_type;
     typedef std::vector<word_logprob_pair_type, std::allocator<word_logprob_pair_type> > word_logprob_pair_set_type;
     
-    typedef std::vector<id_type, std::allocator<id_type> >           id_set_type;
+    typedef utils::packed_vector<id_type, std::allocator<id_type> >  id_set_type;
     typedef std::vector<logprob_type, std::allocator<logprob_type> > logprob_set_type;
     typedef std::vector<size_type, std::allocator<size_type> >       size_set_type;
     
@@ -1000,19 +1009,23 @@ namespace expgram
 	}
       }
       
+      ids.build();
+
       for (size_type i = 0; i < positions_size; ++ i) {
 	const size_type pos_first = positions_first[i];
 	const size_type pos_last  = positions_last[i];
 	
 	if (pos_last > pos_first) {
-	  dump(os_id,      ids.begin() + pos_first,      ids.begin() + pos_last);
 	  dump(os_logprob, logprobs.begin() + pos_first, logprobs.begin() + pos_last);
 	  
 	  if (order_prev + 1 != max_order)
 	    dump(os_backoff, backoffs.begin() + pos_first, backoffs.begin() + pos_last);
 	  
-	  for (size_type pos = pos_first; pos != pos_last; ++ pos)
+	  for (size_type pos = pos_first; pos != pos_last; ++ pos) {
+	    const id_type id = ids[pos];
+	    os_id.write((char*) &id, sizeof(id_type));
 	    positions.set(positions.size(), true);
+	  }
 	}
 	positions.set(positions.size(), false);
       }
@@ -1200,7 +1213,9 @@ namespace expgram
     bool start_data = false;
     int order = 0;
     int max_order = 0;
-    double smooth = 0.0;
+    
+    logprob_type logprob_lowest = boost::numeric::bounds<logprob_type>::highest();
+    smooth = boost::numeric::bounds<logprob_type>::lowest();
     
     std::string line;
     tokens_type tokens;
@@ -1238,11 +1253,15 @@ namespace expgram
       }
       
       if (order == 0 || mode != NGRAMS) continue;
+
+      if (tokens.size() < 2) continue;
       
       const logprob_type logprob = atof(tokens.front().c_str()) * log_10;
       const logprob_type logbackoff = (tokens.size() == order + 2 ? (atof(tokens.back().c_str()) * log_10) : 0.0);
       
-      unigrams.push_back(std::make_pair(tokens[1], std::make_pair(logprob, logbackoff)));
+      logprob_lowest = std::min(logprob_lowest, logprob);
+      
+      unigrams.push_back(std::make_pair(escape_word(tokens[1]), std::make_pair(logprob, logbackoff)));
     }
     
     // index unigrams!
@@ -1262,6 +1281,10 @@ namespace expgram
       for (word_logprob_pair_set_type::const_iterator witer = unigrams.begin(); witer != witer_end; ++ witer, ++ id) {
 	vocab.insert(witer->first);
 	
+	// use UNK for smoothing parameter
+	if (witer->first == vocab_type::UNK)
+	  smooth = witer->second.first;
+	
 	os_logprobs[0]->write((char*) &witer->second.first, sizeof(logprob_type));
 	os_backoffs[0]->write((char*) &witer->second.second, sizeof(logprob_type));
 	
@@ -1269,7 +1292,6 @@ namespace expgram
 	  vocab_map.resize(witer->first.id() + 1, id_type(-1));
 	vocab_map[witer->first.id()] = id;
       }
-      
       
       vocab.close();
       vocab.open(path_vocab);
@@ -1287,9 +1309,20 @@ namespace expgram
       logprobs[0].offset = 0;
       backoffs[0].offset = 0;
       
+      // setup smooth... is this correct?
+      // do we have to estimate again...?
+      if (smooth == boost::numeric::bounds<logprob_type>::lowest()) {
+	if (logprob_lowest == boost::numeric::bounds<logprob_type>::highest())
+	  smooth = utils::mathop::log(1.0 / unigram_size);
+	else
+	  smooth = logprob_lowest;
+      }
+      
       unigrams.clear();
       word_logprob_pair_set_type(unigrams).swap(unigrams);
     }
+    
+    
     
     // prepare queues, run threads!
     queue_ptr_set_type   queues(shard_size);
@@ -1324,6 +1357,8 @@ namespace expgram
       }
       
       if (order == 0 || mode != NGRAMS) continue;
+
+      if (tokens.size() < order + 1) continue;
       
       const logprob_type logprob = atof(tokens.front().c_str()) * log_10;
       const logprob_type logbackoff = (tokens.size() == order + 2 ? (atof(tokens.back().c_str()) * log_10) : 0.0);
@@ -1333,7 +1368,7 @@ namespace expgram
       tokens_type::const_iterator titer_begin = tokens.begin() + 1;
       tokens_type::const_iterator titer_end = titer_begin + order;
       for (tokens_type::const_iterator titer = titer_begin; titer != titer_end; ++ titer) {
-	const id_type id = word_type(*titer).id();
+	const id_type id = escape_word(*titer).id();
 	
 	if (id >= vocab_map.size() || vocab_map[id] == id_type(-1))
 	  throw std::runtime_error("invalid vocbulary");

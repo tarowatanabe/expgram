@@ -278,6 +278,8 @@ namespace utils
     
     typedef __packed_vector_iterator<Tp,Impl> self_type;
 
+    typedef Tp* pointer;
+    typedef const Tp& reference;
     typedef std::random_access_iterator_tag   iterator_category;
     
     __packed_vector_iterator(size_type pos, const impl_type* impl)
@@ -298,7 +300,6 @@ namespace utils
     self_type operator+(difference_type __n) const { self_type __tmp = *this; return __tmp += __n; }
     self_type operator-(difference_type __n) const { self_type __tmp = *this; return __tmp -= __n; }
     
-  private:
     size_type        __pos;
     const impl_type* __impl;
   };
