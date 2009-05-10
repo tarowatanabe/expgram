@@ -52,7 +52,7 @@ namespace expgram
       
       void open(const path_type& path);
       void write(const path_type& file) const;
-      path_type path() const { return (logprobs.is_open() ? logprobs.path().parent_path() : quantized.path().parent_path()); }
+      path_type path() const { return (quantized.is_open() ? quantized.path().parent_path() : logprobs.path().parent_path()); }
       
       void close() { clear(); }
       void clear()
@@ -65,13 +65,15 @@ namespace expgram
       
       logprob_type operator()(size_type pos, int order) const
       {
-	return (logprobs.is_open() ? logprobs[pos - offset] : maps[order][quantized[pos - offset]]);
+	return (quantized.is_open() ? maps[order][quantized[pos - offset]] : logprobs[pos - offset]);
       }
       
       size_type size() const
       {
-	return (logprobs.is_open() ? logprobs.size() + offset : quantized.size() + offset);
+	return (quantized.is_open() ? quantized.size() + offset : logprobs.size() + offset);
       }
+
+      bool is_quantized() const { return quantized.is_open(); }
       
       logprob_set_type     logprobs;
       quantized_set_type   quantized;
@@ -206,6 +208,10 @@ namespace expgram
     void dump(const path_type& path) const;
     void quantize();
     void bounds();
+    
+    bool is_open() const { return index.is_open(); }
+    bool has_bounds() const { return ! logbounds.empty(); }
+    
     
   private:
     void open_binary(const path_type& path);

@@ -1,6 +1,44 @@
-expgram: EXPonential-order-n GRAM toolkit
+expgram: EXPonential-order n-GRAM toolkit
 
-This is an ngram package with efficient handling of large data in mind, based on succinct storage.
+This is an ngram package with efficient handling of large data in mind, based on a succinct storage.
 
-The target is to index Google's ngrams into 10GB
+The target is to index Google's ngrams into 10GB.
+
+Brief descriptions:
+
+ngram_counts
+	compute ngram counts given  sentence data or ngram counts collection. The output is almost compatible with
+	Google ngram data specification, but differ in that counts are not reduced.
+
+ngram_counts_index
+	ngram counts indexer from Googles ngram data format.
+
+ngram_counts_modify
+	perform counts modification in ngram data for KN smoothing. If not indexed, perform indexing.
+
+ngram_counts_estimate
+	perform ngram probabilities estimation. If not indexed, perfomr indexing. If not modified, perform counts modification.
+
+ngram_index
+	ngram indexer from arpa format
+
+ngram_bound
+	ngram upper bound estimator. Compute upper bounds for ngrams. You do not have to run this, since ngram_index will
+	compute upper bounds simultaneously. It remains here for compatibility with mpi version (see below).
+
+ngram_quantize
+	perform quantization for ngram probabilities, backoffs and upper bounds. If not indexed, perform indexing.
+
+
+For larger data, it is recommended to use mpi-version for scalability.
+
+ngram_counts_mpi
+ngram_counts_index_mpi
+ngram_counts_modify_mpi
+ngram_counts_estimate_mpi
+ngram_bound_mpi
+ngram_quantize_mpi
+
+They performed similar to threaded version, but differ in that you have to explicitly run from index though quantize in order.
+
 

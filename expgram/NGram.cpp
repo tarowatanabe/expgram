@@ -204,14 +204,16 @@ namespace expgram
     typedef boost::thread                                                  thread_type;
     typedef boost::shared_ptr<thread_type>                                 thread_ptr_type;
     typedef std::vector<thread_ptr_type, std::allocator<thread_ptr_type> > thread_ptr_set_type;
-    
-    typedef expgram::NGram::logprob_type    logprob_type;
-    typedef expgram::NGram::quantized_type  quantized_type;
-    typedef expgram::NGram::size_type       size_type;
-    typedef expgram::NGram::difference_type difference_type;
-    typedef expgram::NGram::shard_data_type shard_data_type;
 
-    typedef boost::filesystem::path         path_type;
+    typedef expgram::NGram ngram_type;
+    
+    typedef ngram_type::logprob_type    logprob_type;
+    typedef ngram_type::quantized_type  quantized_type;
+    typedef ngram_type::size_type       size_type;
+    typedef ngram_type::difference_type difference_type;
+    typedef ngram_type::shard_data_type shard_data_type;
+    
+    typedef ngram_type::path_type       path_type;
     
     typedef shard_data_type::logprob_map_type logprob_map_type;
   };
@@ -220,6 +222,8 @@ namespace expgram
   struct NGramQuantizeReducer
   {
     typedef NGramQuantizeMapReduce map_reduce_type;
+    
+    typedef map_reduce_type::ngram_type       ngram_type;
     
     typedef map_reduce_type::size_type        size_type;
     typedef map_reduce_type::logprob_type     logprob_type;
@@ -233,11 +237,11 @@ namespace expgram
     typedef std::map<logprob_type, quantized_type, std::less<logprob_type>,
 		     std::allocator<std::pair<const logprob_type, quantized_type> > > codemap_type;
     
-    expgram::NGram& ngram;
-    int shard;
+    ngram_type& ngram;
+    int         shard;
     
-    NGramQuantizeReducer(expgram::NGram& _ngram,
-			 const int _shard)
+    NGramQuantizeReducer(ngram_type& _ngram,
+			 const int   _shard)
       : ngram(_ngram),
 	shard(_shard)
     {}
@@ -388,16 +392,16 @@ namespace expgram
     typedef boost::shared_ptr<thread_type>                                 thread_ptr_type;
     typedef std::vector<thread_ptr_type, std::allocator<thread_ptr_type> > thread_ptr_set_type;
     
-    typedef expgram::Word                   word_type;
-    typedef expgram::Vocab                  vocab_type;
-    typedef word_type::id_type              id_type;
+    typedef expgram::NGram              ngram_type;
     
-    typedef expgram::NGram::logprob_type    logprob_type;
-    typedef expgram::NGram::size_type       size_type;
-    typedef expgram::NGram::difference_type difference_type;
-    typedef expgram::NGram::shard_data_type shard_data_type;
+    typedef ngram_type::word_type       word_type;
+    typedef ngram_type::vocab_type      vocab_type;
+    typedef ngram_type::id_type         id_type;
+    typedef ngram_type::logprob_type    logprob_type;
     
-    typedef boost::filesystem::path         path_type;
+    typedef ngram_type::size_type       size_type;
+    typedef ngram_type::difference_type difference_type;
+    typedef ngram_type::path_type       path_type;
     
     typedef std::vector<id_type, std::allocator<id_type> >           context_type;
     typedef std::pair<logprob_type, logprob_type>                    logprob_pair_type;
@@ -422,6 +426,8 @@ namespace expgram
   struct NGramDumpMapper
   {
     typedef NGramDumpMapReduce map_reduce_type;
+
+    typedef map_reduce_type::ngram_type   ngram_type;
     
     typedef map_reduce_type::id_type      id_type;
     typedef map_reduce_type::size_type    size_type;
@@ -433,13 +439,13 @@ namespace expgram
     
     typedef map_reduce_type::queue_type queue_type;
 
-    const expgram::NGram& ngram;
-    queue_type&           queue;
-    int                   shard;
+    const ngram_type& ngram;
+    queue_type&       queue;
+    int               shard;
     
-    NGramDumpMapper(const expgram::NGram& _ngram,
-		    queue_type&           _queue,
-		    const int             _shard)
+    NGramDumpMapper(const ngram_type& _ngram,
+		    queue_type&       _queue,
+		    const int         _shard)
       : ngram(_ngram),
 	queue(_queue),
 	shard(_shard) {}
@@ -653,16 +659,19 @@ namespace expgram
 
   struct NGramBoundMapReduce
   {
-    typedef boost::thread                  thread_type;
+    typedef boost::thread                                                  thread_type;
+    typedef boost::shared_ptr<thread_type>                                 thread_ptr_type;
+    typedef std::vector<thread_ptr_type, std::allocator<thread_ptr_type> > thread_ptr_set_type;
+
+    typedef expgram::NGram ngram_type;
     
-    typedef expgram::Word                   word_type;
-    typedef expgram::Vocab                  vocab_type;
-    typedef word_type::id_type              id_type;
+    typedef ngram_type::word_type       word_type;
+    typedef ngram_type::vocab_type      vocab_type;
+    typedef ngram_type::id_type         id_type;
     
-    typedef expgram::NGram::logprob_type    logprob_type;
-    typedef expgram::NGram::size_type       size_type;
-    typedef expgram::NGram::difference_type difference_type;
-    typedef expgram::NGram::shard_data_type shard_data_type;
+    typedef ngram_type::logprob_type    logprob_type;
+    typedef ngram_type::size_type       size_type;
+    typedef ngram_type::difference_type difference_type;
     
     typedef boost::filesystem::path         path_type;
     
@@ -678,18 +687,20 @@ namespace expgram
   {
     typedef NGramBoundMapReduce map_reduce_type;
     
+    typedef map_reduce_type::ngram_type        ngram_type;
+    
     typedef map_reduce_type::size_type          size_type;
     typedef map_reduce_type::id_type            id_type;
     typedef map_reduce_type::logprob_type       logprob_type;
     typedef map_reduce_type::context_type       context_type;
     typedef map_reduce_type::queue_ptr_set_type queue_ptr_set_type;
     
-    expgram::NGram&     ngram;
+    const ngram_type&   ngram;
     queue_ptr_set_type& queues;
     int                 shard;
     int                 debug;
     
-    NGramBoundMapper(expgram::NGram&     _ngram,
+    NGramBoundMapper(const ngram_type&   _ngram,
 		     queue_ptr_set_type& _queues,
 		     const int           _shard,
 		     const int           _debug)
@@ -757,6 +768,8 @@ namespace expgram
   struct NGramBoundReducer
   {
     typedef NGramBoundMapReduce map_reduce_type;
+
+    typedef map_reduce_type::ngram_type           ngram_type;
     
     typedef map_reduce_type::size_type            size_type;
     typedef map_reduce_type::id_type              id_type;
@@ -764,24 +777,20 @@ namespace expgram
     typedef map_reduce_type::context_type         context_type;
     typedef map_reduce_type::context_logprob_type context_logprob_type;
     
-    typedef map_reduce_type::shard_data_type      shard_data_type;
     typedef map_reduce_type::queue_type           queue_type;
     typedef map_reduce_type::path_type            path_type;
     
-    expgram::NGram&   ngram;
+    ngram_type&       ngram;
     queue_type&       queue;
-    shard_data_type&  shard_data;
     int               shard;
     int               debug;
     
-    NGramBoundReducer(expgram::NGram&  _ngram,
+    NGramBoundReducer(ngram_type&      _ngram,
 		      queue_type&      _queue,
-		      shard_data_type& _shard_data,
 		      const int        _shard,
 		      const int        _debug)
       : ngram(_ngram),
 	queue(_queue),
-	shard_data(_shard_data),
 	shard(_shard),
 	debug(_debug)
     {}
@@ -790,7 +799,7 @@ namespace expgram
     {
       typedef std::vector<logprob_type, std::allocator<logprob_type> > logprob_set_type;
       
-      const size_type offset = shard_data.offset;
+      const size_type offset = ngram.logbounds[shard].offset;
       
       logprob_set_type logbounds(ngram.logprobs[shard].logprobs.begin(),
 				 ngram.logprobs[shard].logprobs.begin() + ngram.index[shard].position_size() - offset);
@@ -820,10 +829,10 @@ namespace expgram
       utils::tempfile::insert(path);
       
       dump_file(path, logbounds);
-      shard_data.logprobs.open(path);
-
+      ngram.logbounds[shard].logprobs.open(path);
+      
       if (debug)
-	std::cerr << "shard: " << shard << " logbound: " << shard_data.size() << std::endl;
+	std::cerr << "shard: " << shard << " logbound: " << ngram.logbounds[shard].size() << std::endl;
     }
   };
   
@@ -859,7 +868,7 @@ namespace expgram
       logbounds[shard].offset = logprobs[shard].offset;
       
       queues[shard].reset(new queue_type(1024 * 64));
-      threads_reducer[shard].reset(new thread_type(reducer_type(*this, *queues[shard], logbounds[shard], shard, debug)));
+      threads_reducer[shard].reset(new thread_type(reducer_type(*this, *queues[shard], shard, debug)));
     }
     
     // second, mapper...
@@ -893,16 +902,17 @@ namespace expgram
   // we define map-reduce object, but no mapper.... since mapper will be managed by main thread...
   struct NGramIndexMapReduce
   {
-    typedef expgram::Word                   word_type;
-    typedef expgram::Vocab                  vocab_type;
-    typedef word_type::id_type              id_type;
+    typedef expgram::NGram              ngram_type;
     
-    typedef expgram::NGram::logprob_type    logprob_type;
-    typedef expgram::NGram::size_type       size_type;
-    typedef expgram::NGram::difference_type difference_type;
-    typedef expgram::NGram::shard_data_type shard_data_type;
+    typedef ngram_type::word_type       word_type;
+    typedef ngram_type::vocab_type      vocab_type;
+    typedef ngram_type::id_type         id_type;
+    typedef ngram_type::logprob_type    logprob_type;
     
-    typedef boost::filesystem::path                            path_type;
+    typedef ngram_type::size_type       size_type;
+    typedef ngram_type::difference_type difference_type;
+    
+    typedef ngram_type::path_type                              path_type;
     typedef std::vector<path_type, std::allocator<path_type> > path_set_type;
     
     typedef std::vector<id_type, std::allocator<id_type> > context_type;
@@ -926,6 +936,8 @@ namespace expgram
   struct NGramIndexReducer
   {
     typedef NGramIndexMapReduce map_reduce_type;
+
+    typedef map_reduce_type::ngram_type      ngram_type;
     
     typedef map_reduce_type::thread_type     thread_type;
     typedef map_reduce_type::size_type       size_type;
@@ -951,10 +963,10 @@ namespace expgram
     typedef std::vector<logprob_type, std::allocator<logprob_type> > logprob_set_type;
     typedef std::vector<size_type, std::allocator<size_type> >       size_set_type;
     
-    expgram::NGram& ngram;
-    queue_type&     queue;
-    ostream_type&   os_logprob;
-    ostream_type&   os_backoff;
+    ngram_type&   ngram;
+    queue_type&   queue;
+    ostream_type& os_logprob;
+    ostream_type& os_backoff;
     int shard;
     int max_order;
     int debug;
@@ -967,13 +979,13 @@ namespace expgram
     size_set_type    positions_last;
     
     
-    NGramIndexReducer(expgram::NGram& _ngram,
-		      queue_type&     _queue,
-		      ostream_type&   _os_logprob,
-		      ostream_type&   _os_backoff,
-		      const int       _shard,
-		      const int       _max_order,
-		      const int       _debug)
+    NGramIndexReducer(ngram_type&   _ngram,
+		      queue_type&   _queue,
+		      ostream_type& _os_logprob,
+		      ostream_type& _os_backoff,
+		      const int     _shard,
+		      const int     _max_order,
+		      const int     _debug)
       : ngram(_ngram),
 	queue(_queue),
 	os_logprob(_os_logprob),
@@ -981,15 +993,6 @@ namespace expgram
 	shard(_shard),
 	max_order(_max_order),
 	debug(_debug) {}
-    
-    template <typename Tp>
-    struct greater_second_first
-    {
-      bool operator()(const Tp& x, const Tp& y) const
-      {
-	return x.second.first > y.second.first;
-      }
-    };
     
     template <typename Tp>
     struct less_first
@@ -1021,8 +1024,9 @@ namespace expgram
       
       utils::tempfile::insert(path_id);
       utils::tempfile::insert(path_position);
-
-      std::cerr << "perform indexing: " << (order_prev + 1) << " shard: " << shard << std::endl;
+      
+      if (debug)
+	std::cerr << "perform indexing: " << (order_prev + 1) << " shard: " << shard << std::endl;
       
       position_set_type positions;
       if (ngram.index[shard].positions.is_open())
@@ -1058,8 +1062,6 @@ namespace expgram
 	}
 	positions.set(positions.size(), false);
       }
-      
-      
       
       // perform indexing...
       os_id.pop();
@@ -1343,8 +1345,6 @@ namespace expgram
       vocab.close();
       vocab.open(path_vocab);
       
-      if (debug)
-	std::cerr << "vocabulary: " << path_vocab << std::endl;
       
       const size_type unigram_size = unigrams.size();
       
