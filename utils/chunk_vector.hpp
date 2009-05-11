@@ -184,7 +184,7 @@ namespace utils
   operator<(const __chunk_vector_iterator<_Tp,_Ref,_Ptr,_Size>& x,
 	    const __chunk_vector_iterator<_Tp,_Ref,_Ptr,_Size>& y)
   {
-    return (x.__node < y.__node || (! y.__node < x.__node && x.__curr < y.__curr));
+    return (x.__node < y.__node || (! (y.__node < x.__node) && x.__curr < y.__curr));
   }
   
   
@@ -193,7 +193,7 @@ namespace utils
   operator<(const __chunk_vector_iterator<_Tp,_RefL,_PtrL,_Size>& x,
 	    const __chunk_vector_iterator<_Tp,_RefR,_PtrR,_Size>& y)
   {
-    return (x.__node < y.__node || (! y.__node < x.__node && x.__curr < y.__curr));
+    return (x.__node < y.__node || (! (y.__node < x.__node) && x.__curr < y.__curr));
   }
   
   template <typename _Tp, typename _Ref, typename _Ptr, size_t _Size>
