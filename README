@@ -41,4 +41,22 @@ ngram_quantize_mpi
 
 They performed similar to threaded version, but differ in that you have to explicitly run from index though quantize in order.
 
+Requirements:
+	Following table lists required libraries for installation. The tools are successfully compiled
+	with GCC 4.0.0 (Mac OS X). However, it is recommended to use the latest stable GCC 4.3.3.
 
+	Libraries			version		URL
+	--------------------------------------------------------------------------
+	Boost Library			1.38.0		http://www.boost.org
+	MPI (Open MPI)			1.3.1		http://www.open-mpi.org
+	google-perftools (tcmalloc)	1.1		http://code.google.com/p/google-perftools/
+	google-sparsehash		1.4		http://code.google.com/p/google-sparsehash/
+	ICU				4.2.0		http://site.icu-project.org/
+	hunspell			1.2.8		http://hunspell.sourceforge.net/
+
+Imported Libraries:
+	There exists a library imported in this ditribution.
+
+        Libraries                       version         URL
+        --------------------------------------------------------------------------
+	Snowball			???		http://snowball.tartarus.org/

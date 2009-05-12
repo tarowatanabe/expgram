@@ -72,10 +72,10 @@ AC_ARG_WITH(profiler,
 	[profiler_dir="${withval}"], [profiler_dir=''])
 
 if test "x$profiler_dir" != "x"; then
-  PROFILER_CFLAGS="-I${profiler_dir}/include"
+  PROFILER_CPPFLAGS="-I${profiler_dir}/include"
   PROFILER_LDFLAGS="-L${profiler_dir}/lib -lprofiler"
 else
-  PROFILER_CFLAGS=""
+  PROFILER_CPPFLAGS=""
   PROFILER_LDFLAGS="-lprofiler"
 fi
 
@@ -91,16 +91,48 @@ if test "x$ac_enable_profiler" = "xyes"; then
    LDFLAGS="$save_LDFLAGS"
    AC_MSG_RESULT($ac_have_libprofiler)
    if test "x$ac_have_libprofiler" = "xno"; then
-     PROFILER_CFLAGS=""
+     PROFILER_CPPFLAGS=""
      PROFILER_LDFLAGS=""
    fi
 else
-  PROFILER_CFLAGS=""
+  PROFILER_CPPFLAGS=""
   PROFILER_LDFLAGS=""
 fi
-AC_SUBST(PROFILER_CFLAGS)
+AC_SUBST(PROFILER_CPPFLAGS)
 AC_SUBST(PROFILER_LDFLAGS)
 
+## --with-hunspell
+AC_ARG_WITH(hunspell,
+	[AC_HELP_STRING([--with-hunspell=DIR], [hunspell in DIR])],
+	[hunspell_dir="${withval}"], [hunspell_dir=''])
+hunspell_versions="1.4 1.3 1.2 1.1"
+
+for hunspell_version in $hunspell_versions; do
+  if test "x$hunspell_dir" != "x"; then
+    HUNSPELL_CPPFLAGS="-I${hunspell_dir}/include"
+    HUNSPELL_LDFLAGS="-L${hunspell_dir}/lib -lhunspell-${hunspell_version}"
+  else
+    HUNSPELL_CPPFLAGS=""
+    HUNSPELL_LDFLAGS="-lhunspell-${hunspell_version}"
+  fi
+
+  AC_MSG_CHECKING(for -lhunspell-${hunspell_version})
+  save_LDFLAGS="$LDFLAGS"
+  LDFLAGS="$LDFLAGS $HUNSPELL_LDFLAGS"
+  AC_TRY_LINK([], [], [ac_have_libhunspell=yes], [ac_have_libhunspell=no])
+  LDFLAGS="$save_LDFLAGS"
+  AC_MSG_RESULT($ac_have_libhunspell)
+
+  if test "x$ac_have_libhunspell" = "xyes"; then
+    AC_SUBST(HUNSPELL_CPPFLAGS)
+    AC_SUBST(HUNSPELL_LDFLAGS)
+    break
+  fi
+done
+   
+#if test "x$ac_have_libhunspell" = "xno"; then
+#  AS_ERROR("no hunspell...")
+#fi
 
 # Boost libraries...
 BOOST_REQUIRE([1.38])
@@ -230,6 +262,7 @@ AC_CONFIG_FILES([Makefile
                  expgram/Makefile
 		 progs/Makefile
 		 scripts/Makefile
+		 stemmer/Makefile
                  succinct_db/Makefile
                  utils/Makefile])
 AC_OUTPUT

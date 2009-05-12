@@ -9,6 +9,8 @@
 
 #include <stdint.h>
 
+#include <iostream>
+
 namespace expgram
 {
   struct Discount
@@ -20,7 +22,7 @@ namespace expgram
     Discount()
       : discount1(-1.0), discount2(-1.0), discount3plus(-1.0), modified(false) {}
     template <typename Iterator>
-    Discoun(Iterator first, Iterator last)
+    Discount(Iterator first, Iterator last)
       : discount1(-1.0), discount2(-1.0), discount3plus(-1.0), modified(false) { estimate(first, last); }
     
     template <typename Iterator>
@@ -113,6 +115,29 @@ namespace expgram
       discount2 = -1.0;
       discount3plus = -1.0;
       modified = false;
+    }
+
+    friend
+    std::ostream& operator<<(std::ostream& os, const Discount& discount)
+    {
+      if (modified)
+	os << "modified-kneser-ney"
+	   << " mincount1: " << mincount1
+	   << " mincount2: " << mincount2
+	   << " mincount3: " << mincount3
+	   << " mincount4: " << mincount4
+	   << " discount1: " << discount1
+	   << " discount2: " << discount2
+	   << " discount3plus: " << discount3plus;
+      else if (discount1 >= 0.0)
+	os << "kneser-ney"
+	   << " mincount1: " << mincount1
+	   << " mincount2: " << mincount2
+	   << " discount1: " << discount1;
+      else
+	os << "witten-bell";
+      
+      return os;
     }
     
     

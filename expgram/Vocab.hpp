@@ -11,6 +11,7 @@
 #include <boost/shared_ptr.hpp>
 
 #include <expgram/Word.hpp>
+#include <expgram/Stemmer.hpp>
 
 #include <succinct_db/succinct_hash.hpp>
 
@@ -24,7 +25,8 @@ namespace expgram
   class Vocab
   {
   public:
-    typedef Word word_type;
+    typedef Word    word_type;
+    typedef Stemmer stemmer_type;
     
     typedef size_t    size_type;
     typedef ptrdiff_t difference_type;
@@ -39,6 +41,16 @@ namespace expgram
     static const word_type UNK;
     static const word_type BOS;
     static const word_type EOS;
+    
+    static word_type prefix(const word_type& word, size_type size);
+    static word_type suffix(const word_type& word, size_type size);
+    static word_type digits(const word_type& word);
+    
+    static std::string prefix(const std::string& word, size_type size);
+    static std::string suffix(const std::string& word, size_type size);
+    static std::string digits(const std::string& word);
+    
+    static stemmer_type stemmer(const std::string& algorithm);
     
   private:
     typedef succinctdb::succinct_hash<char, std::allocator<char> >        succinct_hash_type;
@@ -115,7 +127,7 @@ namespace expgram
     // do we perform caching...?
     word_type::id_type find(const word_type& word) const
     {
-      if (__succinct_hash_mapped) {	
+      if (__succinct_hash_mapped) {
 	const word_type::id_type id = __find(word);
 	if (id != succinct_hash_mapped_type::npos())
 	  return word_type::id_type(id);

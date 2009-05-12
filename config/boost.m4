@@ -124,7 +124,8 @@ m4_pattern_allow([^BOOST_VERSION$])dnl
     # itself in <prefix>/include/boost-<version>.  This inner loop helps to
     # find headers in such directories.
     # I didn't indent this loop on purpose (to avoid over-indented code)
-    for boost_inc in "$boost_dir" "$boost_dir"/boost-*
+    #for boost_inc in "$boost_dir" "$boost_dir"/boost-*
+    for boost_inc in "$boost_dir" `find "$boost_dir"  -name 'boost-*' -maxdepth 1 | sort -r`
     do
       test x"$boost_inc" != x && CPPFLAGS="$CPPFLAGS -I$boost_inc"
       AC_COMPILE_IFELSE([], [boost_cv_inc_path=yes], [boost_cv_version=no])
@@ -153,7 +154,7 @@ boost-lib-version = BOOST_LIB_VERSION],
     # e.g. "134" for 1_34_1 or "135" for 1_35
     boost_major_version=`echo "$boost_cv_lib_version" | sed 's/_//;s/_.*//'`
     case $boost_major_version in #(
-      '' | *[[^0-9]]*)
+      '' | *[[!0-9]]*)
         AC_MSG_ERROR([Invalid value: boost_major_version=$boost_major_version])
         ;;
     esac
@@ -561,6 +562,13 @@ BOOST_FIND_HEADER([boost/shared_ptr.hpp])
 ])
 
 
+# BOOST_STATICASSERT()
+# --------------------
+# Look for Boost.StaticAssert
+AC_DEFUN([BOOST_STATICASSERT],
+[BOOST_FIND_HEADER([boost/static_assert.hpp])])
+
+
 # BOOST_STRING_ALGO()
 # -------------------
 # Look for Boost.StringAlgo
@@ -644,6 +652,13 @@ BOOST_FIND_HEADER([boost/logic/tribool.hpp])
 # Look for Boost.Tuple
 AC_DEFUN([BOOST_TUPLE],
 [BOOST_FIND_HEADER([boost/tuple/tuple.hpp])])
+
+
+# BOOST_TYPETRAITS()
+# --------------------
+# Look for Boost.TypeTraits
+AC_DEFUN([BOOST_TYPETRAITS],
+[BOOST_FIND_HEADER([boost/type_traits.hpp])])
 
 
 # BOOST_UTILITY()
