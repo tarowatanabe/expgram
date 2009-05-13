@@ -5,6 +5,8 @@
 
 #include <vector>
 
+#include <utils/memory.hpp>
+
 // we perform allocation everytime operator[] is called...
 
 namespace utils
