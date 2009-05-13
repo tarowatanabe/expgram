@@ -76,7 +76,7 @@ namespace expgram
       modified = true;
     }
     
-    double lower_order_weight(const count_type total, const count_type observed, const count_type min2, const count_type min3)
+    double lower_order_weight(const count_type total, const count_type observed, const count_type min2, const count_type min3) const
     { 
       if (modified)
        return (discount1 >= 0.0 && discount2 >= 0.0 && discount3plus > 0.0
@@ -88,7 +88,7 @@ namespace expgram
 	       : double(observed) / (total + observed)); // witten-bell smoothing
     }
     
-    double discount(const count_type count, const count_type total, const count_type observed)
+    double discount(const count_type count, const count_type total, const count_type observed) const
     {
       if (count <= 0) return 1.0;
       
@@ -120,20 +120,20 @@ namespace expgram
     friend
     std::ostream& operator<<(std::ostream& os, const Discount& discount)
     {
-      if (modified)
+      if (discount.modified)
 	os << "modified-kneser-ney"
-	   << " mincount1: " << mincount1
-	   << " mincount2: " << mincount2
-	   << " mincount3: " << mincount3
-	   << " mincount4: " << mincount4
-	   << " discount1: " << discount1
-	   << " discount2: " << discount2
-	   << " discount3plus: " << discount3plus;
-      else if (discount1 >= 0.0)
+	   << " mincount1: " << discount.mincount1
+	   << " mincount2: " << discount.mincount2
+	   << " mincount3: " << discount.mincount3
+	   << " mincount4: " << discount.mincount4
+	   << " discount1: " << discount.discount1
+	   << " discount2: " << discount.discount2
+	   << " discount3plus: " << discount.discount3plus;
+      else if (discount.discount1 >= 0.0)
 	os << "kneser-ney"
-	   << " mincount1: " << mincount1
-	   << " mincount2: " << mincount2
-	   << " discount1: " << discount1;
+	   << " mincount1: " << discount.mincount1
+	   << " mincount2: " << discount.mincount2
+	   << " discount1: " << discount.discount1;
       else
 	os << "witten-bell";
       

@@ -20,7 +20,7 @@
 
 namespace expgram
 {
-  class NGramConts
+  class NGramCounts
   {
   public:
     typedef Word               word_type;
@@ -61,7 +61,7 @@ namespace expgram
       }
       
       count_type operator[](size_type pos) const { return (modified.is_open() ? modified[pos - offset] : counts[pos - offset]); }
-      size_type size() const { return (modified.is_open() ? modifies.size() + offset : counts.sizse() + offset); }
+      size_type size() const { return (modified.is_open() ? modified.size() + offset : counts.size() + offset); }
 
       bool is_modified() const { return modified.is_open(); }
       
@@ -81,7 +81,7 @@ namespace expgram
     NGramCounts(const path_type& path,
 		const size_type shard_size=16,
 		const bool unique=false,
-		const int _debug)  : debug(_debug) { open(path, shard_size, unique); }
+		const int _debug=0)  : debug(_debug) { open(path, shard_size, unique); }
     
   public:
     template <typename Iterator>

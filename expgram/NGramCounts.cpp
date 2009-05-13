@@ -10,6 +10,7 @@
 #include "utils/lockfree_queue.hpp"
 #include "utils/compress_stream.hpp"
 #include "utils/space_separator.hpp"
+#include "utils/tempfile.hpp"
 #include "utils/vector2.hpp"
 
 namespace expgram
@@ -38,7 +39,7 @@ namespace expgram
     typedef ngram_type::word_type       word_type;
     typedef ngram_type::id_type         id_type;
     typedef ngram_type::vocab_type      vocab_type;
-    
+    typedef ngram_type::path_type       path_type;
     
     typedef std::vector<id_type, std::allocator<id_type> > context_type;
     typedef std::pair<context_type, count_type>            context_count_type;
@@ -162,6 +163,7 @@ namespace expgram
     typedef map_reduce_type::id_type    id_type;
     typedef map_reduce_type::size_type  size_type;
     typedef map_reduce_type::count_type count_type;
+    typedef map_reduce_type::path_type  path_type;
 
     typedef map_reduce_type::context_type       context_type;
     typedef map_reduce_type::context_count_type context_count_type;
@@ -189,7 +191,7 @@ namespace expgram
       typedef typename std::iterator_traits<Iterator>::value_type value_type;
       
       while (first != last) {
-	const size_type write_size = std::min(size_type(1024 * 1024), last - first);
+	const size_type write_size = std::min(size_type(1024 * 1024), size_type(last - first));
 	os.write((char*) &(*first), write_size * sizeof(value_type));
 	first += write_size;
       }
@@ -230,13 +232,13 @@ namespace expgram
       dump(os, counts_modified.begin(), counts_modified.end());
       
       // dump the last order...
-      for (size_type pos = index[shard].positin_size(); pos < ngram.counts[shard].size(); ++ pos) {
+      for (size_type pos = ngram.index[shard].position_size(); pos < ngram.counts[shard].size(); ++ pos) {
 	const count_type count = ngram.counts[shard][pos];
 	os.write((char*) &count, sizeof(count_type));
       }
       os.pop();
       
-      ngram.counts[shard].conts.close();
+      ngram.counts[shard].counts.close();
       ngram.counts[shard].modified.open(path);
     }
   };
@@ -269,12 +271,12 @@ namespace expgram
     // first, run reducer...
     for (int shard = 0; shard < counts.size(); ++ shard) {
       queues[shard].reset(new queue_type(1024 * 64));
-      threads_reducer[shard].reset(new thread_type(reducer_type(*this, *queues[shard], shard)));
+      threads_reducer[shard].reset(new thread_type(reducer_type(*this, *queues[shard], shard, debug)));
     }
     
     // second, mapper...
     for (int shard = 0; shard < counts.size(); ++ shard)
-      threads_mapper[shard].reset(new thread_type(mapper_type(*this, queues, shard)));
+      threads_mapper[shard].reset(new thread_type(mapper_type(*this, queues, shard, debug)));
     
     // termination...
     for (int shard = 0; shard < counts.size(); ++ shard)
@@ -308,9 +310,9 @@ namespace expgram
     typedef std::vector<logprob_shard_type, std::allocator<logprob_shard_type> > logprob_shard_set_type;
     typedef std::vector<backoff_shard_type, std::allocator<backoff_shard_type> > backoff_shard_set_type;
     
-    typedef std::vector<volatile size_type, std::allocator<volatile size_type> > offset_set_type;
+    typedef std::vector<size_type, std::allocator<size_type> > offset_set_type;
     
-    typedef std::map<count_type, count_type, std::less<count_type> std::allocator<std::pair<const count_type, count_type> > > count_set_type;
+    typedef std::map<count_type, count_type, std::less<count_type>, std::allocator<std::pair<const count_type, count_type> > > count_set_type;
     typedef std::vector<count_set_type, std::allocator<count_set_type> > count_map_type;
     
     typedef boost::thread                                                  thread_type;
@@ -348,7 +350,7 @@ namespace expgram
 	const size_type pos_first = ngram.index[shard].offsets[order - 1];
 	const size_type pos_last  = ngram.index[shard].offsets[order];
 	
-	for (size_typee pos = pos_first; pos != pos_last; ++ pos) {
+	for (size_type pos = pos_first; pos != pos_last; ++ pos) {
 	  const count_type count = ngram.counts[shard][pos];
 	  if (count)
 	    ++ count_of_counts[order][count];
@@ -516,6 +518,7 @@ namespace expgram
     logprob_shard_set_type&  logprobs;
     backoff_shard_set_type&  backoffs;
     offset_set_type&         offsets;
+    logprob_type             logprob_min;
     int                      shard;
     int                      debug;
     
@@ -523,7 +526,8 @@ namespace expgram
 			      const discount_set_type& _discounts,
 			      logprob_shard_set_type&  _logprobs,
 			      backoff_shard_set_type&  _backoffs,
-			      offse_set_type&          _offsets,
+			      offset_set_type&         _offsets,
+			      const logprob_type&      _logprob_min,
 			      const int                _shard,
 			      const int                _debug)
       : ngram(_ngram),
@@ -531,6 +535,7 @@ namespace expgram
 	logprobs(_logprobs),
 	backoffs(_backoffs),
 	offsets(_offsets),
+	logprob_min(_logprob_min),
 	shard(_shard),
 	debug(_debug) {}
     
@@ -544,10 +549,10 @@ namespace expgram
 	std::pair<Iterator, size_type> result = ngram.index.traverse(shard_index, first, last);
 	
 	if (result.first == last) {
-	  while (utils::atomicop::fetch_and_add(offsets[shard_index], 0) <= result.second)
+	  while (utils::atomicop::fetch_and_add(offsets[shard_index], size_type(0)) <= result.second)
 	    boost::thread::yield();
 	  
-	  if (logprobs[shard_index][result.second - offset] != ngram.logprob_min())
+	  if (logprobs[shard_index][result.second - offset] != logprob_min)
 	    return logbackoff + logprobs[shard_index][result.second - offset];
 	  else {
 	    const size_type parent = ngram.index[shard_index].parent(result.second);
@@ -586,9 +591,12 @@ namespace expgram
 	  const size_type pos_last = ngram.index[shard].children_last(pos_context);
 	  pos_last_prev = pos_last;
 	  
-	  do {
-	    const size_type position = utils::atomicop::fetch_and_add(offsets[shard], size_type(0));
-	  } while (! utils::atomicop::compare_and_swap(offsets[shard], position, pos_first));
+	  {
+	    size_type position;
+	    do {
+	      position = utils::atomicop::fetch_and_add(offsets[shard], size_type(0));
+	    } while (! utils::atomicop::compare_and_swap(offsets[shard], position, pos_first));
+	  }
 	  
 	  if (pos_first == pos_last) continue;
 	  
@@ -627,48 +635,52 @@ namespace expgram
 	  }
 	  
 	  if (total == 0) continue;
-	}
-	
-	double logsum = 0.0;
-	for (/**/; logsum >= 0.0; ++ total) {
-	  logsum = boost::numeric::bounds<double>::lowest();
 	  
-	  logprob_set_type::const_iterator liter = lowers.begin();
-	  for (size_type pos = pos_first; pos != pos_last; ++ pos, ++ liter) {
-	    const count_type count = ngram.counts[shard][pos];
+	  
+	  double logsum = 0.0;
+	  for (/**/; logsum >= 0.0; ++ total) {
+	    logsum = boost::numeric::bounds<double>::lowest();
 	    
-	    if (count == 0) continue;
-	    
-	    const prob_type discount = discounts[order].discount(count, total, observed);
-	    const prob_type prob = (discount * count / total);
-	    
-	    const prob_type lower_order_weight = discounts[order].lower_order_weight(total, observed, min2, min3);
-	    const logprob_type lower_order_logprob = *liter;
-	    const prob_type lower_order_prob = utils::mathop::exp(double(lower_order_logprob));
-	    const prob_type prob_combined = prob + lower_order_weight * lower_order_prob;
-	    const logprob_type logprob = utils::mathop::log(prob_combined);
-	    
-	    logsum = utils::mathop::logsum(logsum, double(logprob));
-	    logprobs[shard][pos - offset] = logprob;
+	    logprob_set_type::const_iterator liter = lowers.begin();
+	    for (size_type pos = pos_first; pos != pos_last; ++ pos, ++ liter) {
+	      const count_type count = ngram.counts[shard][pos];
+	      
+	      if (count == 0) continue;
+	      
+	      const prob_type discount = discounts[order].discount(count, total, observed);
+	      const prob_type prob = (discount * count / total);
+	      
+	      const prob_type lower_order_weight = discounts[order].lower_order_weight(total, observed, min2, min3);
+	      const logprob_type lower_order_logprob = *liter;
+	      const prob_type lower_order_prob = utils::mathop::exp(double(lower_order_logprob));
+	      const prob_type prob_combined = prob + lower_order_weight * lower_order_prob;
+	      const logprob_type logprob = utils::mathop::log(prob_combined);
+	      
+	      logsum = utils::mathop::logsum(logsum, double(logprob));
+	      logprobs[shard][pos - offset] = logprob;
+	    }
+	  }
+	  
+	  const double numerator = 1.0 - utils::mathop::exp(logsum);
+	  const double denominator = 1.0 - utils::mathop::exp(logsum_lower_order);
+	  
+	  if (numerator > 0.0) {
+	    if (denominator > 0.0)
+	      backoffs[shard][pos_context - offset] = utils::mathop::log(numerator) - utils::mathop::log(denominator);
+	    else {
+	      for (size_type pos = pos_first; pos != pos_last; ++ pos) 
+		if (ngram.counts[shard][pos])
+		  logprobs[shard][pos - offset] -= logsum;
+	    }
+	  }
+	  
+	  {
+	    size_type position;
+	    do {
+	      const size_type position = utils::atomicop::fetch_and_add(offsets[shard], size_type(0));
+	    } while (! utils::atomicop::compare_and_swap(offsets[shard], position, pos_last));
 	  }
 	}
-	
-	const double numerator = 1.0 - utils::mathop::exp(logsum);
-	const double denominator = 1.0 - utils::mathop::exp(logsum_lower_order);
-	
-	if (numerator > 0.0) {
-	  if (denominator > 0.0)
-	    backoffs[shard][pos_context - offset] = utils::mathop::log(numerator) - utils::mathop::log(denominator);
-	  else {
-	    for (size_type pos = pos_first; pos != pos_last; ++ pos) 
-	      if (ngram.counts[shard][pos])
-		logprobs[shard][pos - offset] -= logsum;
-	  }
-	}
-	
-	do {
-	  const size_type position = utils::atomicop::fetch_and_add(offsets[shard], size_type(0));
-	} while (! utils::atomicop::compare_and_swap(offsets[shard], position, pos_last));
       }
     }
   };
@@ -696,7 +708,7 @@ namespace expgram
       std::vector<count_map_type, std::allocator<count_map_type> > counts(index.size());
       thread_ptr_set_type threads(index.size());
       for (int shard = 0; shard < index.size(); ++ shard)
-	thrads[shard].reset(new thread_type(mapper_type(*this, counts[shard], shard)));
+	threads[shard].reset(new thread_type(mapper_type(*this, counts[shard], shard)));
       
       for (int shard = 0; shard < index.size(); ++ shard) {
 	threads[shard]->join();
@@ -735,7 +747,7 @@ namespace expgram
     backoff_shard_set_type backoffs(index.size());
     for (int shard = 0; shard < index.size(); ++ shard) {
       logprobs[shard] = logprob_shard_type(index[shard].size() - counts[shard].offset, ngram.logprob_min());
-      backoffs[shard] = backoff_shard_type(index[shard].positions_size() - counts[shard].offset, 0.0);
+      backoffs[shard] = backoff_shard_type(index[shard].position_size() - counts[shard].offset, 0.0);
     }
     
     {
@@ -808,7 +820,7 @@ namespace expgram
 	    if (id_type(pos) != bos_id) {
 	      logprobs[0][pos] -= logsum;
 	      if (id_type(pos) == unk_id)
-		ngrams.smooth = logprobs[0][pos];
+		ngram.smooth = logprobs[0][pos];
 	    }
 	}
       }
@@ -822,7 +834,7 @@ namespace expgram
       // bigrams...
       typedef NGramCountsEstimateBigramMapper mapper_type;
       
-      thread_ptr_set_type therads(index.size());
+      thread_ptr_set_type threads(index.size());
       for (int shard = 0; shard < threads.size(); ++ shard)
 	threads[shard].reset(new thread_type(mapper_type(*this, discounts, logprobs, backoffs, shard, debug)));
       
@@ -834,13 +846,13 @@ namespace expgram
       // others...
       typedef NGramCountsEstimateMapper mapper_type;
       
-      thread_ptr_set_type therads(index.size());
-      offset_set_type     offsets(index.size());
+      thread_ptr_set_type threads(index.size());
+      offset_set_type     offsets(index.size(), size_type(0));
       for (int shard = 0; shard < offsets.size(); ++ shard)
 	offsets[shard] = ngram.index[shard].offsets[2];
       
       for (int shard = 0; shard < threads.size(); ++ shard)
-	threads[shard].reset(new thread_type(mapper_type(*this, discounts, logprobs, backoffs, offsets, shard, debug)));
+	threads[shard].reset(new thread_type(mapper_type(*this, discounts, logprobs, backoffs, offsets, ngram.logprob_min(), shard, debug)));
       
       for (int shard = 0; shard < threads.size(); ++ shard)
 	threads[shard]->join();
@@ -1192,7 +1204,7 @@ namespace expgram
 
     clear();
     
-    if (boost::filesystem::exits(path / "prop.list"))
+    if (boost::filesystem::exists(path / "prop.list"))
       open_binary(path);
     else
       open_google(path, shard_size, unique);
@@ -1208,7 +1220,7 @@ namespace expgram
     
     index.write(rep.path("index"));
     if (! counts.empty())
-      write_shard(rep.path("count"), counts);
+      write_shards(rep.path("count"), counts);
   }
 
   void NGramCounts::open_binary(const path_type& path)
@@ -1253,6 +1265,8 @@ namespace expgram
     typedef ngram_type::id_type         id_type;
     typedef ngram_type::vocab_type      vocab_type;
     typedef ngram_type::path_type       path_type;
+
+    typedef boost::iostreams::filtering_ostream ostream_type;
     
     typedef std::vector<id_type, std::allocator<id_type> > context_type;
     typedef std::pair<context_type, count_type>            context_count_type;
@@ -1266,6 +1280,8 @@ namespace expgram
     typedef std::vector<thread_ptr_type, std::allocator<thread_ptr_type> > thread_ptr_set_type;
   };
   
+#if 0
+  // it seems to be already defined at ModifyMapReduce...
   inline
   void swap(NGramCountsIndexUniqueMapReduce::context_count_type& x,
 	    NGramCountsIndexUniqueMapReduce::context_count_type& y)
@@ -1273,6 +1289,7 @@ namespace expgram
     x.first.swap(y.first);
     std::swap(x.second, y.second);
   }
+#endif
   
   // unique-mapper/reducer work like ngram-index-reducer
   
@@ -1441,8 +1458,8 @@ namespace expgram
       positions_last[pos]  = ids.size() + words.size();
       
       std::sort(words.begin(), words.end(), less_first<word_count_type>());
-      word_logprob_pair_set_type::const_iterator witer_end = words.end();
-      for (word_logprob_pair_set_type::const_iterator witer = words.begin(); witer != witer_end; ++ witer) {
+      word_count_set_type::const_iterator witer_end = words.end();
+      for (word_count_set_type::const_iterator witer = words.begin(); witer != witer_end; ++ witer) {
 	ids.push_back(witer->first);
 	counts.push_back(witer->second);
       }
@@ -1501,9 +1518,13 @@ namespace expgram
     typedef ngram_type::word_type       word_type;
     typedef ngram_type::id_type         id_type;
     typedef ngram_type::vocab_type      vocab_type;
+
+    typedef boost::iostreams::filtering_ostream ostream_type;
     
     typedef ngram_type::path_type                              path_type;
     typedef std::vector<path_type, std::allocator<path_type> > path_set_type;
+
+    typedef std::vector<id_type, std::allocator<id_type> >         context_type;
     
     typedef std::vector<std::string, std::allocator<std::string> > ngram_context_type;
     typedef std::pair<ngram_context_type, count_type>              ngram_context_count_type;
@@ -1535,6 +1556,7 @@ namespace expgram
     
     typedef map_reduce_type::word_type          word_type;
     typedef map_reduce_type::id_type            id_type;
+    typedef map_reduce_type::size_type          size_type;
     typedef map_reduce_type::count_type         count_type;
     
     typedef map_reduce_type::ngram_context_type       ngram_context_type;
@@ -1589,7 +1611,7 @@ namespace expgram
       ids[0] = vocab_map[escape_word(context[0]).id()];
       ids[1] = vocab_map[escape_word(context[1]).id()];
       
-      return ngram.indes.shard_index(ids, ids + 2);
+      return ngram.index.shard_index(ids, ids + 2);
     }
     
     void operator()()
@@ -1616,7 +1638,7 @@ namespace expgram
 	tokens_type tokens;
 	
 	for (int i = 0; i < paths.size(); ++ i) {
-	  strams[i].reset(new utils::compress_istream(paths[i], 1024 * 1024));
+	  streams[i].reset(new utils::compress_istream(paths[i], 1024 * 1024));
 	  
 	  while (std::getline(*streams[i], line)) {
 	    tokenizer_type tokenizer(line);
@@ -1683,7 +1705,7 @@ namespace expgram
 	}
       
 	if (count > 0) {
-	  if (context.sizes() == 2)
+	  if (context.size() == 2)
 	    ngram_shard = shard_index(context);
 	  else if (prefix_shard.empty() || ! std::equal(prefix_shard.begin(), prefix_shard.end(), context.begin())) {
 	    ngram_shard = shard_index(context);
@@ -1716,12 +1738,17 @@ namespace expgram
     typedef map_reduce_type::vocab_type      vocab_type;
     typedef map_reduce_type::id_type         id_type;
     typedef map_reduce_type::path_type       path_type;
+    typedef map_reduce_type::ostream_type    ostream_type;
     
     typedef map_reduce_type::count_type               count_type;
+
+    typedef map_reduce_type::context_type             context_type;
     typedef map_reduce_type::ngram_context_type       ngram_context_type;
     typedef map_reduce_type::ngram_context_count_type ngram_context_count_type;
     
+    typedef map_reduce_type::queue_type               queue_type;
     typedef map_reduce_type::queue_ptr_set_type       queue_ptr_set_type;
+    
     typedef map_reduce_type::vocab_map_type           vocab_map_type;
     
     typedef std::pair<id_type, count_type>                                 word_count_type;
@@ -1752,7 +1779,7 @@ namespace expgram
 			    const int             _debug)
       : ngram(_ngram),
 	vocab_map(_vocab_map),
-	queue(_queue),
+	queues(_queues),
 	os_count(_os_count),
 	shard(_shard),
 	debug(_debug) {}
@@ -1835,7 +1862,7 @@ namespace expgram
 		  << " positions: " << ngram.index[shard].positions.size()
 		  << " offsets: "  << ngram.index[shard].offsets.back()
 		  << std::endl;
-
+      
       // remove temporary index
       ids.clear();
       counts.clear();
@@ -1871,8 +1898,8 @@ namespace expgram
       positions_last[pos]  = ids.size() + words.size();
       
       std::sort(words.begin(), words.end(), less_first<word_count_type>());
-      word_logprob_pair_set_type::const_iterator witer_end = words.end();
-      for (word_logprob_pair_set_type::const_iterator witer = words.begin(); witer != witer_end; ++ witer) {
+      word_count_set_type::const_iterator witer_end = words.end();
+      for (word_count_set_type::const_iterator witer = words.begin(); witer != witer_end; ++ witer) {
 	ids.push_back(witer->first);
 	counts.push_back(witer->second);
       }
@@ -1888,13 +1915,13 @@ namespace expgram
 
       pqueue_type pqueue;
       
-      context_count_type context_count;
+      ngram_context_count_type context_count;
       
       for (int ngram_shard = 0; ngram_shard < queues.size1(); ++ ngram_shard) {
 	queues(ngram_shard, shard)->pop_swap(context_count);
 	
 	if (! context_count.first.empty()) {
-	  contxt_count_queue_ptr_type context_queue(new context_count_queue_type());
+	  context_count_queue_ptr_type context_queue(new context_count_queue_type());
 	  context_queue->first.swap(context_count.first);
 	  context_queue->second.first = context_count.second;
 	  context_queue->second.second = &(*queues(ngram_shard, shard));
@@ -1928,7 +1955,7 @@ namespace expgram
 	    words.clear();
 	  }
 	  
-	  prefix.cler();
+	  prefix.clear();
 	  prefix.insert(prefix.end(), context.begin(), context.end() - 1);
 	}
 	
@@ -1937,10 +1964,10 @@ namespace expgram
 	else
 	  words.back().second += context_queue->second.first;
 	
-	context_queue->second.second->pop_swap(context_logprob);
-	if (! context_logprob.first.empty()) {
-	  context_queue->first.swap(context_logprob.first);
-	  context_queue->second.first = context_logprob.second;
+	context_queue->second.second->pop_swap(context_count);
+	if (! context_count.first.empty()) {
+	  context_queue->first.swap(context_count.first);
+	  context_queue->second.first = context_count.second;
 	  
 	  pqueue.push(context_queue);
 	}
@@ -1954,8 +1981,8 @@ namespace expgram
   };
   
   void NGramCounts::open_google(const path_type& path,
-				const size_type shard_size=16,
-				const bool unique=false)
+				const size_type shard_size,
+				const bool unique)
   {
     typedef boost::iostreams::filtering_ostream                              ostream_type;
     typedef boost::shared_ptr<ostream_type>                                  ostream_ptr_type;
@@ -1987,7 +2014,7 @@ namespace expgram
       utils::tempfile::insert(path_counts[shard]);
       
       os_counts[shard].reset(new ostream_type());
-      os_counts[shard]->push(utils::packed_sink<count_type, std::allocator<coun_type> >(path_logprobs[shard]));
+      os_counts[shard]->push(utils::packed_sink<count_type, std::allocator<count_type> >(path_counts[shard]));
     }
     
     // first, index unigram...
@@ -2019,7 +2046,7 @@ namespace expgram
 	const word_type word = escape_word(tokens.front());
 	const count_type count = atoll(tokens.back().c_str());
 	
-	if (word.id() >= vocb_map.size())
+	if (word.id() >= vocab_map.size())
 	  vocab_map.resize(word.id() + 1, id_type(-1));
 	vocab_map[word.id()] = word_id;
 	
@@ -2058,6 +2085,8 @@ namespace expgram
       
       typedef map_reduce_type::queue_type          queue_type;
       typedef map_reduce_type::queue_ptr_set_type  queue_ptr_set_type;
+
+      typedef map_reduce_type::context_type        context_type;
       
       queue_ptr_set_type   queues(shard_size);
       thread_ptr_set_type  threads(shard_size);
@@ -2068,10 +2097,10 @@ namespace expgram
       
       for (int order = 2; /**/; ++ order) {
 	std::ostringstream stream_ngram;
-	stream_ngram << n << "gms";
+	stream_ngram << order << "gms";
 	
 	std::ostringstream stream_index;
-	stream_index << n << "gm.idx";
+	stream_index << order << "gm.idx";
 	
 	const path_type ngram_dir = path / stream_ngram.str();
 	const path_type index_file = ngram_dir / stream_index.str();
@@ -2081,11 +2110,12 @@ namespace expgram
 	utils::compress_istream is_index(index_file);
 	std::string line;
 	tokens_type tokens;
+	context_type context;
 	while (std::getline(is_index, line)) {
 	  tokenizer_type tokenizer(line);
 	  
 	  tokens.clear();
-	  tokens(tokens.end(), tokenizer.begin(), tokenizer.end());
+	  tokens.insert(tokens.end(), tokenizer.begin(), tokenizer.end());
 	  
 	  if (tokens.size() + 1 != order)
 	    throw std::runtime_error(std::string("invalid google ngram format...") + index_file.file_string());
@@ -2120,7 +2150,7 @@ namespace expgram
 	    }
 	    
 	    const size_type shard = index.shard_index(context.begin(), context.end());
-	    queue[shard]->push(std::make_pair(context, atoll(tokens.back().c_str())));
+	    queues[shard]->push(std::make_pair(context, atoll(tokens.back().c_str())));
 	  }	  
 	}
       }
@@ -2154,10 +2184,10 @@ namespace expgram
       
       for (int order = 2; /**/; ++ order) {
 	std::ostringstream stream_ngram;
-	stream_ngram << n << "gms";
+	stream_ngram << order << "gms";
 	
 	std::ostringstream stream_index;
-	stream_index << n << "gm.idx";
+	stream_index << order << "gm.idx";
 	
 	const path_type ngram_dir = path / stream_ngram.str();
 	const path_type index_file = ngram_dir / stream_index.str();
@@ -2173,7 +2203,7 @@ namespace expgram
 	    tokenizer_type tokenizer(line);
 	    
 	    tokens.clear();
-	    tokens(tokens.end(), tokenizer.begin(), tokenizer.end());
+	    tokens.insert(tokens.end(), tokenizer.begin(), tokenizer.end());
 	    
 	    if (tokens.size() + 1 != order)
 	      throw std::runtime_error(std::string("invalid google ngram format...") + index_file.file_string());
@@ -2192,7 +2222,7 @@ namespace expgram
 	std::vector<path_set_type, std::allocator<path_set_type> > paths(shard_size);
 	
 	for (int i = 0; i < paths_ngram.size(); ++ i)
-	  paths[i % paths.sizse()].push_back(paths_ngram[i]);
+	  paths[i % paths.size()].push_back(paths_ngram[i]);
 	
 	// map-reduce here!
 	queue_ptr_set_type      queues(index.size(), index.size());

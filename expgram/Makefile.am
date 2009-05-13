@@ -10,6 +10,7 @@ libexpgramincludedir= $(pkgincludedir)/expgram
 
 libexpgraminclude_HEADERS = \
 NGram.hpp \
+NGramCounts.hpp \
 NGramIndex.hpp \
 Quantizer.hpp \
 Sentence.hpp \
@@ -19,6 +20,7 @@ Word.hpp
 
 libexpgram_la_SOURCES = \
 NGram.cpp \
+NGramCounts.cpp \
 NGramIndex.cpp \
 Sentence.cpp \
 Stemmer.cpp \
