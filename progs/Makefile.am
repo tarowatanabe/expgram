@@ -15,6 +15,7 @@ LIBUTILS   = $(top_builddir)/utils/libutils.la
 
 bin_PROGRAMS = \
 	ngram_index \
+	ngram_counts_index \
 	ngram_dump \
 	ngram_quantize \
 	ngram_bound
@@ -22,6 +23,9 @@ bin_PROGRAMS = \
 
 ngram_index_SOURCES = ngram_index.cpp
 ngram_index_LDADD   = $(LIBEXPGRAM) $(LIBUTILS) $(boost_LDADD) $(perftools_LDADD)
+
+ngram_counts_index_SOURCES = ngram_counts_index.cpp
+ngram_counts_index_LDADD   = $(LIBEXPGRAM) $(LIBUTILS) $(boost_LDADD) $(perftools_LDADD)
 
 ngram_dump_SOURCES = ngram_dump.cpp
 ngram_dump_LDADD   = $(LIBEXPGRAM) $(LIBUTILS) $(boost_LDADD) $(perftools_LDADD)

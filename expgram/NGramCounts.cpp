@@ -1264,12 +1264,18 @@ namespace expgram
     typedef ngram_type::word_type       word_type;
     typedef ngram_type::id_type         id_type;
     typedef ngram_type::vocab_type      vocab_type;
-    typedef ngram_type::path_type       path_type;
-
+    
+    typedef ngram_type::path_type                              path_type;
+    typedef std::vector<path_type, std::allocator<path_type> > path_set_type;
+    
     typedef boost::iostreams::filtering_ostream ostream_type;
     
     typedef std::vector<id_type, std::allocator<id_type> > context_type;
     typedef std::pair<context_type, count_type>            context_count_type;
+
+    typedef std::vector<std::string, std::allocator<std::string> > ngram_context_type;
+
+    typedef std::vector<id_type, std::allocator<id_type> > vocab_map_type;
     
     typedef utils::lockfree_queue<context_count_type, std::allocator<context_count_type> > queue_type;
     typedef boost::shared_ptr<queue_type>                                                  queue_ptr_type;
@@ -1305,14 +1311,21 @@ namespace expgram
     typedef map_reduce_type::word_type       word_type;
     typedef map_reduce_type::vocab_type      vocab_type;
     typedef map_reduce_type::id_type         id_type;
+
     typedef map_reduce_type::path_type       path_type;
+    typedef map_reduce_type::path_set_type   path_set_type;
+    
     
     typedef map_reduce_type::context_type       context_type;
+    typedef map_reduce_type::ngram_context_type ngram_context_type;
+
     typedef map_reduce_type::count_type         count_type;
     typedef map_reduce_type::context_count_type context_count_type;
     
     typedef map_reduce_type::queue_type         queue_type;
     typedef map_reduce_type::ostream_type       ostream_type;
+
+    typedef map_reduce_type::vocab_map_type     vocab_map_type;
     
     typedef std::pair<id_type, count_type>                                 word_count_type;
     typedef std::vector<word_count_type, std::allocator<word_count_type> > word_count_set_type;
@@ -1321,11 +1334,11 @@ namespace expgram
     typedef utils::packed_vector<count_type, std::allocator<count_type> > count_set_type;
     typedef std::vector<size_type, std::allocator<size_type> >            size_set_type;
     
-    ngram_type&    ngram;
-    queue_type&    queue;
-    ostream_type&  os_count;
-    int            shard;
-    int            debug;
+    ngram_type&           ngram;
+    queue_type&           queue;
+    ostream_type&         os_count;
+    int                   shard;
+    int                   debug;
     
     // thread local...
     id_set_type    ids;
@@ -1333,16 +1346,18 @@ namespace expgram
     size_set_type  positions_first;
     size_set_type  positions_last;
     
-    NGramCountsIndexUniqueReducer(ngram_type&   _ngram,
-				  queue_type&   _queue,
-				  ostream_type& _os_count,
-				  const int     _shard,
-				  const int     _debug)
+    NGramCountsIndexUniqueReducer(ngram_type&           _ngram,
+				  queue_type&           _queue,
+				  ostream_type&         _os_count,
+				  const int             _shard,
+				  const int             _debug)
       : ngram(_ngram),
 	queue(_queue),
 	os_count(_os_count),
 	shard(_shard),
 	debug(_debug) {}
+
+
     
     void index_ngram()
     {
@@ -1450,10 +1465,16 @@ namespace expgram
 	positions_last.resize(positions_size, size_type(0));
       
       std::pair<context_type::const_iterator, size_type> result = ngram.index.traverse(shard, prefix.begin(), prefix.end());
-      if (result.first != prefix.end() || result.second == size_type(-1))
+      if (result.first != prefix.end() || result.second == size_type(-1)) {
+	std::cerr << "context: ";
+	std::copy(prefix.begin(), prefix.end(), std::ostream_iterator<id_type>(std::cerr, " "));
+	std::cerr << "result: " << result.second
+		  << std::endl;
+	
 	throw std::runtime_error("no prefix?");
+      }
       
-      const size_type pos = result.second - ngram.index[shard].offsets[prefix.size()];
+      const size_type pos = result.second - ngram.index[shard].offsets[order_prev - 1];
       positions_first[pos] = ids.size();
       positions_last[pos]  = ids.size() + words.size();
       
@@ -1893,7 +1914,7 @@ namespace expgram
       if (result.first != prefix.end() || result.second == size_type(-1))
 	throw std::runtime_error("no prefix?");
       
-      const size_type pos = result.second - ngram.index[shard].offsets[prefix.size()];
+      const size_type pos = result.second - ngram.index[shard].offsets[order_prev - 1];
       positions_first[pos] = ids.size();
       positions_last[pos]  = ids.size() + words.size();
       
@@ -2016,6 +2037,9 @@ namespace expgram
       os_counts[shard].reset(new ostream_type());
       os_counts[shard]->push(utils::packed_sink<count_type, std::allocator<count_type> >(path_counts[shard]));
     }
+
+    if (debug)
+      std::cerr << "order: " << 1 << std::endl;
     
     // first, index unigram...
     vocab_map_type vocab_map;
@@ -2096,6 +2120,10 @@ namespace expgram
       }
       
       for (int order = 2; /**/; ++ order) {
+	
+	if (debug)
+	  std::cerr << "order: " << order << std::endl;
+
 	std::ostringstream stream_ngram;
 	stream_ngram << order << "gms";
 	
@@ -2117,7 +2145,7 @@ namespace expgram
 	  tokens.clear();
 	  tokens.insert(tokens.end(), tokenizer.begin(), tokenizer.end());
 	  
-	  if (tokens.size() + 1 != order)
+	  if (tokens.size() != order + 1)
 	    throw std::runtime_error(std::string("invalid google ngram format...") + index_file.file_string());
 	  
 	  const path_type path_ngram = ngram_dir / tokens.front();
@@ -2125,11 +2153,14 @@ namespace expgram
 	  if (! boost::filesystem::exists(path_ngram))
 	    throw std::runtime_error(std::string("invalid google ngram format... no file: ") + path_ngram.file_string());
 	  
+
+	  if (debug >= 2)
+	    std::cerr << "\tfile: " << path_ngram.file_string() << std::endl;
 	  
 	  utils::compress_istream is(path_ngram, 1024 * 1024);
 	  
 	  while (std::getline(is, line)) {
-	    tokenizer_type tokenier(line);
+	    tokenizer_type tokenizer(line);
 	    
 	    tokens.clear();
 	    tokens.insert(tokens.end(), tokenizer.begin(), tokenizer.end());
@@ -2183,6 +2214,9 @@ namespace expgram
       typedef map_reduce_type::path_set_type           path_set_type;
       
       for (int order = 2; /**/; ++ order) {
+	if (debug)
+	  std::cerr << "order: " << order << std::endl;
+
 	std::ostringstream stream_ngram;
 	stream_ngram << order << "gms";
 	
@@ -2205,10 +2239,13 @@ namespace expgram
 	    tokens.clear();
 	    tokens.insert(tokens.end(), tokenizer.begin(), tokenizer.end());
 	    
-	    if (tokens.size() + 1 != order)
+	    if (tokens.size() != order + 1)
 	      throw std::runtime_error(std::string("invalid google ngram format...") + index_file.file_string());
 	    
 	    const path_type path_ngram = ngram_dir / tokens.front();
+	    
+	    if (debug >= 2)
+	      std::cerr << "\tfile: " << path_ngram.file_string() << std::endl;
 	    
 	    if (! boost::filesystem::exists(path_ngram))
 	      throw std::runtime_error(std::string("invalid google ngram format... no file: ") + path_ngram.file_string());
