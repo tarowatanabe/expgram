@@ -45,10 +45,12 @@ namespace expgram
     static word_type prefix(const word_type& word, size_type size);
     static word_type suffix(const word_type& word, size_type size);
     static word_type digits(const word_type& word);
+    static word_type latin(const word_type& word);
     
     static std::string prefix(const std::string& word, size_type size);
     static std::string suffix(const std::string& word, size_type size);
     static std::string digits(const std::string& word);
+    static std::string latin(const std::string& word);
     
     static stemmer_type stemmer(const std::string& algorithm);
     

@@ -11,6 +11,7 @@
 #include <unicode/unistr.h>
 #include <unicode/schriter.h>
 #include <unicode/bytestream.h>
+#include <unicode/translit.h>
 
 namespace expgram
 {
@@ -66,6 +67,7 @@ namespace expgram
 			std::allocator<std::pair<const size_t, word_cache_type> > > word_cache_set_type;
 
 #endif
+
   
   inline
   bool __is_tag(const std::string& word)
@@ -162,6 +164,26 @@ namespace expgram
     return word_digits;
   }
   
+  Vocab::word_type Vocab::latin(const word_type& word)
+  {
+    typedef word_cache_type::cache_type cache_type;
+    
+    static word_cache_type caches;
+    
+    if (__is_tag(word)) return word;
+
+    cache_type cache = caches[word.id()];
+    
+    if (cache.id() == word.id())
+      return word_type(cache.word());
+    
+    const word_type word_latin = latin(static_cast<const std::string&>(word));
+    
+    caches.set(cache, word.id(), word_latin.id());
+    
+    return word_latin;
+  }
+  
   std::string Vocab::prefix(const std::string& word, size_type size)
   {
     if (__is_tag(word)) return word;
@@ -247,6 +269,90 @@ namespace expgram
       return word_digits;
     } else
       return word;
+  }
+  
+  class AnyLatin
+  {
+  private:
+    Transliterator* trans;
+    
+  public:
+    AnyLatin() : trans(0) { open(); }
+    ~AnyLatin() { close(); }
+    
+  private:
+    AnyLatin(const AnyLatin& x) { }
+    AnyLatin& operator=(const AnyLatin& x) { return *this; }
+    
+  public:
+    void operator()(UnicodeString& data) { trans->transliterate(data); }
+    
+  private:
+    void open()
+    {
+      close();
+      
+      __initialize();
+      
+      UErrorCode status = U_ZERO_ERROR;
+      trans = Transliterator::createInstance(UnicodeString::fromUTF8("AnyLatinNoAccents"),
+					     UTRANS_FORWARD,
+					     status);
+      if (U_FAILURE(status))
+	throw std::runtime_error(std::string("transliterator::create_instance(): ") + u_errorName(status));
+      
+    }
+    
+    void close()
+    {
+      if (trans) 
+	delete trans;
+      trans = 0;
+    }
+    
+  private:
+    void __initialize()
+    {
+      static bool __initialized = false;
+      
+      if (__initialized) return;
+      
+      // Any-Latin, NFKD, remove accents, NFKC
+      UErrorCode status = U_ZERO_ERROR;
+      UParseError status_parse;
+      Transliterator* __trans = Transliterator::createFromRules(UnicodeString::fromUTF8("AnyLatinNoAccents"),
+								UnicodeString::fromUTF8(":: Any-Latin; :: NFKD; [[:Z:][:M:][:C:]] > ; :: NFKC;"),
+								UTRANS_FORWARD, status_parse, status);
+      if (U_FAILURE(status))
+	throw std::runtime_error(std::string("transliterator::create_from_rules(): ") + u_errorName(status));
+      
+      // register here...
+      Transliterator::registerInstance(__trans);
+      
+      __initialized = true;
+    }
+  };
+  
+  std::string Vocab::latin(const std::string& word)
+  {
+    if (__is_tag(word)) return word;
+
+    static boost::thread_specific_ptr<AnyLatin> __any_latin;
+    
+    if (! __any_latin.get())
+      __any_latin.reset(new AnyLatin());
+    
+    UnicodeString uword = UnicodeString::fromUTF8(word);
+    __any_latin->operator()(uword);
+
+    if (uword.isEmpty())
+      return word;
+    else {
+      std::string word_latin;
+      StringByteSink<std::string> __sink(&word_latin);
+      uword.toUTF8(__sink);
+      return word_latin;
+    }
   }
   
   Vocab::stemmer_type Vocab::stemmer(const std::string& algorithm)
