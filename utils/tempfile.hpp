@@ -10,7 +10,10 @@
 #include <iostream>
 
 #include <signal.h>
+
 #include <sys/types.h>
+#include <sys/stat.h>
+
 #include <unistd.h>
 #include <errno.h>
 #include <cstdlib>
@@ -255,6 +258,15 @@ namespace utils
     
     static path_type file_name(const path_type& file) { return file_name(file.file_string()); }
     static path_type directory_name(const path_type& file) { return directory_name(file.file_string()); }
+
+    static void permission(const path_type& path)
+    {
+      struct stat buf;
+      
+      if (::stat(path.file_string().c_str(), &buf) != 0) return;
+      
+      ::chmod(path.file_string().c_str(), buf.st_mode | S_IRUSR | S_IRGRP | S_IROTH);
+    }
   };
 };
 

@@ -279,7 +279,7 @@ namespace expgram
 
       if (! ngram.logprobs[shard].quantized.is_open() && ngram.logprobs[shard].logprobs.is_open()) {
 	
-	const path_type path = utils::tempfile::file_name(tmp_dir / "expgram.logprob.quantized.XXXXXX");
+	const path_type path = utils::tempfile::directory_name(tmp_dir / "expgram.logprob.quantized.XXXXXX");
 	utils::tempfile::insert(path);
 	
 	boost::iostreams::filtering_ostream os;
@@ -302,12 +302,14 @@ namespace expgram
 	
 	os.pop();
 	
+	utils::tempfile::permission(path);
+
 	ngram.logprobs[shard].logprobs.clear();
 	ngram.logprobs[shard].quantized.open(path);
       }
       
       if (! ngram.backoffs[shard].quantized.is_open() && ngram.backoffs[shard].logprobs.is_open()) {
-	const path_type path = utils::tempfile::file_name(tmp_dir / "expgram.backoff.quantized.XXXXXX");
+	const path_type path = utils::tempfile::directory_name(tmp_dir / "expgram.backoff.quantized.XXXXXX");
 	utils::tempfile::insert(path);
 	
 	boost::iostreams::filtering_ostream os;
@@ -329,13 +331,15 @@ namespace expgram
 	}
 	
 	os.pop();
+
+	utils::tempfile::permission(path);
 	
 	ngram.backoffs[shard].logprobs.clear();
 	ngram.backoffs[shard].quantized.open(path);
       }
       
       if (! ngram.logbounds[shard].quantized.is_open() && ngram.logbounds[shard].logprobs.is_open()) {
-	const path_type path = utils::tempfile::file_name(tmp_dir / "expgram.logbound.quantized.XXXXXX");
+	const path_type path = utils::tempfile::directory_name(tmp_dir / "expgram.logbound.quantized.XXXXXX");
 	utils::tempfile::insert(path);
 	
 	boost::iostreams::filtering_ostream os;
@@ -357,6 +361,8 @@ namespace expgram
 	}
 	
 	os.pop();
+
+	utils::tempfile::permission(path);
 	
 	ngram.logbounds[shard].logprobs.clear();
 	ngram.logbounds[shard].quantized.open(path);
@@ -827,9 +833,9 @@ namespace expgram
       // dump...
       const path_type path = utils::tempfile::file_name(utils::tempfile::tmp_dir() / "expgram.logbound.XXXXXX");
       utils::tempfile::insert(path);
-      
       dump_file(path, logbounds);
       ngram.logbounds[shard].logprobs.open(path);
+      utils::tempfile::permission(path);
       
       if (debug)
 	std::cerr << "shard: " << shard << " logbound: " << ngram.logbounds[shard].size() << std::endl;
@@ -1019,8 +1025,8 @@ namespace expgram
       const size_type positions_size = ngram.index[shard].offsets[order_prev] - ngram.index[shard].offsets[order_prev - 1];
       
       const path_type tmp_dir       = utils::tempfile::tmp_dir();
-      const path_type path_id       = utils::tempfile::file_name(tmp_dir / "expgram.index.XXXXXX");
-      const path_type path_position = utils::tempfile::file_name(tmp_dir / "expgram.position.XXXXXX");
+      const path_type path_id       = utils::tempfile::directory_name(tmp_dir / "expgram.index.XXXXXX");
+      const path_type path_position = utils::tempfile::directory_name(tmp_dir / "expgram.position.XXXXXX");
       
       utils::tempfile::insert(path_id);
       utils::tempfile::insert(path_position);
@@ -1066,6 +1072,9 @@ namespace expgram
       // perform indexing...
       os_id.pop();
       positions.write(path_position);
+      
+      utils::tempfile::permission(path_id);
+      utils::tempfile::permission(path_position);
       
       // close and remove old index...
       if (ngram.index[shard].ids.is_open()) {
@@ -1319,7 +1328,7 @@ namespace expgram
     vocab_map_type vocab_map;
     vocab_map.reserve(word_type::allocated());
     {
-      const path_type path_vocab = utils::tempfile::file_name(utils::tempfile::tmp_dir() / "expgram.vocab.XXXXXX");
+      const path_type path_vocab = utils::tempfile::directory_name(utils::tempfile::tmp_dir() / "expgram.vocab.XXXXXX");
       utils::tempfile::insert(path_vocab);
       
       vocab_type& vocab = index.vocab();
@@ -1343,6 +1352,9 @@ namespace expgram
       }
       
       vocab.close();
+      
+      utils::tempfile::permission(path_vocab);
+
       vocab.open(path_vocab);
       
       
@@ -1448,6 +1460,9 @@ namespace expgram
       
       os_logprobs[shard].reset();
       os_backoffs[shard].reset();
+
+      utils::tempfile::permission(path_logprobs[shard]);
+      utils::tempfile::permission(path_backoffs[shard]);
       
       logprobs[shard].logprobs.open(path_logprobs[shard]);
       backoffs[shard].logprobs.open(path_backoffs[shard]);

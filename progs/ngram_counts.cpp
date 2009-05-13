@@ -1,17 +1,37 @@
 
+#include <iostream>
+#include <sstream>
 
+#include <string>
+#include <vector>
+#include <stdexcept>
+#include <iterator>
+#include <algorithm>
+
+#include <boost/filesystem.hpp>
+#include <boost/program_options.hpp>
+#include <boost/tokenizer.hpp>
+#include <boost/algorithm/string.hpp>
+
+#include <utils/simple_vector.hpp>
+#include <utils/sgi_hash_map.hpp>
+#include <utils/hashmurmur.hpp>
+#include <utils/space_separator.hpp>
 
 typedef boost::filesystem::path                                     path_type;
 typedef boost::filesystem::directory_iterator                       directory_iterator;
+
 typedef std::vector<path_type, std::allocator<path_type> >          path_set_type;
 typedef std::vector<path_set_type, std::allocator<path_set_type> >  path_map_type;
 
 typedef uint64_t                                                    count_type;
 typedef std::string                                                 word_type;
 typedef utils::simple_vector<word_type, std::allocator<word_type> > ngram_type;
+
 struct ngram_hash
 {
   utils::hashmurmur<size_t> hasher;
+  
   size_t operator()(const ngram_type& x) const {
     size_t seed = 0;
     ngram_type::const_iterator iter_end = x.end();
@@ -30,7 +50,6 @@ typedef sgi::hash_map<ngram_type, count_type, ngram_hash, std::equal_to<ngram_ty
 #endif
 typedef std::vector<ngram_count_set_type, std::allocator<ngram_count_set_type> > ngram_count_map_type;
 
-
 path_type corpus_file;
 path_type counts_file;
 
@@ -39,7 +58,7 @@ path_type counts_list_file;
 
 path_type output_file;
 
-int order = 5;
+int max_order = 5;
 
 bool map_line = false;
 int threads = 2;
@@ -80,16 +99,15 @@ int main(int argc, char** argv)
     if (counts_files.empty() && corpus_files.empty()) 
       throw std::runtime_error("no corpus files nor counts files");
     
-    preprocess(output_file, order);
+    preprocess(output_file, max_order);
     
-    ngram_count_map_type counts(order);
-    path_map_type        paths_counts(order);
+    path_map_type paths_counts(max_order);
     
     if (! counts_files.empty())
-      accumulate_counts(counts_files, counts, output_file, paths_counts, map_line, max_counts);
+      accumulate_counts(counts_files, output_file, paths_counts, max_order, map_line, max_counts);
     
     if (! corpus_files.empty())
-      accumulate_corpus(corpus_files, counts, output_file, paths_counts, map_line, max_counts);
+      accumulate_corpus(corpus_files, output_file, paths_counts, max_order, map_line, max_counts);
     
     postprocess(output_file, paths_counts);
   }
@@ -101,23 +119,18 @@ int main(int argc, char** argv)
 }
 
 
-void preprocess(const path_type& path, const int order)
+void preprocess(const path_type& path, const int max_order)
 {
   if (boost::filesystem::exists(path))
-    if (! boost::filesystem::is_directory(path))
-      boost::filesystem::remove(path);
+    utils::filesystem::remove_all(path);
+  boost::filesystem::create_directories(path);
   
-  if (! boost::filesystem::exists(path))
-    boost::filesystem::create_directory(path);
-  
-  for (int n = 1; n <= order; ++ n) {
+  for (int order = 1; order <= max_order; ++ order) {
     std::ostringstream stream;
-    stream << n << "gms";
+    stream << order << "gms";
     
     const path_type ngram_dir = path / stream.str();
     
-    if (boost::filesystem::exists(ngram_dir))
-      utils::filesystem::remove_all(ngram_dir);
     boost::filesystem::create_directory(ngram_dir);
     
     // tempfile
@@ -128,8 +141,20 @@ void preprocess(const path_type& path, const int order)
   utils::tempfile::insert(path);
 }
 
+template <typename Tp>
+struct greater_secondp
+{
+  bool operator()(const Tp* x, const Tp* y) const
+  {
+    return x->second > y->second;
+  }
+};
+
 void postprocess(const path_type& path, const path_map_type& paths_counts)
 {
+  typedef std::vector<std::string, std::allocator<std::string> > tokens_type;
+  typedef boost::tokenizer<utils::space_separator>               tokenizer_type;
+  
   if (paths_counts.empty())
     throw std::runtime_error("no counts?");
 
@@ -138,11 +163,13 @@ void postprocess(const path_type& path, const path_map_type& paths_counts)
   // process unigrams...
   {
     typedef std::map<std::string, count_type, std::less<std::string>, std::allocator<std::pair<const std::string, count_type> > > word_set_type;
-    typedef std::multimap<count_type, std::string, std::greater<count_type>, std::allocator<std::pair<const count_type, std::string> > > count_set_type;
+    typedef word_set_type::value_type value_type;
+    typedef std::vector<const value_type*, std::allocator<const value_type*> > sorted_type;
 
     const path_type ngram_dir         = path / "1gms";
     const path_type vocab_file        = ngram_dir / "vocab.gz";
     const path_type vocab_sorted_file = ngram_dir / "vocab_cs.gz";
+    const path_type total_file        = ngram_dir / "total";
     
     word_set_type words;
     path_set_type::const_iterator piter_end = paths_counts.front().end();
@@ -150,7 +177,7 @@ void postprocess(const path_type& path, const path_map_type& paths_counts)
       if (! boost::filesystem::exists(*piter))
 	throw std::runtime_error(std::string("no unigramcounts? ") + piter->file_string());
       
-      utils::compress_istream is(*piter);
+      utils::compress_istream is(*piter, 1024 * 1024);
       std::string line;
       tokens_type tokens;
       while (std::getline(is, line)) {
@@ -168,34 +195,46 @@ void postprocess(const path_type& path, const path_map_type& paths_counts)
       utils::tempfile::erase(*piter);
     }
     
-    count_set_type counts;
+    sorted_type sorted;
+    sorted.reserve(words.size());
     
+    count_type total = 0;
     {
       utils::compress_ostream os(vocab_file, 1024 * 1024);
       word_set_type::const_iterator witer_end = words.end();
       for (word_set_type::const_iterator witer = words.begin(); witer != witer_end; ++ witer) {
 	os << witer->first << '\t' << witer->second << '\n';
-	counts.insert(std::make_pair(witer->second, witer->first));
+	sorted.push_back(&(*witer));
+	
+	total += witer->second;
       }
     }
     
+    std::sort(sorted.begin(), sorted.end(), greater_secondp<value_type>());
+    
     {
       utils::compress_ostream os(vocab_sorted_file, 1024 * 1024);
-      count_set_type::const_iterator citer_end = counts.end();
-      for (count_set_type::const_iterator citer = counts.begin(); citer != citer_end; ++ citer)
-	os << citer->second << '\t' << citer->first << '\n';
+      
+      sorted_type::const_iterator siter_end = sorted.end();
+      for (sorted_type::const_iterator siter = sorted.begin(); siter != siter_end; ++ siter)
+	os << (*siter)->second << '\t' << (*siter)->first << '\n';
+    }
+    
+    {
+      utils::compress_ostream os(total_file);
+      os << total << '\n';
     }
     
     utils::tempfile::erase(ngram_dir);
   }
   
   // process others...
-  for (int n = 2; n <= order; ++ n) {
+  for (int order = 2; order <= max_order; ++ order) {
     std::ostringstream stream_ngram;
-    stream_ngram << n << "gms";
+    stream_ngram << order << "gms";
     
     std::ostringstream stream_index;
-    stream_index << n << "gm.idx";
+    stream_index << order << "gm.idx";
     
     const path_type ngram_dir = path / stream_ngram.str();
     const path_type index_file = ngram_dir / stream_index.str();

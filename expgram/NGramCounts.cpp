@@ -224,7 +224,7 @@ namespace expgram
 	counts_modified[result.second - offset] += context_count.second;
       }
       
-      const path_type path = utils::tempfile::file_name(utils::tempfile::tmp_dir() / "expgram.modified.XXXXXX");
+      const path_type path = utils::tempfile::directory_name(utils::tempfile::tmp_dir() / "expgram.modified.XXXXXX");
       utils::tempfile::insert(path);
       
       boost::iostreams::filtering_ostream os;
@@ -237,6 +237,8 @@ namespace expgram
 	os.write((char*) &count, sizeof(count_type));
       }
       os.pop();
+
+      utils::tempfile::permission(path);
       
       ngram.counts[shard].counts.close();
       ngram.counts[shard].modified.open(path);
@@ -869,6 +871,9 @@ namespace expgram
       
       dump_file(path_logprob, logprobs[shard]);
       dump_file(path_backoff, backoffs[shard]);
+
+      utils::tempfile::permission(path_logprob);
+      utils::tempfile::permission(path_backoff);
       
       ngram.logprobs[shard].logprobs.open(path_logprob);
       ngram.backoffs[shard].logprobs.open(path_backoff);
@@ -1367,8 +1372,8 @@ namespace expgram
       const size_type positions_size = ngram.index[shard].offsets[order_prev] - ngram.index[shard].offsets[order_prev - 1];
       
       const path_type tmp_dir       = utils::tempfile::tmp_dir();
-      const path_type path_id       = utils::tempfile::file_name(tmp_dir / "expgram.index.XXXXXX");
-      const path_type path_position = utils::tempfile::file_name(tmp_dir / "expgram.position.XXXXXX");
+      const path_type path_id       = utils::tempfile::directory_name(tmp_dir / "expgram.index.XXXXXX");
+      const path_type path_position = utils::tempfile::directory_name(tmp_dir / "expgram.position.XXXXXX");
       
       utils::tempfile::insert(path_id);
       utils::tempfile::insert(path_position);
@@ -1411,6 +1416,9 @@ namespace expgram
       // perform indexing...
       os_id.pop();
       positions.write(path_position);
+
+      utils::tempfile::permission(path_id);
+      utils::tempfile::permission(path_position);
       
       // close and remove old index...
       if (ngram.index[shard].ids.is_open()) {
@@ -1813,8 +1821,8 @@ namespace expgram
       const size_type positions_size = ngram.index[shard].offsets[order_prev] - ngram.index[shard].offsets[order_prev - 1];
       
       const path_type tmp_dir       = utils::tempfile::tmp_dir();
-      const path_type path_id       = utils::tempfile::file_name(tmp_dir / "expgram.index.XXXXXX");
-      const path_type path_position = utils::tempfile::file_name(tmp_dir / "expgram.position.XXXXXX");
+      const path_type path_id       = utils::tempfile::directory_name(tmp_dir / "expgram.index.XXXXXX");
+      const path_type path_position = utils::tempfile::directory_name(tmp_dir / "expgram.position.XXXXXX");
       
       utils::tempfile::insert(path_id);
       utils::tempfile::insert(path_position);
@@ -1857,6 +1865,9 @@ namespace expgram
       // perform indexing...
       os_id.pop();
       positions.write(path_position);
+
+      utils::tempfile::permission(path_id);
+      utils::tempfile::permission(path_position);
       
       // close and remove old index...
       if (ngram.index[shard].ids.is_open()) {
@@ -2030,7 +2041,7 @@ namespace expgram
     ostream_ptr_set_type os_counts(shard_size);
     path_set_type        path_counts(shard_size);
     for (int shard = 0; shard < shard_size; ++ shard) {
-      path_counts[shard] = utils::tempfile::file_name(tmp_dir / "expgram.count.XXXXXX");
+      path_counts[shard] = utils::tempfile::directory_name(tmp_dir / "expgram.count.XXXXXX");
       
       utils::tempfile::insert(path_counts[shard]);
       
@@ -2045,7 +2056,7 @@ namespace expgram
     vocab_map_type vocab_map;
     size_type      unigram_size = 0;
     {
-      const path_type path_vocab = utils::tempfile::file_name(utils::tempfile::tmp_dir() / "expgram.vocab.XXXXXX");
+      const path_type path_vocab = utils::tempfile::directory_name(utils::tempfile::tmp_dir() / "expgram.vocab.XXXXXX");
       utils::tempfile::insert(path_vocab);
       
       vocab_type& vocab = index.vocab();
@@ -2082,6 +2093,9 @@ namespace expgram
       
       vocab_map_type(vocab_map).swap(vocab_map);
       vocab.close();
+      
+      utils::tempfile::permission(path_vocab);
+
       vocab.open(path_vocab);
       unigram_size = word_id;
     }
@@ -2194,6 +2208,9 @@ namespace expgram
 	threads[shard]->join();
 	
 	os_counts[shard].reset();
+	
+	utils::tempfile::permission(path_counts[shard]);
+
 	counts[shard].open(path_counts[shard]);
       }
       threads.clear();
@@ -2288,6 +2305,9 @@ namespace expgram
       // termination...
       for (int shard = 0; shard < shard_size; ++ shard) {
 	os_counts[shard].reset();
+	
+	utils::tempfile::permission(path_counts[shard]);
+
 	counts[shard].open(path_counts[shard]);
       }
     }
