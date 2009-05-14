@@ -34,6 +34,7 @@ bitpack.hpp \
 bounded_queue.hpp \
 byte_aligned_code.hpp \
 chunk_vector.hpp \
+compact_trie.hpp \
 compress_stream.hpp \
 config.hpp \
 config.h \
@@ -42,6 +43,7 @@ hashmurmur.hpp \
 indexed_hashtable.hpp \
 indexed_map.hpp \
 indexed_set.hpp \
+istream_line_iterator.hpp \
 lockfree_list_queue.hpp \
 lockfree_queue.hpp \
 map_file.hpp \
@@ -72,6 +74,7 @@ sample_byte_aligned_code \
 sample_chunk_vector \
 sample_compress_stream \
 sample_indexed_set \
+sample_istream_line_iterator \
 sample_lockfree_list_queue \
 sample_lockfree_queue \
 sample_map_file_allocator \
@@ -123,6 +126,8 @@ sample_compress_stream_LDFLAGS = $(BOOST_IOSTREAMS_LDFLAGS)
 sample_compress_stream_LDADD = $(BOOST_IOSTREAMS_LIBS) $(BOOST_SYSTEM_LIBS)
 
 sample_indexed_set_SOURCES = sample_indexed_set.cpp
+
+sample_istream_line_iterator_SOURCES = sample_istream_line_iterator.cpp
 
 sample_lockfree_list_queue_SOURCES = sample_lockfree_list_queue.cpp
 sample_lockfree_list_queue_LDFLAGS = $(BOOST_THREAD_LDFLAGS)
