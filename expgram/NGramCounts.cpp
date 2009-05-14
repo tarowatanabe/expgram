@@ -1416,7 +1416,7 @@ namespace expgram
       // perform indexing...
       os_id.pop();
       positions.write(path_position);
-
+      
       utils::tempfile::permission(path_id);
       utils::tempfile::permission(path_position);
       
@@ -1826,7 +1826,7 @@ namespace expgram
       
       utils::tempfile::insert(path_id);
       utils::tempfile::insert(path_position);
-
+      
       if (debug)
 	std::cerr << "perform indexing: " << (order_prev + 1) << " shard: " << shard << std::endl;
       
@@ -1865,7 +1865,7 @@ namespace expgram
       // perform indexing...
       os_id.pop();
       positions.write(path_position);
-
+      
       utils::tempfile::permission(path_id);
       utils::tempfile::permission(path_position);
       
