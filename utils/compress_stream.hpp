@@ -17,6 +17,8 @@
 
 #include <boost/filesystem.hpp>
 
+#include <utils/icu_filter.hpp>
+
 namespace utils
 {
   namespace impl
@@ -66,11 +68,40 @@ namespace utils
     compress_ostream(const boost::filesystem::path& path,
 		     const size_t buffer_size = 4096) { __initialize(path, buffer_size); }
     
+    compress_ostream(const boost::filesystem::path& path,
+		     const std::string& codepage_from,
+		     const std::string& codepage_to,
+		     utils::icu_filter::callback_type callback = utils::icu_filter::stop,
+		     size_t buffer_size = 4096) { __initialize(path, codepage_from, codepage_to, callback, buffer_size); }
+    
   private:
     void __initialize(const boost::filesystem::path& path,
-		      const size_t buffer_size = 4096)
+		      size_t buffer_size = 4096)
     {
       if (path.file_string() == "-")  
+	__stream().push(boost::iostreams::file_descriptor_sink(::dup(STDOUT_FILENO), true), buffer_size);
+      else {
+	switch (impl::compress_oformat(path)) {
+	case impl::COMPRESS_STREAM_GZIP:
+	  __stream().push(boost::iostreams::gzip_compressor());
+	  break;
+	case impl::COMPRESS_STREAM_BZIP:
+	  __stream().push(boost::iostreams::bzip2_compressor());
+	  break;
+	}
+	__stream().push(boost::iostreams::file_sink(path.file_string(), std::ios_base::out | std::ios_base::trunc), buffer_size);
+      }
+    }
+
+    void __initialize(const boost::filesystem::path& path,
+		      const std::string& codepage_from,
+		      const std::string& codepage_to,
+		      utils::icu_filter::callback_type callback = utils::icu_filter::stop,
+		      size_t buffer_size = 4096)
+    {
+      __stream().push(utils::icu_filter(codepage_from, codepage_to, callback));
+      
+      if (path.file_string() == "-")
 	__stream().push(boost::iostreams::file_descriptor_sink(::dup(STDOUT_FILENO), true), buffer_size);
       else {
 	switch (impl::compress_oformat(path)) {
@@ -95,12 +126,39 @@ namespace utils
     
   public:
     compress_istream(const boost::filesystem::path& path,
-		     const size_t buffer_size = 4096) { __initialize(path, buffer_size); }
-    
+		     size_t buffer_size = 4096) { __initialize(path, buffer_size); }
+    compress_istream(const boost::filesystem::path& path,
+		     const std::string& codepage_from,
+		     const std::string& codepage_to,
+		     utils::icu_filter::callback_type callback = utils::icu_filter::stop,
+		     size_t buffer_size = 4096) { __initialize(path, codepage_from, codepage_to, callback, buffer_size); }
   private:
     void __initialize(const boost::filesystem::path& path,
-		      const size_t buffer_size = 4096)
+		      size_t buffer_size = 4096)
     {
+      if (path.file_string() == "-")  
+	__stream().push(boost::iostreams::file_descriptor_source(::dup(STDIN_FILENO), true), buffer_size);
+      else {
+	switch (impl::compress_iformat(path)) {
+	case impl::COMPRESS_STREAM_GZIP:
+	  __stream().push(boost::iostreams::gzip_decompressor());
+	  break;
+	case impl::COMPRESS_STREAM_BZIP:
+	  __stream().push(boost::iostreams::bzip2_decompressor());
+	  break;
+	}
+	__stream().push(boost::iostreams::file_source(path.file_string()), buffer_size);
+      }
+    }
+    
+    void __initialize(const boost::filesystem::path& path,
+		      const std::string& codepage_from,
+		      const std::string& codepage_to,
+		      utils::icu_filter::callback_type callback = utils::icu_filter::stop,
+		      size_t buffer_size = 4096)
+    {
+      __stream().push(utils::icu_filter(codepage_from, codepage_to, callback));
+      
       if (path.file_string() == "-")  
 	__stream().push(boost::iostreams::file_descriptor_source(::dup(STDIN_FILENO), true), buffer_size);
       else {

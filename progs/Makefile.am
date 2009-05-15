@@ -14,22 +14,25 @@ LIBCODEC   = $(top_builddir)/codec/libcodec.la
 LIBUTILS   = $(top_builddir)/utils/libutils.la
 
 bin_PROGRAMS = \
-	ngram_index \
 	ngram_counts \
-	ngram_counts_index \
+	\
+	ngram_index \
 	ngram_dump \
 	ngram_quantize \
-	ngram_bound
+	ngram_bound \
+	\
+	ngram_counts_index \
+	ngram_counts_modify \
+	ngram_counts_dump \
+	ngram_counts_estimate
 
-
-ngram_index_SOURCES = ngram_index.cpp
-ngram_index_LDADD   = $(LIBEXPGRAM) $(LIBUTILS) $(boost_LDADD) $(perftools_LDADD)
-
+### ngram counts accumulation
 ngram_counts_SOURCES = ngram_counts.cpp
 ngram_counts_LDADD   = $(LIBEXPGRAM) $(LIBUTILS) $(boost_LDADD) $(perftools_LDADD)
 
-ngram_counts_index_SOURCES = ngram_counts_index.cpp
-ngram_counts_index_LDADD   = $(LIBEXPGRAM) $(LIBUTILS) $(boost_LDADD) $(perftools_LDADD)
+### ngram language model
+ngram_index_SOURCES = ngram_index.cpp
+ngram_index_LDADD   = $(LIBEXPGRAM) $(LIBUTILS) $(boost_LDADD) $(perftools_LDADD)
 
 ngram_dump_SOURCES = ngram_dump.cpp
 ngram_dump_LDADD   = $(LIBEXPGRAM) $(LIBUTILS) $(boost_LDADD) $(perftools_LDADD)
@@ -39,3 +42,16 @@ ngram_quantize_LDADD   = $(LIBEXPGRAM) $(LIBUTILS) $(boost_LDADD) $(perftools_LD
 
 ngram_bound_SOURCES = ngram_bound.cpp
 ngram_bound_LDADD   = $(LIBEXPGRAM) $(LIBUTILS) $(boost_LDADD) $(perftools_LDADD)
+
+### ngram counts
+ngram_counts_index_SOURCES = ngram_counts_index.cpp
+ngram_counts_index_LDADD   = $(LIBEXPGRAM) $(LIBUTILS) $(boost_LDADD) $(perftools_LDADD)
+
+ngram_counts_modify_SOURCES = ngram_counts_modify.cpp
+ngram_counts_modify_LDADD   = $(LIBEXPGRAM) $(LIBUTILS) $(boost_LDADD) $(perftools_LDADD)
+
+ngram_counts_dump_SOURCES = ngram_counts_dump.cpp
+ngram_counts_dump_LDADD   = $(LIBEXPGRAM) $(LIBUTILS) $(boost_LDADD) $(perftools_LDADD)
+
+ngram_counts_estimate_SOURCES = ngram_counts_estimate.cpp
+ngram_counts_estimate_LDADD   = $(LIBEXPGRAM) $(LIBUTILS) $(boost_LDADD) $(perftools_LDADD)
