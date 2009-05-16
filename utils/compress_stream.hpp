@@ -17,8 +17,6 @@
 
 #include <boost/filesystem.hpp>
 
-#include <utils/icu_filter.hpp>
-
 namespace utils
 {
   namespace impl
@@ -58,122 +56,86 @@ namespace utils
     }
     inline compress_format_type compress_oformat(const boost::filesystem::path& path) { return compress_oformat(path.file_string()); }    
   };
+
+
+  template <typename Stream>
+  inline
+  Stream& push_compress_ostream(Stream& os,
+				const boost::filesystem::path& path,
+				size_t buffer_size = 4096)
+  {
+    if (path.file_string() == "-")  
+      os.push(boost::iostreams::file_descriptor_sink(::dup(STDOUT_FILENO), true), buffer_size);
+    else {
+      switch (impl::compress_oformat(path)) {
+      case impl::COMPRESS_STREAM_GZIP:
+	os.push(boost::iostreams::gzip_compressor());
+	break;
+      case impl::COMPRESS_STREAM_BZIP:
+	os.push(boost::iostreams::bzip2_compressor());
+	break;
+      }
+      os.push(boost::iostreams::file_sink(path.file_string(), std::ios_base::out | std::ios_base::trunc), buffer_size);
+    }
+    return os;
+  }
+  
+  template <typename Stream>
+  inline
+  Stream& push_compress_istream(Stream& is,
+				const boost::filesystem::path& path,
+				size_t buffer_size = 4096)
+  {
+    if (path.file_string() == "-")  
+      is.push(boost::iostreams::file_descriptor_source(::dup(STDIN_FILENO), true), buffer_size);
+    else {
+      switch (impl::compress_iformat(path)) {
+      case impl::COMPRESS_STREAM_GZIP:
+	is.push(boost::iostreams::gzip_decompressor());
+	break;
+      case impl::COMPRESS_STREAM_BZIP:
+	is.push(boost::iostreams::bzip2_decompressor());
+	break;
+      }
+      is.push(boost::iostreams::file_source(path.file_string()), buffer_size);
+    }
+    return is;
+  }
   
   class compress_ostream : public boost::iostreams::filtering_ostream
   {
+  public:
+    typedef boost::filesystem::path path_type;
   private:
     typedef boost::iostreams::filtering_ostream stream_type;
     
   public:
-    compress_ostream(const boost::filesystem::path& path,
-		     const size_t buffer_size = 4096) { __initialize(path, buffer_size); }
-    
-    compress_ostream(const boost::filesystem::path& path,
-		     const std::string& codepage_from,
-		     const std::string& codepage_to,
-		     utils::icu_filter::callback_type callback = utils::icu_filter::stop,
-		     size_t buffer_size = 4096) { __initialize(path, codepage_from, codepage_to, callback, buffer_size); }
+    compress_ostream(const path_type& path,
+		     size_t buffer_size = 4096)
+    {
+      push_compress_ostream(__stream(), path, buffer_size);
+    }
     
   private:
-    void __initialize(const boost::filesystem::path& path,
-		      size_t buffer_size = 4096)
-    {
-      if (path.file_string() == "-")  
-	__stream().push(boost::iostreams::file_descriptor_sink(::dup(STDOUT_FILENO), true), buffer_size);
-      else {
-	switch (impl::compress_oformat(path)) {
-	case impl::COMPRESS_STREAM_GZIP:
-	  __stream().push(boost::iostreams::gzip_compressor());
-	  break;
-	case impl::COMPRESS_STREAM_BZIP:
-	  __stream().push(boost::iostreams::bzip2_compressor());
-	  break;
-	}
-	__stream().push(boost::iostreams::file_sink(path.file_string(), std::ios_base::out | std::ios_base::trunc), buffer_size);
-      }
-    }
-
-    void __initialize(const boost::filesystem::path& path,
-		      const std::string& codepage_from,
-		      const std::string& codepage_to,
-		      utils::icu_filter::callback_type callback = utils::icu_filter::stop,
-		      size_t buffer_size = 4096)
-    {
-      __stream().push(utils::icu_filter(codepage_from, codepage_to, callback));
-      
-      if (path.file_string() == "-")
-	__stream().push(boost::iostreams::file_descriptor_sink(::dup(STDOUT_FILENO), true), buffer_size);
-      else {
-	switch (impl::compress_oformat(path)) {
-	case impl::COMPRESS_STREAM_GZIP:
-	  __stream().push(boost::iostreams::gzip_compressor());
-	  break;
-	case impl::COMPRESS_STREAM_BZIP:
-	  __stream().push(boost::iostreams::bzip2_compressor());
-	  break;
-	}
-	__stream().push(boost::iostreams::file_sink(path.file_string(), std::ios_base::out | std::ios_base::trunc), buffer_size);
-      }
-    }
-    
     stream_type& __stream() { return static_cast<stream_type&>(*this); }
   };
   
   class compress_istream : public boost::iostreams::filtering_istream
   {
+  public:
+    typedef boost::filesystem::path path_type;
+
   private:
     typedef boost::iostreams::filtering_istream stream_type;
     
   public:
-    compress_istream(const boost::filesystem::path& path,
-		     size_t buffer_size = 4096) { __initialize(path, buffer_size); }
-    compress_istream(const boost::filesystem::path& path,
-		     const std::string& codepage_from,
-		     const std::string& codepage_to,
-		     utils::icu_filter::callback_type callback = utils::icu_filter::stop,
-		     size_t buffer_size = 4096) { __initialize(path, codepage_from, codepage_to, callback, buffer_size); }
+    compress_istream(const path_type& path,
+		     size_t buffer_size = 4096)
+    {
+      push_compress_istream(__stream(), path, buffer_size);
+    }
+    
   private:
-    void __initialize(const boost::filesystem::path& path,
-		      size_t buffer_size = 4096)
-    {
-      if (path.file_string() == "-")  
-	__stream().push(boost::iostreams::file_descriptor_source(::dup(STDIN_FILENO), true), buffer_size);
-      else {
-	switch (impl::compress_iformat(path)) {
-	case impl::COMPRESS_STREAM_GZIP:
-	  __stream().push(boost::iostreams::gzip_decompressor());
-	  break;
-	case impl::COMPRESS_STREAM_BZIP:
-	  __stream().push(boost::iostreams::bzip2_decompressor());
-	  break;
-	}
-	__stream().push(boost::iostreams::file_source(path.file_string()), buffer_size);
-      }
-    }
-    
-    void __initialize(const boost::filesystem::path& path,
-		      const std::string& codepage_from,
-		      const std::string& codepage_to,
-		      utils::icu_filter::callback_type callback = utils::icu_filter::stop,
-		      size_t buffer_size = 4096)
-    {
-      __stream().push(utils::icu_filter(codepage_from, codepage_to, callback));
-      
-      if (path.file_string() == "-")  
-	__stream().push(boost::iostreams::file_descriptor_source(::dup(STDIN_FILENO), true), buffer_size);
-      else {
-	switch (impl::compress_iformat(path)) {
-	case impl::COMPRESS_STREAM_GZIP:
-	  __stream().push(boost::iostreams::gzip_decompressor());
-	  break;
-	case impl::COMPRESS_STREAM_BZIP:
-	  __stream().push(boost::iostreams::bzip2_decompressor());
-	  break;
-	}
-	__stream().push(boost::iostreams::file_source(path.file_string()), buffer_size);
-      }
-    }
-    
     stream_type& __stream() { return static_cast<stream_type&>(*this); }
   };
   

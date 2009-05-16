@@ -10,6 +10,7 @@
 #include <unicode/ucnv.h>
 
 #include <boost/iostreams/filter/symmetric.hpp>
+#include <boost/iostreams/constants.hpp>
 #include <boost/iostreams/pipeline.hpp>
 #include <boost/iostreams/detail/ios.hpp>
 
@@ -57,14 +58,34 @@ namespace utils
 		char_type*& dest_begin, char_type* dest_end,
 		bool flush)
     {
-      UChar* pivot_end = pivot_start + 4096;
+      if (! ucnv_from && ! ucnv_to) {
+	// no converter... simply copy!
+	
+	const size_t copy_size = std::min(src_end - src_begin, dest_end - dest_begin);
+	
+	std::copy(src_begin, src_begin + copy_size, dest_begin);
+	
+	src_begin += copy_size;
+	dest_begin += copy_size;
+	
+	return false;
+      }
+
+      UChar* pivot_end = pivot_start + boost::iostreams::default_device_buffer_size;
       
       UErrorCode status = U_ZERO_ERROR;
-      ucnv_toUnicode(ucnv_from, &pivot_target, pivot_end, &src_begin, src_end, 0, flush, &status);
-      if (status != U_BUFFER_OVERFLOW_ERROR && U_FAILURE(status)) {
-	UErrorCode status_getname = U_ZERO_ERROR;
-	const char* encoding = ucnv_getName(ucnv_from, &status_getname);
-	throw BOOST_IOSTREAMS_FAILURE(std::string("ucnv_toUnicode(): ") + u_errorName(status) + " from " + encoding);
+      
+      if (pivot_target != pivot_end) {
+	status = U_ZERO_ERROR;
+	ucnv_toUnicode(ucnv_from, &pivot_target, pivot_end, &src_begin, src_end, 0, flush, &status);
+	if (status != U_BUFFER_OVERFLOW_ERROR && U_FAILURE(status)) {
+	  UErrorCode status_getname = U_ZERO_ERROR;
+	  const char* encoding = ucnv_getName(ucnv_from, &status_getname);
+	  
+	  // this exception will not be caught by anybody...
+	  // how to tell errors?
+	  throw std::runtime_error(std::string("ucnv_toUnicode(): ") + u_errorName(status) + " from " + encoding);
+	}
       }
     
       status = U_ZERO_ERROR;
@@ -72,7 +93,10 @@ namespace utils
       if (status != U_BUFFER_OVERFLOW_ERROR && U_FAILURE(status)) {
 	UErrorCode status_getname = U_ZERO_ERROR;
 	const char* encoding = ucnv_getName(ucnv_to, &status_getname);
-	throw BOOST_IOSTREAMS_FAILURE(std::string("ucnv_fromUnicode(): ") + u_errorName(status) + " to " + encoding);
+	
+	// this exception will not be caught by anybody...
+	// how to tell errors?
+	throw std::runtime_error(std::string("ucnv_fromUnicode(): ") + u_errorName(status) + " to " + encoding);
       }
     
       if (pivot_source == pivot_target) {
@@ -125,7 +149,7 @@ namespace utils
     basic_icu_filter(const std::string codepage_from = "",
 		     const std::string codepage_to = "",
 		     const callback_type callback = impl_type::stop,
-		     int buffer_size = 4096)
+		     int buffer_size = boost::iostreams::default_device_buffer_size)
       : base_type(buffer_size, codepage_from, codepage_to, callback) {}
   };
   

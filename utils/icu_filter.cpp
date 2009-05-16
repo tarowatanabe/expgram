@@ -51,6 +51,9 @@ namespace utils
   {
     __clear();
     
+    if (codepage_from == codepage_to)
+      return;
+    
     // conversin from
     UErrorCode status = U_ZERO_ERROR;
     ucnv_from = ucnv_open(codepage_from.empty() ? 0 : codepage_from.c_str(), &status);
@@ -76,10 +79,19 @@ namespace utils
 			  0, 0, &status);
     if (U_FAILURE(status))
       throw std::runtime_error(std::string("ucnv_setFromUCallBack(): ") + u_errorName(status));
+
     
-    pivot_start = new UChar[4096];
+    pivot_start = new UChar[boost::iostreams::default_device_buffer_size];
     pivot_source = pivot_start;
     pivot_target = pivot_start;
+
+    status = U_ZERO_ERROR;
+    const char* encoding_from = ucnv_getName(ucnv_from, &status);
+    const char* encoding_to   = ucnv_getName(ucnv_to, &status);
+    
+    // if the same encoding, clear!
+    if (strcasecmp(encoding_from, encoding_to) == 0)
+      __clear();
   }
   
   void __icu_filter_impl::__clear()
@@ -90,7 +102,6 @@ namespace utils
       ucnv_close(ucnv_to);
     if (pivot_start)
       delete [] pivot_start;
-    
     
     ucnv_from = 0;
     ucnv_to = 0;

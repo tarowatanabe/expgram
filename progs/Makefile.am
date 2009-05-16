@@ -24,7 +24,9 @@ bin_PROGRAMS = \
 	ngram_counts_index \
 	ngram_counts_modify \
 	ngram_counts_dump \
-	ngram_counts_estimate
+	ngram_counts_estimate \
+	\
+	tokenize_en
 
 ### ngram counts accumulation
 ngram_counts_SOURCES = ngram_counts.cpp
@@ -55,3 +57,7 @@ ngram_counts_dump_LDADD   = $(LIBEXPGRAM) $(LIBUTILS) $(boost_LDADD) $(perftools
 
 ngram_counts_estimate_SOURCES = ngram_counts_estimate.cpp
 ngram_counts_estimate_LDADD   = $(LIBEXPGRAM) $(LIBUTILS) $(boost_LDADD) $(perftools_LDADD)
+
+### tokenizer
+tokenize_en_SOURCES = tokenize_en.cpp
+tokenize_en_LDADD   = $(LIBUTILS) $(boost_LDADD) $(perftools_LDADD)
