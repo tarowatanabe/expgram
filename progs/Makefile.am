@@ -1,4 +1,4 @@
-AM_CPPFLAGS = -I.. $(BOOST_CPPFLAGS) $(PTHREAD_FLAGS) $(TCMALLOC_CPPFLAGS) $(PROFILER_CPPFLAGS) $(SPARSEHASH_CPPFLAGS)
+AM_CPPFLAGS = -I.. $(ICU_CPPFLAGS) $(BOOST_CPPFLAGS) $(PTHREAD_FLAGS) $(TCMALLOC_CPPFLAGS) $(PROFILER_CPPFLAGS) $(SPARSEHASH_CPPFLAGS)
 
 perftools_LDADD = $(TCMALLOC_LDFLAGS) $(PROFILER_LDFLAGS)
 
@@ -65,4 +65,4 @@ ngram_counts_estimate_LDADD   = $(LIBEXPGRAM) $(LIBUTILS) $(boost_LDADD) $(perft
 
 ### tokenizer
 tokenize_en_SOURCES = tokenize_en.cpp
-tokenize_en_LDADD   = $(LIBUTILS) $(boost_LDADD) $(perftools_LDADD)
+tokenize_en_LDADD   = $(LIBUTILS) $(ICU_LDFLAGS) $(boost_LDADD) $(perftools_LDADD)
