@@ -25,11 +25,6 @@ typedef ngram_type::quantized_type  quantized_type;
 typedef ngram_type::word_type       word_type;
 typedef ngram_type::id_type         id_type;
 
-typedef std::map<logprob_type, size_type, std::less<logprob_type>,
-		 std::allocator<std::pair<const logprob_type, size_type> > > logprob_counts_type;
-typedef std::map<logprob_type, quantized_type, std::less<logprob_type>,
-		 std::allocator<std::pair<const logprob_type, quantized_type> > > codemap_type;
-
 path_type ngram_file;
 path_type output_file;
 
@@ -37,7 +32,7 @@ path_type prog_name;
 
 int debug = 0;
 
-void quantize_ngram(ngram_type& ngram);
+void ngram_quantize(ngram_type& ngram);
 int getoptions(int argc, char** argv);
 
 int main(int argc, char** argv)
@@ -64,7 +59,7 @@ int main(int argc, char** argv)
     if (ngram.index.size() != mpi_size)
       throw std::runtime_error("MPI universe size do not match with ngram shard size");
     
-    quantize_ngram(ngram);
+    ngram_quantize(ngram);
     
     if (mpi_rank == 0)
       ngram.write_prepare(output_file);
@@ -95,7 +90,7 @@ void quantize(ngram_type& ngram, OStream& os, LogProbs& logprobs, Counts& counts
   expgram::Quantizer::quantize(counts, ngram.logprob_min(), codebook, codemap);
   
   for (size_type pos = pos_first; pos < pos_last; ++ pos) {
-    codemap_type::const_iterator citer = codemap.find(logprobs(pos, order));
+    typename Codemap::const_iterator citer = codemap.find(logprobs(pos, order));
     if (citer == codemap.end())
       throw std::runtime_error("no codemap?");
 	
@@ -103,7 +98,13 @@ void quantize(ngram_type& ngram, OStream& os, LogProbs& logprobs, Counts& counts
   }
 }
 
-void quantize_ngram(ngram_type& ngram)
+typedef std::map<logprob_type, size_type, std::less<logprob_type>,
+		 std::allocator<std::pair<const logprob_type, size_type> > > logprob_counts_type;
+typedef std::map<logprob_type, quantized_type, std::less<logprob_type>,
+		 std::allocator<std::pair<const logprob_type, quantized_type> > > codemap_type;
+
+
+void ngram_quantize(ngram_type& ngram)
 {
   typedef ngram_type::shard_data_type shard_data_type;
   
@@ -215,6 +216,9 @@ void quantize_ngram(ngram_type& ngram)
 
 int getoptions(int argc, char** argv)
 {
+  const int mpi_rank = MPI::COMM_WORLD.Get_rank();
+  const int mpi_size = MPI::COMM_WORLD.Get_size();
+  
   namespace po = boost::program_options;
   
   po::options_description desc("options");
@@ -233,7 +237,8 @@ int getoptions(int argc, char** argv)
   po::notify(vm);
   
   if (vm.count("help")) {
-    std::cout << argv[0] << " [options]" << '\n' << desc << '\n';
+    if (mpi_rank == 0)
+      std::cout << argv[0] << " [options]" << '\n' << desc << '\n';
     return 1;
   }
   

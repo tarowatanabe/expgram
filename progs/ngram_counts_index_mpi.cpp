@@ -241,7 +241,48 @@ void index_ngram_reducer(MPI::Comm& children, ngram_type& ngram, shard_data_type
 struct IndexNGramReducerUnique
 {
   
+  typedef expgram::NGramCountsIndexer indexer_type;
   
+  
+  void operator()()
+  {
+    context_count_type  context_count;
+    context_type        prefix;
+    word_count_set_type words;
+    
+    int order = 2;
+    
+    while (1) {
+      
+      queue.pop(context_count);
+      if (context_count.first.empty()) break;
+	
+      const context_type& context = context_count.first;
+      const count_type&   count   = context_count.second;
+      
+      if (context.size() != prefix.size() + 1 || ! std::equal(prefix.begin(), prefix.end(), context.begin())) {
+	if (! words.empty()) {
+	  indexer_type::index_ngram(shard, ngram, *this, prefix, words);
+	  words.clear();
+	  
+	  if (context.size() != order)
+	    indexer_type::index_ngram(shard, ngram, *this, debug);
+	}
+	
+	prefix.clear();
+	prefix.insert(prefix.end(), context.begin(), context.end() - 1);
+	order = context.size();
+      }
+      
+      words.push_back(std::make_pair(context.back(), count));
+    }
+    
+    // perform final indexing...
+    if (! words.empty()) {
+      indexer_type::index_ngram(shard, ngram, *this, prefix, words);
+      indexer_type::index_ngram(shard, ngram, *this, debug);
+    }
+  }
 };
 
 void index_ngram_unique(const path_type& path, ngram_type& ngram, shard_data_type& shard)

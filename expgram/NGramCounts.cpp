@@ -3,6 +3,7 @@
 #include <queue>
 
 #include "NGramCounts.hpp"
+#include "NGramCountsIndexer.hpp"
 #include "Discount.hpp"
 
 #include <boost/tokenizer.hpp>
@@ -1434,6 +1435,8 @@ namespace expgram
     typedef utils::packed_vector<id_type, std::allocator<id_type> >       id_set_type;
     typedef utils::packed_vector<count_type, std::allocator<count_type> > count_set_type;
     typedef std::vector<size_type, std::allocator<size_type> >            size_set_type;
+
+    typedef NGramCountsIndexer indexer_type;
     
     ngram_type&           ngram;
     queue_type&           queue;
@@ -1457,139 +1460,7 @@ namespace expgram
 	os_count(_os_count),
 	shard(_shard),
 	debug(_debug) {}
-
-
     
-    void index_ngram()
-    {
-      typedef utils::succinct_vector<std::allocator<int32_t> > position_set_type;
-      
-      const int order_prev = ngram.index[shard].offsets.size() - 1;
-      const size_type positions_size = ngram.index[shard].offsets[order_prev] - ngram.index[shard].offsets[order_prev - 1];
-      
-      const path_type tmp_dir       = utils::tempfile::tmp_dir();
-      const path_type path_id       = utils::tempfile::directory_name(tmp_dir / "expgram.index.XXXXXX");
-      const path_type path_position = utils::tempfile::directory_name(tmp_dir / "expgram.position.XXXXXX");
-      
-      utils::tempfile::insert(path_id);
-      utils::tempfile::insert(path_position);
-
-      if (debug)
-	std::cerr << "perform indexing: " << (order_prev + 1) << " shard: " << shard << std::endl;
-      
-      position_set_type positions;
-      if (ngram.index[shard].positions.is_open())
-	positions = ngram.index[shard].positions;
-      
-      boost::iostreams::filtering_ostream os_id;
-      os_id.push(utils::packed_sink<id_type, std::allocator<id_type> >(path_id));
-      
-      if (ngram.index[shard].ids.is_open()) {
-	for (size_type pos = 0; pos < ngram.index[shard].ids.size(); ++ pos) {
-	  const id_type id = ngram.index[shard].ids[pos];
-	  os_id.write((char*) &id, sizeof(id_type));
-	}
-      }
-      
-      // index id and count...
-      ids.build();
-      counts.build();
-      for (size_type i = 0; i < positions_size; ++ i) {
-	const size_type pos_first = positions_first[i];
-	const size_type pos_last  = positions_last[i];
-	
-	for (size_type pos = pos_first; pos != pos_last; ++ pos) {
-	  const id_type    id    = ids[pos];
-	  const count_type count = counts[pos];
-	  
-	  os_id.write((char*) &id, sizeof(id_type));
-	  os_count.write((char*) &count, sizeof(count_type));
-	  positions.set(positions.size(), true);
-	}
-	positions.set(positions.size(), false);
-      }
-      
-      // perform indexing...
-      os_id.pop();
-      positions.write(path_position);
-      
-      utils::tempfile::permission(path_id);
-      utils::tempfile::permission(path_position);
-      
-      // close and remove old index...
-      if (ngram.index[shard].ids.is_open()) {
-	const path_type path = ngram.index[shard].ids.path();
-	ngram.index[shard].ids.close();
-	utils::filesystem::remove_all(path);
-	utils::tempfile::erase(path);
-      }
-      if (ngram.index[shard].positions.is_open()) {
-	const path_type path = ngram.index[shard].positions.path();
-	ngram.index[shard].positions.close();
-	utils::filesystem::remove_all(path);
-	utils::tempfile::erase(path);
-      }
-      
-      // new index
-      ngram.index[shard].ids.open(path_id);
-      ngram.index[shard].positions.open(path_position);
-      ngram.index[shard].offsets.push_back(ngram.index[shard].offsets.back() + ids.size());
-      
-      if (debug)
-	std::cerr << "shard: " << shard
-		  << " index: " << ngram.index[shard].ids.size()
-		  << " positions: " << ngram.index[shard].positions.size()
-		  << " offsets: "  << ngram.index[shard].offsets.back()
-		  << std::endl;
-
-      // remove temporary index
-      ids.clear();
-      counts.clear();
-      positions_first.clear();
-      positions_last.clear();
-    }
-   
-    template <typename Tp>
-    struct less_first
-    {
-      bool operator()(const Tp& x, const Tp& y) const
-      {
-	return x.first < y.first;
-      }
-    };
-    
-    void index_ngram(const context_type& prefix, word_count_set_type& words)
-    {
-      const int order_prev = ngram.index[shard].offsets.size() - 1;
-      const size_type positions_size = ngram.index[shard].offsets[order_prev] - ngram.index[shard].offsets[order_prev - 1];
-      
-      if (positions_first.empty())
-	positions_first.resize(positions_size, size_type(0));
-      if (positions_last.empty())
-	positions_last.resize(positions_size, size_type(0));
-      
-      std::pair<context_type::const_iterator, size_type> result = ngram.index.traverse(shard, prefix.begin(), prefix.end());
-      if (result.first != prefix.end() || result.second == size_type(-1)) {
-	std::cerr << "context: ";
-	std::copy(prefix.begin(), prefix.end(), std::ostream_iterator<id_type>(std::cerr, " "));
-	std::cerr << "result: " << result.second
-		  << std::endl;
-	
-	throw std::runtime_error("no prefix?");
-      }
-      
-      const size_type pos = result.second - ngram.index[shard].offsets[order_prev - 1];
-      positions_first[pos] = ids.size();
-      positions_last[pos]  = ids.size() + words.size();
-      
-      std::sort(words.begin(), words.end(), less_first<word_count_type>());
-      word_count_set_type::const_iterator witer_end = words.end();
-      for (word_count_set_type::const_iterator witer = words.begin(); witer != witer_end; ++ witer) {
-	ids.push_back(witer->first);
-	counts.push_back(witer->second);
-      }
-    }
-
     void operator()()
     {
       context_count_type  context_count;
@@ -1609,11 +1480,11 @@ namespace expgram
 	
 	if (context.size() != prefix.size() + 1 || ! std::equal(prefix.begin(), prefix.end(), context.begin())) {
 	  if (! words.empty()) {
-	    index_ngram(prefix, words);
+	    indexer_type::index_ngram(shard, ngram, *this, prefix, words);
 	    words.clear();
 	    
 	    if (context.size() != order)
-	      index_ngram();
+	      indexer_type::index_ngram(shard, ngram, *this, debug);
 	  }
 	  
 	  prefix.clear();
@@ -1626,8 +1497,8 @@ namespace expgram
       
       // perform final indexing...
       if (! words.empty()) {
-	index_ngram(prefix, words);
-	index_ngram();
+	indexer_type::index_ngram(shard, ngram, *this, prefix, words);
+	indexer_type::index_ngram(shard, ngram, *this, debug);
       }
     }
   };
@@ -1883,6 +1754,8 @@ namespace expgram
     typedef utils::packed_vector<count_type, std::allocator<count_type> > count_set_type;
     typedef std::vector<size_type, std::allocator<size_type> >            size_set_type;
     
+    typedef NGramCountsIndexer indexer_type;
+    
     ngram_type&           ngram;
     const vocab_map_type& vocab_map;
     queue_ptr_set_type&   queues;
@@ -1908,130 +1781,6 @@ namespace expgram
 	os_count(_os_count),
 	shard(_shard),
 	debug(_debug) {}
-    
-    void index_ngram()
-    {
-      typedef utils::succinct_vector<std::allocator<int32_t> > position_set_type;
-      
-      const int order_prev = ngram.index[shard].offsets.size() - 1;
-      const size_type positions_size = ngram.index[shard].offsets[order_prev] - ngram.index[shard].offsets[order_prev - 1];
-      
-      const path_type tmp_dir       = utils::tempfile::tmp_dir();
-      const path_type path_id       = utils::tempfile::directory_name(tmp_dir / "expgram.index.XXXXXX");
-      const path_type path_position = utils::tempfile::directory_name(tmp_dir / "expgram.position.XXXXXX");
-      
-      utils::tempfile::insert(path_id);
-      utils::tempfile::insert(path_position);
-      
-      if (debug)
-	std::cerr << "perform indexing: " << (order_prev + 1) << " shard: " << shard << std::endl;
-      
-      position_set_type positions;
-      if (ngram.index[shard].positions.is_open())
-	positions = ngram.index[shard].positions;
-      
-      boost::iostreams::filtering_ostream os_id;
-      os_id.push(utils::packed_sink<id_type, std::allocator<id_type> >(path_id));
-      
-      if (ngram.index[shard].ids.is_open()) {
-	for (size_type pos = 0; pos < ngram.index[shard].ids.size(); ++ pos) {
-	  const id_type id = ngram.index[shard].ids[pos];
-	  os_id.write((char*) &id, sizeof(id_type));
-	}
-      }
-      
-      // index id and count...
-      ids.build();
-      counts.build();
-      for (size_type i = 0; i < positions_size; ++ i) {
-	const size_type pos_first = positions_first[i];
-	const size_type pos_last  = positions_last[i];
-	
-	for (size_type pos = pos_first; pos != pos_last; ++ pos) {
-	  const id_type    id    = ids[pos];
-	  const count_type count = counts[pos];
-	  
-	  os_id.write((char*) &id, sizeof(id_type));
-	  os_count.write((char*) &count, sizeof(count_type));
-	  positions.set(positions.size(), true);
-	}
-	positions.set(positions.size(), false);
-      }
-      
-      // perform indexing...
-      os_id.pop();
-      positions.write(path_position);
-      
-      utils::tempfile::permission(path_id);
-      utils::tempfile::permission(path_position);
-      
-      // close and remove old index...
-      if (ngram.index[shard].ids.is_open()) {
-	const path_type path = ngram.index[shard].ids.path();
-	ngram.index[shard].ids.close();
-	utils::filesystem::remove_all(path);
-	utils::tempfile::erase(path);
-      }
-      if (ngram.index[shard].positions.is_open()) {
-	const path_type path = ngram.index[shard].positions.path();
-	ngram.index[shard].positions.close();
-	utils::filesystem::remove_all(path);
-	utils::tempfile::erase(path);
-      }
-      
-      // new index
-      ngram.index[shard].ids.open(path_id);
-      ngram.index[shard].positions.open(path_position);
-      ngram.index[shard].offsets.push_back(ngram.index[shard].offsets.back() + ids.size());
-      
-      if (debug)
-	std::cerr << "shard: " << shard
-		  << " index: " << ngram.index[shard].ids.size()
-		  << " positions: " << ngram.index[shard].positions.size()
-		  << " offsets: "  << ngram.index[shard].offsets.back()
-		  << std::endl;
-      
-      // remove temporary index
-      ids.clear();
-      counts.clear();
-      positions_first.clear();
-      positions_last.clear();
-    }
-    
-    template <typename Tp>
-    struct less_first
-    {
-      bool operator()(const Tp& x, const Tp& y) const
-      {
-	return x.first < y.first;
-      }
-    };
-    
-    void index_ngram(const context_type& prefix, word_count_set_type& words)
-    {
-      const int order_prev = ngram.index[shard].offsets.size() - 1;
-      const size_type positions_size = ngram.index[shard].offsets[order_prev] - ngram.index[shard].offsets[order_prev - 1];
-      
-      if (positions_first.empty())
-	positions_first.resize(positions_size, size_type(0));
-      if (positions_last.empty())
-	positions_last.resize(positions_size, size_type(0));
-      
-      std::pair<context_type::const_iterator, size_type> result = ngram.index.traverse(shard, prefix.begin(), prefix.end());
-      if (result.first != prefix.end() || result.second == size_type(-1))
-	throw std::runtime_error("no prefix?");
-      
-      const size_type pos = result.second - ngram.index[shard].offsets[order_prev - 1];
-      positions_first[pos] = ids.size();
-      positions_last[pos]  = ids.size() + words.size();
-      
-      std::sort(words.begin(), words.end(), less_first<word_count_type>());
-      word_count_set_type::const_iterator witer_end = words.end();
-      for (word_count_set_type::const_iterator witer = words.begin(); witer != witer_end; ++ witer) {
-	ids.push_back(witer->first);
-	counts.push_back(witer->second);
-      }
-    }
     
     void operator()()
     {
@@ -2079,7 +1828,7 @@ namespace expgram
 	
 	if (prefix.size() + 1 != context.size() || ! std::equal(prefix.begin(), prefix.end(), context.begin())) {
 	  if (! words.empty()) {
-	    index_ngram(prefix, words);
+	    indexer_type::index_ngram(shard, ngram, *this, prefix, words);
 	    words.clear();
 	  }
 	  
@@ -2102,8 +1851,8 @@ namespace expgram
       }
       
       if (! words.empty()) {
-	index_ngram(prefix, words);
-	index_ngram();
+	indexer_type::index_ngram(shard, ngram, *this, prefix, words);
+	indexer_type::index_ngram(shard, ngram, *this, debug);
       } 
     }
   };
