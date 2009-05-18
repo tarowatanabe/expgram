@@ -134,14 +134,40 @@ done
 #  AS_ERROR("no hunspell...")
 #fi
 
+### check for ICU libs
+AC_PATH_PROG(ICU_CONFIG, icu-config, no)
+if test "x$ICU_CONFIG" = "xno"; then
+  AS_ERROR("no icu...")
+fi
+
+AC_MSG_CHECKING(ICU cppflags)
+ICU_CPPFLAGS=`$ICU_CONFIG --cppflags`
+AC_MSG_RESULT($ICU_CPPFLAGS)
+AC_SUBST(ICU_CPPFLAGS)
+
+AC_MSG_CHECKING(ICU ldflags)
+ICU_LDFLAGS=`$ICU_CONFIG --ldflags`
+AC_MSG_RESULT($ICU_LDFLAGS)
+AC_SUBST(ICU_LDFLAGS)
+
 # Boost libraries...
 BOOST_REQUIRE([1.38])
 BOOST_PROGRAM_OPTIONS
 BOOST_THREADS
 BOOST_FILESYSTEM
 BOOST_IOSTREAMS
-BOOST_REGEX
 BOOST_SYSTEM
+
+boost_icu_save_CPPFLAGS=$CPPFLAGS
+boost_icu_save_LDFLAGS=$LDFLAGS
+CPPFLAGS="$CPPFLAGS $ICU_CPPFLAGS"
+LDFLAGS="$LDFLAGS $ICU_LDFLAGS"
+
+BOOST_REGEX
+
+CPPFLAGS=$boost_icu_save_CPPFLAGS
+LDFLAGS=$boost_icu_save_LDFLAGS
+
 
 ## save pthred-flag, computed by-product of boost-threads
 PTHREAD_FLAGS=$boost_cv_pthread_flag
@@ -181,22 +207,6 @@ if test "$osspinlock" = "yes"; then
   AC_DEFINE(HAVE_OSSPINLOCK, 1, [Define if you have Mac OS X SpinLock])
 fi
 
-
-### check for ICU libs
-AC_PATH_PROG(ICU_CONFIG, icu-config, no)
-if test "x$ICU_CONFIG" = "xno"; then
-  AS_ERROR("no icu...")
-fi
-
-AC_MSG_CHECKING(ICU cppflags)
-ICU_CPPFLAGS=`$ICU_CONFIG --cppflags`
-AC_MSG_RESULT($ICU_CPPFLAGS)
-AC_SUBST(ICU_CPPFLAGS)
-
-AC_MSG_CHECKING(ICU ldflags)
-ICU_LDFLAGS=`$ICU_CONFIG --ldflags`
-AC_MSG_RESULT($ICU_LDFLAGS)
-AC_SUBST(ICU_LDFLAGS)
 
 ### check for MPI
 AC_PATH_PROGS(MPI_CXX_COMPILER, [mpic++ mpicxx mpiCC], no)

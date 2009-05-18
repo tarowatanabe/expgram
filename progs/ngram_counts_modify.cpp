@@ -24,11 +24,15 @@ int main(int argc, char** argv)
   try {
     if (getoptions(argc, argv) != 0) 
       return 1;
+
+    if (output_file.empty())
+      throw std::runtime_error("no output file?");
     
     expgram::NGramCounts ngram(ngram_file, shards, unique, debug);
+    
     ngram.modify();
-    if (! output_file.empty())
-      ngram.write(output_file);
+    
+    ngram.write(output_file);
   }
   catch (std::exception& err) {
     std::cerr << "error: " << err.what() << std::endl;
@@ -43,8 +47,8 @@ int getoptions(int argc, char** argv)
   
   po::options_description desc("options");
   desc.add_options()
-    ("ngram",  po::value<path_type>(&ngram_file),  "ngram in ARPA format")
-    ("output", po::value<path_type>(&output_file), "output in binary format")
+    ("ngram",  po::value<path_type>(&ngram_file),  "ngram counts (binary or Google counts)")
+    ("output", po::value<path_type>(&output_file), "modified ngram counts")
     
     ("shard",  po::value<int>(&shards),            "# of shards (or # of threads)")
     ("unique", po::bool_switch(&unique),           "unique counts (i.e. ngram counts from LDC/GSK)")

@@ -17,7 +17,7 @@ namespace utils
   inline 
   std::string get_hostname()
   {
-    char name[HOST_NAME_MAX];
+    char name[1024];
     int result = ::gethostname(name, sizeof(name));
     if (result < 0)
       throw std::runtime_error("gethostname()");

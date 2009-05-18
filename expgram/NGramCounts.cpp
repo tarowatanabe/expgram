@@ -1052,6 +1052,7 @@ namespace expgram
     utils::compress_ostream os(path, 1024 * 1024);
     
     // unigrams
+
     for (size_type pos = 0; pos < index[0].offsets[1]; ++ pos) {
       const count_type count = counts[0][pos];
       if (count > 0) {
@@ -1820,8 +1821,11 @@ namespace expgram
 	for (ngram_context_type::const_iterator niter = context_queue->first.begin(); niter != niter_end; ++ niter) {
 	  const id_type id = escape_word(*niter).id();
 	  
-	  if (id >= vocab_map.size() || vocab_map[id] == id_type(-1))
-	    throw std::runtime_error("invalid vocbulary");
+	  if (id >= vocab_map.size() || vocab_map[id] == id_type(-1)) {
+	    std::ostringstream stream;
+	    stream << "id: " << id << " map: " << vocab_map[id] << " map size: " << vocab_map.size();
+	    throw std::runtime_error(std::string("invalid vocabulary: ") + *niter + " " + stream.str());
+	  }
 	  
 	  context.push_back(vocab_map[id]);
 	}
@@ -1957,7 +1961,6 @@ namespace expgram
     }
     counts[0].offset = 0;
     
-    
     // second, ngrams...
     if (unique) {
       typedef NGramCountsIndexUniqueMapReduce map_reduce_type;
@@ -1968,7 +1971,7 @@ namespace expgram
       
       typedef map_reduce_type::queue_type          queue_type;
       typedef map_reduce_type::queue_ptr_set_type  queue_ptr_set_type;
-
+      
       typedef map_reduce_type::context_type        context_type;
       
       queue_ptr_set_type   queues(shard_size);
@@ -1979,10 +1982,6 @@ namespace expgram
       }
       
       for (int order = 2; /**/; ++ order) {
-	
-	if (debug)
-	  std::cerr << "order: " << order << std::endl;
-
 	std::ostringstream stream_ngram;
 	stream_ngram << order << "gms";
 	
@@ -1993,6 +1992,11 @@ namespace expgram
 	const path_type index_file = ngram_dir / stream_index.str();
 	
 	if (! boost::filesystem::exists(ngram_dir) || ! boost::filesystem::exists(index_file)) break;
+	
+	if (debug)
+	  std::cerr << "order: " << order << std::endl;
+
+	index.order() = order;
 	
 	utils::compress_istream is_index(index_file);
 	std::string line;
@@ -2011,7 +2015,6 @@ namespace expgram
 	  
 	  if (! boost::filesystem::exists(path_ngram))
 	    throw std::runtime_error(std::string("invalid google ngram format... no file: ") + path_ngram.file_string());
-	  
 
 	  if (debug >= 2)
 	    std::cerr << "\tfile: " << path_ngram.file_string() << std::endl;
@@ -2034,7 +2037,7 @@ namespace expgram
 	      const id_type id = escape_word(*titer).id();
 	      
 	      if (id >= vocab_map.size() || vocab_map[id] == id_type(-1))
-		throw std::runtime_error("invalid vocbulary");
+		throw std::runtime_error("invalid vocabulary");
 	      
 	      context.push_back(vocab_map[id]);
 	    }
@@ -2056,7 +2059,7 @@ namespace expgram
 	
 	utils::tempfile::permission(path_counts[shard]);
 
-	counts[shard].open(path_counts[shard]);
+	counts[shard].counts.open(path_counts[shard]);
       }
       threads.clear();
       queues.clear();
@@ -2076,9 +2079,6 @@ namespace expgram
       typedef map_reduce_type::path_set_type           path_set_type;
       
       for (int order = 2; /**/; ++ order) {
-	if (debug)
-	  std::cerr << "order: " << order << std::endl;
-
 	std::ostringstream stream_ngram;
 	stream_ngram << order << "gms";
 	
@@ -2118,6 +2118,11 @@ namespace expgram
 	
 	if (paths_ngram.empty()) break;
 	
+	if (debug)
+	  std::cerr << "order: " << order << std::endl;
+
+	index.order() = order;
+	
 	std::vector<path_set_type, std::allocator<path_set_type> > paths(shard_size);
 	
 	for (int i = 0; i < paths_ngram.size(); ++ i)
@@ -2153,7 +2158,7 @@ namespace expgram
 	
 	utils::tempfile::permission(path_counts[shard]);
 
-	counts[shard].open(path_counts[shard]);
+	counts[shard].counts.open(path_counts[shard]);
       }
     }
   }

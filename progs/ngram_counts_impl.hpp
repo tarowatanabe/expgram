@@ -383,7 +383,7 @@ struct GoogleNGramCounts
 	
 	sorted_type::const_iterator siter_end = sorted.end();
 	for (sorted_type::const_iterator siter = sorted.begin(); siter != siter_end; ++ siter)
-	  os << (*siter)->second << '\t' << (*siter)->first << '\n';
+	  os << (*siter)->first << '\t' << (*siter)->second << '\n';
       }
       
       {
