@@ -55,6 +55,7 @@ mathop.hpp \
 memory.hpp \
 pfor_vector.hpp \
 packed_vector.hpp \
+regex_group.hpp \
 repository.hpp \
 sgi_hash_map.hpp \
 sgi_hash_set.hpp \

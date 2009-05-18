@@ -194,6 +194,11 @@ namespace expgram
     
     void open(const path_type& path,
 	      const size_type shard_size=16);
+    void write(const path_type& path) const;
+    void dump(const path_type& path) const;
+    
+    void open_shard(const path_type& path, int shard);
+    
     void close() { clear(); }
     void clear()
     {
@@ -204,8 +209,7 @@ namespace expgram
       smooth = utils::mathop::log(1e-7);
     }
     
-    void write(const path_type& path) const;
-    void dump(const path_type& path) const;
+    
     void quantize();
     void bounds();
     

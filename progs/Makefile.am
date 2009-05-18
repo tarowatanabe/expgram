@@ -15,6 +15,7 @@ LIBUTILS   = $(top_builddir)/utils/libutils.la
 
 bin_PROGRAMS = \
 	ngram_counts \
+	ngram_counts_mpi \
 	\
 	ngram_index \
 	ngram_dump \
@@ -31,6 +32,10 @@ bin_PROGRAMS = \
 ### ngram counts accumulation
 ngram_counts_SOURCES = ngram_counts.cpp
 ngram_counts_LDADD   = $(LIBEXPGRAM) $(LIBUTILS) $(boost_LDADD) $(perftools_LDADD)
+
+ngram_counts_mpi_SOURCES = ngram_counts_mpi.cpp
+ngram_counts_mpi_CPPFLAGS = $(MPI_CPPFLAGS) $(AM_CPPFLAGS)
+ngram_counts_mpi_LDADD   = $(MPI_LDFLAGS) $(LIBEXPGRAM) $(LIBUTILS) $(boost_LDADD) $(perftools_LDADD)
 
 ### ngram language model
 ngram_index_SOURCES = ngram_index.cpp

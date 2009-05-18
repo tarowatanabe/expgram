@@ -87,6 +87,7 @@ namespace utils
 
     status = U_ZERO_ERROR;
     const char* encoding_from = ucnv_getName(ucnv_from, &status);
+    status = U_ZERO_ERROR;
     const char* encoding_to   = ucnv_getName(ucnv_to, &status);
     
     // if the same encoding, clear!

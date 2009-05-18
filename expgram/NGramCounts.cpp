@@ -1160,6 +1160,28 @@ namespace expgram
   
   template <typename Path, typename Shards>
   inline
+  void open_shards(const Path& path, Shards& shards, int shard)
+  {
+    typedef utils::repository repository_type;
+    
+    repository_type rep(path, repository_type::read);
+    
+    repository_type::const_iterator siter = rep.find("shard");
+    if (siter == rep.end())
+      throw std::runtime_error("no shard size...");
+    shards.resize(atoi(siter->second.c_str()));
+
+    if (shard >= shards.size())
+      throw std::runtime_error("shard is out of range");
+    
+    std::ostringstream stream_shard;
+    stream_shard << "ngram-" << std::setfill('0') << std::setw(6) << shard;
+    
+    shards[shard].open(rep.path(stream_shard.str()));
+  }
+
+  template <typename Path, typename Shards>
+  inline
   void open_shards(const Path& path, Shards& shards)
   {
     typedef utils::repository repository_type;
@@ -1226,6 +1248,19 @@ namespace expgram
     index.write(rep.path("index"));
     if (! counts.empty())
       write_shards(rep.path("count"), counts);
+  }
+
+  void NGramCounts::open_shard(const path_type& path, int shard)
+  {
+    typedef utils::repository repository_type;
+    
+    clear();
+    
+    repository_type rep(path, repository_type::read);
+    
+    index.open_shard(rep.path("index"), shard);
+    if (boost::filesystem::exists(rep.path("count")))
+      open_shards(rep.path("count"), counts, shard);
   }
 
   void NGramCounts::open_binary(const path_type& path)

@@ -113,6 +113,9 @@ namespace expgram
     void open(const path_type& path,
 	      const size_type shard_size=16,
 	      const bool unique=false);
+
+    void open_shard(const path_type& path, int shard);
+    
     void close() { clear(); }
     void clear()
     {

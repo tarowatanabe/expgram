@@ -91,7 +91,28 @@ namespace expgram
     stream_offset << offset;
     rep["offset"] = stream_offset.str();
   }
+  
+  template <typename Path, typename Shards>
+  inline
+  void open_shards(const Path& path, Shards& shards, int shard)
+  {
+    typedef utils::repository repository_type;
+    
+    repository_type rep(path, repository_type::read);
+    
+    repository_type::const_iterator siter = rep.find("shard");
+    if (siter == rep.end())
+      throw std::runtime_error("no shard size...");
+    shards.resize(atoi(siter->second.c_str()));
+    
+    if (shard >= shards.size())
+      throw std::runtime_error("shard is out of range");
 
+    std::ostringstream stream_shard;
+    stream_shard << "ngram-" << std::setfill('0') << std::setw(6) << shard;
+    
+    shards[shard].open(rep.path(stream_shard.str()));
+  }
 
   template <typename Path, typename Shards>
   inline
@@ -113,6 +134,7 @@ namespace expgram
       shards[shard].open(rep.path(stream_shard.str()));
     }
   }
+
   
   template <typename Path, typename Shards>
   inline
@@ -133,6 +155,8 @@ namespace expgram
     stream_shard << shards.size();
     rep["shard"] = stream_shard.str();
   }
+  
+  
   
   // write in binary format
   void NGram::write(const path_type& file) const
@@ -167,6 +191,28 @@ namespace expgram
       open_arpa(path, shard_size);
   }
   
+  
+  void NGram::open_shard(const path_type& path, int shard)
+  {
+    typedef utils::repository repository_type;
+    
+    clear();
+    
+    repository_type rep(path, repository_type::read);
+    
+    index.open_shard(rep.path("index"), shard);
+    if (boost::filesystem::exists(rep.path("logprob")))
+      open_shards(rep.path("logprob"), logprobs, shard);
+    if (boost::filesystem::exists(rep.path("backoff")))
+      open_shards(rep.path("backoff"), backoffs, shard);
+    if (boost::filesystem::exists(rep.path("logbound")))
+      open_shards(rep.path("logbound"), logbounds, shard);
+    
+    repository_type::const_iterator siter = rep.find("smooth");
+    if (siter == rep.end())
+      throw std::runtime_error("no smoothing parameter...?");
+    smooth = atof(siter->second.c_str());
+  }
   
   
   void NGram::open_binary(const path_type& path)

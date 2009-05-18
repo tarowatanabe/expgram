@@ -108,14 +108,14 @@ namespace expgram
     
     repository_type rep(file, repository_type::write);
     
-    std::cerr << "dump vocab" << std::endl;
+    //std::cerr << "dump vocab" << std::endl;
     __vocab.write(rep.path("vocab"));
     
     for (int shard = 0; shard < __shards.size(); ++ shard) {
       std::ostringstream stream_shard;
       stream_shard << "ngram-" << std::setfill('0') << std::setw(6) << shard;
 
-      std::cerr << "dump index shard: " << shard << std::endl;
+      //std::cerr << "dump index shard: " << shard << std::endl;
       
       __shards[shard].write(rep.path(stream_shard.str()));
     }
@@ -126,5 +126,40 @@ namespace expgram
     stream_order << __order;
     rep["shard"] = stream_shard.str();
     rep["order"] = stream_order.str();
+  }
+
+
+  void NGramIndex::open_shard(const path_type& path, int shard)
+  {
+    typedef utils::repository repository_type;
+    
+    close();
+    
+    repository_type rep(path, repository_type::read);
+    
+    // shard size
+    repository_type::const_iterator siter = rep.find("shard");
+    if (siter == rep.end())
+      throw std::runtime_error("no shard size...");
+    __shards.resize(atoi(siter->second.c_str()));
+
+    if (shard >= __shards.size())
+      throw std::runtime_error("shard is out of range...");
+    
+    // order
+    repository_type::const_iterator oiter = rep.find("order");
+    if (oiter == rep.end())
+      throw std::runtime_error("no order");
+    __order = atoi(oiter->second.c_str());
+    
+    // vocabulary...
+    __vocab.open(rep.path("vocab"));
+    
+    std::ostringstream stream_shard;
+    stream_shard << "ngram-" << std::setfill('0') << std::setw(6) << shard;
+    
+    __shards[shard].open(rep.path(stream_shard.str()));
+    
+    __path = path;
   }
 };
