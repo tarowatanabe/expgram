@@ -6,6 +6,8 @@
 #include "Discount.hpp"
 
 #include <boost/tokenizer.hpp>
+#include <boost/shared_ptr.hpp>
+#include <boost/thread.hpp>
 
 #include "utils/lockfree_queue.hpp"
 #include "utils/compress_stream.hpp"
@@ -1203,6 +1205,36 @@ namespace expgram
   
   template <typename Path, typename Shards>
   inline
+  void write_shards_prepare(const Path& path, const Shards& shards)
+  {
+    typedef utils::repository repository_type;
+    
+    repository_type rep(path, repository_type::write);
+    
+    std::ostringstream stream_shard;
+    stream_shard << shards.size();
+    rep["shard"] = stream_shard.str();
+  }
+
+  template <typename Path, typename Shards>
+  inline
+  void write_shards(const Path& path, const Shards& shards, int shard)
+  {
+    typedef utils::repository repository_type;
+    
+    while (! boost::filesystem::exists(path))
+      boost::thread::yield();
+    
+    repository_type rep(path, repository_type::read);
+    
+    std::ostringstream stream_shard;
+    stream_shard << "ngram-" << std::setfill('0') << std::setw(6) << shard;
+    
+    shards[shard].write(rep.path(stream_shard.str()));
+  }
+
+  template <typename Path, typename Shards>
+  inline
   void write_shards(const Path& path, const Shards& shards)
   {
     typedef utils::repository repository_type;
@@ -1235,6 +1267,35 @@ namespace expgram
       open_binary(path);
     else
       open_google(path, shard_size, unique);
+  }
+
+  void NGramCounts::write_prepare(const path_type& file) const
+  {
+    typedef utils::repository repository_type;
+    
+    if (path() == file) return;
+    
+    repository_type rep(file, repository_type::write);
+    
+    index.write_prepare(rep.path("index"));
+    if (! counts.empty())
+      write_shards_prepare(rep.path("count"), counts);
+  }
+
+  void NGramCounts::write_shard(const path_type& file, int shard) const
+  {
+    typedef utils::repository repository_type;
+    
+    if (path() == file) return;
+    
+    while (! boost::filesystem::exists(file))
+      boost::thread::yield();
+    
+    repository_type rep(file, repository_type::read);
+    
+    index.write_shard(rep.path("index"), shard);
+    if (! counts.empty())
+      write_shards(rep.path("count"), counts, shard);
   }
 
   void NGramCounts::write(const path_type& file) const

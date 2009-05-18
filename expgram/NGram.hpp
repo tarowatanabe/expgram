@@ -198,6 +198,8 @@ namespace expgram
     void dump(const path_type& path) const;
     
     void open_shard(const path_type& path, int shard);
+    void write_prepare(const path_type& path) const;
+    void write_shard(const path_type& path, int shard) const;
     
     void close() { clear(); }
     void clear()

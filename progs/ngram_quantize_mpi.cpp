@@ -1,23 +1,76 @@
 
+#include <iostream>
+#include <stdexcept>
+#include <map>
+
 #include <expgram/NGram.hpp>
-#include <expgram/Quantier.hpp>
+#include <expgram/Quantizer.hpp>
+
+#include <boost/thread.hpp>
+#include <boost/filesystem.hpp>
+#include <boost/program_options.hpp>
+
+#include <utils/tempfile.hpp>
+#include <utils/resource.hpp>
+#include <utils/mpi.hpp>
+
+typedef expgram::NGram ngram_type;
+
+typedef ngram_type::size_type       size_type;
+typedef ngram_type::difference_type difference_type;
+typedef ngram_type::path_type       path_type;
+
+typedef ngram_type::logprob_type    logprob_type;
+typedef ngram_type::quantized_type  quantized_type;
+typedef ngram_type::word_type       word_type;
+typedef ngram_type::id_type         id_type;
 
 typedef std::map<logprob_type, size_type, std::less<logprob_type>,
 		 std::allocator<std::pair<const logprob_type, size_type> > > logprob_counts_type;
 typedef std::map<logprob_type, quantized_type, std::less<logprob_type>,
 		 std::allocator<std::pair<const logprob_type, quantized_type> > > codemap_type;
 
-int main(int argc, cha** argv)
+path_type ngram_file;
+path_type output_file;
+
+path_type prog_name;
+
+int debug = 0;
+
+void quantize_ngram(ngram_type& ngram);
+int getoptions(int argc, char** argv);
+
+int main(int argc, char** argv)
 {
+  utils::mpi_world  mpi_world(argc, argv);
+  
+  const int mpi_rank = MPI::COMM_WORLD.Get_rank();
+  const int mpi_size = MPI::COMM_WORLD.Get_size();  
   
   try {
-    ngram_type ngram(debug);
+    if (getoptions(argc, argv) != 0) 
+      return 1;
     
+    if (ngram_file.empty() || ! boost::filesystem::exists(ngram_file))
+      throw std::runtime_error("no ngram file?");
+    if (output_file.empty())
+      throw std::runtime_error("no output file?");
+    if (ngram_file == output_file)
+      throw std::runtime_error("dump to the same directory?");
+    
+    ngram_type ngram(debug);
     ngram.open_shard(ngram_file, mpi_rank);
+
+    if (ngram.index.size() != mpi_size)
+      throw std::runtime_error("MPI universe size do not match with ngram shard size");
     
     quantize_ngram(ngram);
     
-    dump_ngram(ngram, output_file);
+    if (mpi_rank == 0)
+      ngram.write_prepare(output_file);
+    
+    MPI::COMM_WORLD.Barrier();
+    ngram.write_shard(output_file, mpi_rank);
   }
   catch (std::exception& err) {
     std::cerr << "error: "  << err.what() << std::endl;
@@ -26,33 +79,9 @@ int main(int argc, cha** argv)
   return 0;
 }
 
-void dump_ngram(const ngram_type& ngram, const path_type& output_file)
-{
-  typedef utils::repository repository_type;
-
-  const int mpi_rank = MPI::COMM_WORLD.Get_rank();
-  const int mpi_size = MPI::COMM_WORLD.Get_size();
-  
-  if (mpi_rank == 0) {
-    // first, create output direcories...
-    repository_type repository(output, repository_type::write);
-    repository_type rep_index(repository.path("index"), repository_type::write);
-    repository_type rep_count(repository.path("count"), repository_type::write);
-    
-    std::ostringstream stream_shard;
-    std::ostringstream stream_order;
-    stream_shard << mpi_size;
-    stream_order << ngram.index.order();
-    rep_index["shard"] = stream_shard.str();
-    rep_index["order"]
-    rep_count["shard"] = stream_shard.str();
-  }
-  
-}
-
 template <typename OStream, typename LogProbs, typename Counts, typename Codemap, typename Codebook>
 inline
-void quantize(OStream& os, LogProbs& logprobs, Counts& counts, Codemap& codemap, Codebook& codebook, const int order)
+void quantize(ngram_type& ngram, OStream& os, LogProbs& logprobs, Counts& counts, Codemap& codemap, Codebook& codebook, int order, int shard)
 {
   counts.clear();
   codemap.clear();
@@ -62,9 +91,9 @@ void quantize(OStream& os, LogProbs& logprobs, Counts& counts, Codemap& codemap,
   
   for (size_type pos = pos_first; pos < pos_last; ++ pos)
     ++ counts[logprobs(pos, order)];
-      
-  Quantizer::quantize(counts, ngram.logprob_min(), codebook, codemap);
-      
+  
+  expgram::Quantizer::quantize(counts, ngram.logprob_min(), codebook, codemap);
+  
   for (size_type pos = pos_first; pos < pos_last; ++ pos) {
     codemap_type::const_iterator citer = codemap.find(logprobs(pos, order));
     if (citer == codemap.end())
@@ -74,8 +103,12 @@ void quantize(OStream& os, LogProbs& logprobs, Counts& counts, Codemap& codemap,
   }
 }
 
-void quantize_ngram(ngrm_type& ngram)
+void quantize_ngram(ngram_type& ngram)
 {
+  typedef ngram_type::shard_data_type shard_data_type;
+  
+  typedef shard_data_type::logprob_map_type logprob_map_type;
+
   const int mpi_rank = MPI::COMM_WORLD.Get_rank();
   const int mpi_size = MPI::COMM_WORLD.Get_size();
 
@@ -100,13 +133,13 @@ void quantize_ngram(ngrm_type& ngram)
     ngram.logprobs[mpi_rank].maps.push_back(codebook);
     
     if (mpi_rank == 0) {
-      quantize(os, ngram.logprobs[mpi_rank], counts, codemap, codebook, 1);
+      quantize(ngram, os, ngram.logprobs[mpi_rank], counts, codemap, codebook, 1, mpi_rank);
       ngram.logprobs[mpi_rank].maps.push_back(codebook);
     } else
       ngram.logprobs[mpi_rank].maps.push_back(codebook);
     
     for (int order = 2; order <= ngram.index.order(); ++ order) {
-      quantize(os, ngram.logprobs[mpi_rank], counts, codemap, codebook, order);
+      quantize(ngram, os, ngram.logprobs[mpi_rank], counts, codemap, codebook, order, mpi_rank);
       ngram.logprobs[mpi_rank].maps.push_back(codebook);
     }
     
@@ -129,13 +162,13 @@ void quantize_ngram(ngrm_type& ngram)
     ngram.backoffs[mpi_rank].maps.clear();
     ngram.backoffs[mpi_rank].maps.push_back(codebook);
     if (mpi_rank == 0) {
-      quantize(os, ngram.backoffs[mpi_rank], counts, codemap, codebook, 1);
+      quantize(ngram, os, ngram.backoffs[mpi_rank], counts, codemap, codebook, 1, mpi_rank);
       ngram.backoffs[mpi_rank].maps.push_back(codebook);
     } else
       ngram.backoffs[mpi_rank].maps.push_back(codebook);
 	
     for (int order = 2; order < ngram.index.order(); ++ order) {
-      quantize(os, ngram.backoffs[mpi_rank], counts, codemap, codebook, order);
+      quantize(ngram, os, ngram.backoffs[mpi_rank], counts, codemap, codebook, order, mpi_rank);
       ngram.backoffs[mpi_rank].maps.push_back(codebook);
     }
 	
@@ -159,13 +192,13 @@ void quantize_ngram(ngrm_type& ngram)
     ngram.logbounds[mpi_rank].maps.clear();
     ngram.logbounds[mpi_rank].maps.push_back(codebook);
     if (mpi_rank == 0) {
-      quantize(os, ngram.logbounds[mpi_rank], counts, codemap, codebook, 1);
+      quantize(ngram, os, ngram.logbounds[mpi_rank], counts, codemap, codebook, 1, mpi_rank);
       ngram.logbounds[mpi_rank].maps.push_back(codebook);
     } else
       ngram.logbounds[mpi_rank].maps.push_back(codebook);
 	
     for (int order = 2; order < ngram.index.order(); ++ order) {
-      quantize(os, ngram.logbounds[mpi_rank], counts, codemap, codebook, order);
+      quantize(ngram, os, ngram.logbounds[mpi_rank], counts, codemap, codebook, order, mpi_rank);
       ngram.logbounds[mpi_rank].maps.push_back(codebook);
     }
     
@@ -177,4 +210,32 @@ void quantize_ngram(ngrm_type& ngram)
     ngram.logbounds[mpi_rank].quantized.open(path);
   }
     
+}
+
+
+int getoptions(int argc, char** argv)
+{
+  namespace po = boost::program_options;
+  
+  po::options_description desc("options");
+  desc.add_options()
+    ("ngram",  po::value<path_type>(&ngram_file),  "ngram language model")
+    ("output", po::value<path_type>(&output_file), "output")
+    
+    ("prog",   po::value<path_type>(&prog_name),   "this binary")
+    
+    
+    ("debug", po::value<int>(&debug)->implicit_value(1), "debug level")
+    ("help", "help message");
+  
+  po::variables_map vm;
+  po::store(po::parse_command_line(argc, argv, desc), vm);
+  po::notify(vm);
+  
+  if (vm.count("help")) {
+    std::cout << argv[0] << " [options]" << '\n' << desc << '\n';
+    return 1;
+  }
+  
+  return 0;
 }

@@ -248,6 +248,8 @@ namespace expgram
     void write(const path_type& file) const;
 
     void open_shard(const path_type& path, int shard);
+    void write_prepare(const path_type& path) const;
+    void write_shard(const path_type& path, int shard) const;
     
     bool is_open() const { return ! __shards.empty() && ! __path.empty(); }
     path_type path() const { return __path; }

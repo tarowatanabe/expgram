@@ -115,6 +115,9 @@ namespace expgram
 	      const bool unique=false);
 
     void open_shard(const path_type& path, int shard);
+
+    void write_prepare(const path_type& pathx) const;
+    void write_shard(const path_type& path, int shard) const;
     
     void close() { clear(); }
     void clear()

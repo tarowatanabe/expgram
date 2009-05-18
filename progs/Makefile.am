@@ -20,6 +20,7 @@ bin_PROGRAMS = \
 	ngram_index \
 	ngram_dump \
 	ngram_quantize \
+	ngram_quantize_mpi \
 	ngram_bound \
 	\
 	ngram_counts_index \
@@ -46,6 +47,10 @@ ngram_dump_LDADD   = $(LIBEXPGRAM) $(LIBUTILS) $(boost_LDADD) $(perftools_LDADD)
 
 ngram_quantize_SOURCES = ngram_quantize.cpp
 ngram_quantize_LDADD   = $(LIBEXPGRAM) $(LIBUTILS) $(boost_LDADD) $(perftools_LDADD)
+
+ngram_quantize_mpi_SOURCES = ngram_quantize_mpi.cpp
+ngram_quantize_mpi_CPPFLAGS = $(MPI_CPPFLAGS) $(AM_CPPFLAGS)
+ngram_quantize_mpi_LDADD   = $(MPI_LDFLAGS) $(LIBEXPGRAM) $(LIBUTILS) $(boost_LDADD) $(perftools_LDADD)
 
 ngram_bound_SOURCES = ngram_bound.cpp
 ngram_bound_LDADD   = $(LIBEXPGRAM) $(LIBUTILS) $(boost_LDADD) $(perftools_LDADD)

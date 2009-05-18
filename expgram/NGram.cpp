@@ -156,7 +156,79 @@ namespace expgram
     rep["shard"] = stream_shard.str();
   }
   
+  template <typename Path, typename Shards>
+  inline
+  void write_shards(const Path& path, const Shards& shards, int shard)
+  {
+    typedef utils::repository repository_type;
+    
+    while (! boost::filesystem::exists(path))
+      boost::thread::yield();
+    
+    repository_type rep(path, repository_type::read);
+    
+    std::ostringstream stream_shard;
+    stream_shard << "ngram-" << std::setfill('0') << std::setw(6) << shard;
+    
+    shards[shard].write(rep.path(stream_shard.str()));
+  }
   
+  template <typename Path, typename Shards>
+  inline
+  void write_shards_prepare(const Path& path, const Shards& shards)
+  {
+    typedef utils::repository repository_type;
+    
+    repository_type rep(path, repository_type::write);
+    
+    std::ostringstream stream_shard;
+    stream_shard << shards.size();
+    rep["shard"] = stream_shard.str();
+  }
+
+
+  void NGram::write_prepare(const path_type& file) const
+  {
+    typedef utils::repository repository_type;
+    
+    if (path() == file) return;
+    
+    repository_type rep(file, repository_type::write);
+    
+    index.write_prepare(rep.path("index"));
+    
+    if (! logprobs.empty())
+      write_shards_prepare(rep.path("logprob"), logprobs);
+    if (! backoffs.empty())
+      write_shards_prepare(rep.path("backoff"), backoffs);
+    if (! logbounds.empty())
+      write_shards_prepare(rep.path("logbound"), logbounds);
+    
+    std::ostringstream stream_smooth;
+    stream_smooth.precision(20);
+    stream_smooth << smooth;
+    rep["smooth"] = stream_smooth.str();
+  }
+
+  void NGram::write_shard(const path_type& file, int shard) const
+  {
+    typedef utils::repository repository_type;
+    
+    if (path() == file) return;
+    
+    while (! boost::filesystem::exists(file))
+      boost::thread::yield();
+    
+    repository_type rep(file, repository_type::read);
+    
+    index.write_shard(rep.path("index"), shard);
+    if (! logprobs.empty())
+      write_shards(rep.path("logprob"), logprobs, shard);
+    if (! backoffs.empty())
+      write_shards(rep.path("backoff"), backoffs, shard);
+    if (! logbounds.empty())
+      write_shards(rep.path("logbound"), logbounds, shard);
+  }
   
   // write in binary format
   void NGram::write(const path_type& file) const

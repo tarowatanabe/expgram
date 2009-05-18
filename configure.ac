@@ -140,6 +140,7 @@ BOOST_PROGRAM_OPTIONS
 BOOST_THREADS
 BOOST_FILESYSTEM
 BOOST_IOSTREAMS
+BOOST_REGEX
 BOOST_SYSTEM
 
 ## save pthred-flag, computed by-product of boost-threads

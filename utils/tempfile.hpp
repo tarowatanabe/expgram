@@ -25,6 +25,7 @@
 
 #include <boost/thread/mutex.hpp>
 #include <boost/filesystem.hpp>
+
 #include <utils/filesystem.hpp>
 
 //
@@ -215,21 +216,8 @@ namespace utils
       __files.erase(path);
     }
     
-    static path_type tmp_dir()
-    {
-      // wired to /tmp... is this safe?
-      std::string tmpdir("/tmp");
-      
-      const char* tmpdir_env = getenv("TMPDIR");
-      if (! tmpdir_env)
-	return path_type(tmpdir);
-      
-      const path_type tmpdir_env_path(tmpdir_env);
-      if (boost::filesystem::exists(tmpdir_env_path) && boost::filesystem::is_directory(tmpdir_env_path))
-	return tmpdir_env_path;
-      else
-	return path_type(tmpdir);
-    }
+    static path_type tmp_dir();
+    
 
     static path_type file_name(const std::string& file)
     {

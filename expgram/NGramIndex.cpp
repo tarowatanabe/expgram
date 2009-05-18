@@ -5,6 +5,8 @@
 
 #include "NGramIndex.hpp"
 
+#include <boost/thread.hpp>
+
 namespace expgram
 {
 
@@ -108,14 +110,11 @@ namespace expgram
     
     repository_type rep(file, repository_type::write);
     
-    //std::cerr << "dump vocab" << std::endl;
     __vocab.write(rep.path("vocab"));
     
     for (int shard = 0; shard < __shards.size(); ++ shard) {
       std::ostringstream stream_shard;
       stream_shard << "ngram-" << std::setfill('0') << std::setw(6) << shard;
-
-      //std::cerr << "dump index shard: " << shard << std::endl;
       
       __shards[shard].write(rep.path(stream_shard.str()));
     }
@@ -161,5 +160,42 @@ namespace expgram
     __shards[shard].open(rep.path(stream_shard.str()));
     
     __path = path;
+  }
+
+
+  void NGramIndex::write_prepare(const path_type& file) const
+  {
+    typedef utils::repository repository_type;
+    
+    if (! path().empty() && path() == file) return;
+    
+    repository_type rep(file, repository_type::write);
+    
+    __vocab.write(rep.path("vocab"));
+    
+    std::ostringstream stream_shard;
+    std::ostringstream stream_order;
+    stream_shard << __shards.size();
+    stream_order << __order;
+    rep["shard"] = stream_shard.str();
+    rep["order"] = stream_order.str();
+    
+  }
+  
+  void NGramIndex::write_shard(const path_type& file, int shard) const
+  {
+    typedef utils::repository repository_type;
+    
+    if (! path().empty() && path() == file) return;
+    
+    while (! boost::filesystem::exists(file))
+      boost::thread::yield();
+
+    repository_type rep(file, repository_type::read);
+    
+    std::ostringstream stream_shard;
+    stream_shard << "ngram-" << std::setfill('0') << std::setw(6) << shard;
+    
+    __shards[shard].write(rep.path(stream_shard.str()));
   }
 };
