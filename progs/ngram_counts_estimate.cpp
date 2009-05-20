@@ -11,8 +11,10 @@
 
 typedef boost::filesystem::path path_type;
 
-path_type ngram_file = "-";
+path_type ngram_file;
 path_type output_file;
+
+bool remove_unk = false;
 
 int shards = 4;
 bool unique = false;
@@ -29,7 +31,7 @@ int main(int argc, char** argv)
     expgram::NGramCounts ngram_counts(ngram_file, shards, unique, debug);
     
     expgram::NGram ngram(debug);
-    ngram_counts.estimate(ngram);
+    ngram_counts.estimate(ngram, remove_unk);
     
     if (! output_file.empty())
       ngram.write(output_file);
@@ -49,6 +51,8 @@ int getoptions(int argc, char** argv)
   desc.add_options()
     ("ngram",  po::value<path_type>(&ngram_file),  "ngram counts")
     ("output", po::value<path_type>(&output_file), "output in binary format")
+
+    ("remove-unk", po::bool_switch(&remove_unk),   "remove UNK when estimating language model")
     
     ("shard",  po::value<int>(&shards),            "# of shards (or # of threads)")
     ("unique", po::bool_switch(&unique),           "unique counts (i.e. ngram counts from LDC/GSK)")

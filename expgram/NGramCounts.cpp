@@ -387,6 +387,7 @@ namespace expgram
     logprob_shard_set_type&  logprobs;
     backoff_shard_set_type&  backoffs;
     int                      shard;
+    bool                     remove_unk;
     int                      debug;
     
     NGramCountsEstimateBigramMapper(const ngram_type&        _ngram,
@@ -394,12 +395,14 @@ namespace expgram
 				    logprob_shard_set_type&  _logprobs,
 				    backoff_shard_set_type&  _backoffs,
 				    const int                _shard,
+				    const bool               _remove_unk,
 				    const int                _debug)
       : ngram(_ngram),
 	discounts(_discounts),
 	logprobs(_logprobs),
 	backoffs(_backoffs),
 	shard(_shard),
+	remove_unk(_remove_unk),
 	debug(_debug) {}
     
     void operator()()
@@ -409,6 +412,9 @@ namespace expgram
       
       const size_type pos_context_first = ngram.index[0].offsets[order_prev - 1];
       const size_type pos_context_last  = ngram.index[0].offsets[order_prev];
+
+      const id_type bos_id = ngram.index.vocab()[vocab_type::BOS];
+      const id_type unk_id = ngram.index.vocab()[vocab_type::UNK];
       
       size_type pos_last_prev = pos_context_last;
       for (size_type pos_context = pos_context_first; pos_context < pos_context_last; ++ pos_context)
@@ -429,6 +435,9 @@ namespace expgram
 	    for (size_type pos = pos_first; pos != pos_last; ++ pos) {
 	      const id_type    id = ngram.index[shard][pos];
 	      const count_type count = ngram.counts[shard][pos];
+	      
+	      // simply treat it as a special zero event
+	      if (remove_unk && id == unk_id) continue;
 	      
 	      if (count == 0) {
 		++ zero_events;
@@ -460,6 +469,7 @@ namespace expgram
 		const id_type    id = ngram.index[shard][pos];
 		const count_type count = ngram.counts[shard][pos];
 		
+		if (remove_unk && id == unk_id) continue;
 		if (count == 0) continue;
 		
 		const prob_type discount = discounts[order].discount(count, total, observed);
@@ -491,8 +501,8 @@ namespace expgram
 
 		const size_type offset = ngram.counts[shard].offset;
 		
-		for (size_type pos = pos_first; pos != pos_last; ++ pos) 
-		  if (ngram.counts[shard][pos])
+		for (size_type pos = pos_first; pos != pos_last; ++ pos)
+		  if (ngram.counts[shard][pos] && ((! remove_unk) || (ngram.index[shard][pos] != unk_id)))
 		    logprobs[shard][pos - offset] -= logsum;
 	      }
 	    }
@@ -527,6 +537,7 @@ namespace expgram
     offset_set_type&         offsets;
     logprob_type             logprob_min;
     int                      shard;
+    bool                     remove_unk;
     int                      debug;
     
     NGramCountsEstimateMapper(const ngram_type&        _ngram,
@@ -536,6 +547,7 @@ namespace expgram
 			      offset_set_type&         _offsets,
 			      const logprob_type&      _logprob_min,
 			      const int                _shard,
+			      const bool               _remove_unk,
 			      const int                _debug)
       : ngram(_ngram),
 	discounts(_discounts),
@@ -544,6 +556,7 @@ namespace expgram
 	offsets(_offsets),
 	logprob_min(_logprob_min),
 	shard(_shard),
+	remove_unk(_remove_unk),
 	debug(_debug) {}
     
     template <typename Iterator>
@@ -580,6 +593,9 @@ namespace expgram
       typedef std::vector<logprob_type, std::allocator<logprob_type> > logprob_set_type;
 
       const size_type offset = ngram.counts[shard].offset;
+
+      const id_type bos_id = ngram.index.vocab()[vocab_type::BOS];
+      const id_type unk_id = ngram.index.vocab()[vocab_type::UNK];
 
       context_type     context;
       logprob_set_type lowers;
@@ -626,6 +642,8 @@ namespace expgram
 	  logprob_set_type::iterator liter = lowers.begin();
 	  for (size_type pos = pos_first; pos != pos_last; ++ pos, ++ liter) {
 	    const count_type count = ngram.counts[shard][pos];
+
+	    if (remove_unk && ngram.index[shard][pos] == unk_id) continue;
 	    
 	    if (count == 0) {
 	      ++ zero_events;
@@ -655,6 +673,7 @@ namespace expgram
 	    for (size_type pos = pos_first; pos != pos_last; ++ pos, ++ liter) {
 	      const count_type count = ngram.counts[shard][pos];
 	      
+	      if (remove_unk && ngram.index[shard][pos] == unk_id) continue;
 	      if (count == 0) continue;
 	      
 	      const prob_type discount = discounts[order].discount(count, total, observed);
@@ -679,7 +698,7 @@ namespace expgram
 	      backoffs[shard][pos_context - offset] = utils::mathop::log(numerator) - utils::mathop::log(denominator);
 	    else {
 	      for (size_type pos = pos_first; pos != pos_last; ++ pos) 
-		if (ngram.counts[shard][pos])
+		if (ngram.counts[shard][pos] && ((! remove_unk) ||(ngram.index[shard][pos] != unk_id)))
 		  logprobs[shard][pos - offset] -= logsum;
 	    }
 	  }
@@ -695,7 +714,7 @@ namespace expgram
     }
   };
   
-  void NGramCounts::estimate(ngram_type& ngram) const
+  void NGramCounts::estimate(ngram_type& ngram, const bool remove_unk) const
   {
     typedef NGramCountsEstimateMapReduce map_reduce_type;
     
@@ -779,7 +798,8 @@ namespace expgram
 	
 	const count_type count = counts[0][pos];
 	
-	if (count == 0) {
+	// when remove-unk is enabled, we treat it as zero_events
+	if (count == 0 || (remove_unk && id_type(pos) == unk_id)) {
 	  ++ zero_events;
 	  continue;
 	}
@@ -801,7 +821,7 @@ namespace expgram
 	  
 	  const count_type count = counts[0][pos];
 	  
-	  if (count == 0) continue;
+	  if (count == 0 || (remove_unk && id_type(pos) == unk_id)) continue;
 	  
 	  const prob_type discount = discounts[1].discount(count, total, observed);
 	  const prob_type prob = (discount * count / total);
@@ -822,9 +842,12 @@ namespace expgram
       if (discounted_mass > 0.0) {
 	if (zero_events > 0) {
 	  // distribute probability mass to zero events...
+	  
+	  // if we set remove_unk, then zero events will be incremented when we actually observed UNK
+	  
 	  const double logdistribute = utils::mathop::log(discounted_mass) - utils::mathop::log(zero_events);
 	  for (size_type pos = 0; pos < index[0].offsets[1]; ++ pos)
-	    if (id_type(pos) != bos_id && counts[0][pos] == 0)
+	    if (id_type(pos) != bos_id && (counts[0][pos] == 0 || (remove_unk && id_type(pos) == unk_id)))
 	      logprobs[0][pos] = logdistribute;
 	  if (ngram.smooth == boost::numeric::bounds<logprob_type>::lowest())
 	    ngram.smooth = logdistribute;
@@ -855,7 +878,7 @@ namespace expgram
       
       thread_ptr_set_type threads(index.size());
       for (int shard = 0; shard < threads.size(); ++ shard)
-	threads[shard].reset(new thread_type(mapper_type(*this, discounts, logprobs, backoffs, shard, debug)));
+	threads[shard].reset(new thread_type(mapper_type(*this, discounts, logprobs, backoffs, shard, remove_unk, debug)));
       
       for (int shard = 0; shard < threads.size(); ++ shard)
 	threads[shard]->join();
@@ -874,7 +897,7 @@ namespace expgram
       }
       
       for (int shard = 0; shard < threads.size(); ++ shard)
-	threads[shard].reset(new thread_type(mapper_type(*this, discounts, logprobs, backoffs, offsets, ngram.logprob_min(), shard, debug)));
+	threads[shard].reset(new thread_type(mapper_type(*this, discounts, logprobs, backoffs, offsets, ngram.logprob_min(), shard, remove_unk, debug)));
       
       for (int shard = 0; shard < threads.size(); ++ shard)
 	threads[shard]->join();

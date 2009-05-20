@@ -1,10 +1,80 @@
 
+#include <iostream>
+#include <stdexcept>
+
+#include <vector>
+#include <queue>
+
 #include <expgram/NGramCounts.hpp>
 #include <expgram/NGramCountsIndexer.hpp>
 
+#include <boost/thread.hpp>
+#include <boost/filesystem.hpp>
+#include <boost/program_options.hpp>
+#include <boost/shared_ptr.hpp>
+
+#include <boost/iostreams/filtering_stream.hpp>
+#include <boost/iostreams/filter/gzip.hpp>
+#include <boost/iostreams/filter/bzip2.hpp>
+
+#include <utils/compress_stream.hpp>
+#include <utils/lockfree_queue.hpp>
+#include <utils/tempfile.hpp>
+#include <utils/resource.hpp>
+#include <utils/repository.hpp>
 #include <utils/mpi.hpp>
 #include <utils/mpi_device.hpp>
 #include <utils/mpi_device_bcast.hpp>
+
+typedef expgram::NGramCounts ngram_type;
+
+typedef ngram_type::size_type       size_type;
+typedef ngram_type::difference_type difference_type;
+typedef ngram_type::path_type       path_type;
+
+
+typedef ngram_type::count_type      count_type;
+typedef ngram_type::vocab_type      vocab_type;
+typedef ngram_type::word_type       word_type;
+typedef ngram_type::id_type         id_type;
+
+typedef utils::mpi_intercomm intercomm_type;
+
+path_type ngram_file;
+path_type output_file;
+
+path_type prog_name;
+
+bool unique = false;
+int debug = 0;
+
+enum {
+  count_tag = 3000,
+  file_tag,
+  size_tag,
+  sync_tag,
+};
+
+
+
+void index_ngram_mapper_root(intercomm_type& reducer,
+			     const path_type& path,
+			     ngram_type& ngram);
+void index_ngram_mapper_others(intercomm_type& reducer,
+			       ngram_type& ngram);
+
+template <typename Stream>
+void index_unigram(const path_type& path,
+		   const path_type& output,
+		   ngram_type& ngram,
+		   Stream& os_counts);
+template <typename Stream>
+void index_ngram_reducer(intercomm_type& mapper, ngram_type& ngram, Stream& os_count);
+template <typename Stream>
+void index_ngram_unique(const path_type& path, ngram_type& ngram, Stream& os_count);
+
+
+int getoptions(int argc, char** argv);
 
 int main(int argc, char** argv)
 {
@@ -17,14 +87,53 @@ int main(int argc, char** argv)
     
     if (MPI::Comm::Get_parent() != MPI::COMM_NULL) {
       // child-prcess...
+      // this child-process work as mappers...
       
       utils::mpi_intercomm comm_parent(MPI::Comm::Get_parent());
       
       if (getoptions(argc, argv) != 0) 
 	return 1;
       
-    } else {
+      ngram_type ngram;
       
+      int unigram_size = 0;
+      if (mpi_rank == 0)
+	comm_parent.comm.Recv(&unigram_size, 1, MPI::INT, 0, size_tag);
+      MPI::COMM_WORLD.Bcast(&unigram_size, 1, MPI::INT, 0);
+      
+      ngram.index.reserve(mpi_size);
+      ngram.index.resize(mpi_size);
+      
+      ngram.index[mpi_rank].offsets.clear();
+      ngram.index[mpi_rank].offsets.push_back(0);
+      ngram.index[mpi_rank].offsets.push_back(unigram_size);
+      
+      // setup vocabulary...
+      {
+	typedef utils::repository repository_type;
+	
+	while (! boost::filesystem::exists(output_file))
+	  boost::thread::yield();
+	repository_type repository(output_file, repository_type::read);
+	
+	while (! boost::filesystem::exists(repository.path("index")))
+	  boost::thread::yield();
+	repository_type rep(repository.path("index"), repository_type::read);
+	
+	while (! boost::filesystem::exists(rep.path("vocab")))
+	  boost::thread::yield();
+	
+	vocab_type& vocab = ngram.index.vocab();
+	vocab.open(rep.path("vocab"));
+      }
+      
+      // perform mapping!
+      if (mpi_rank == 0)
+	index_ngram_mapper_root(comm_parent, ngram_file, ngram);
+      else
+	index_ngram_mapper_others(comm_parent, ngram);
+      
+    } else {
       std::vector<const char*, std::allocator<const char*> > args;
       args.reserve(argc);
       for (int i = 1; i < argc; ++ i)
@@ -35,41 +144,77 @@ int main(int argc, char** argv)
       if (getoptions(argc, argv) != 0) 
 	return 1;
       
-      if (unique) {
-	
-	
-	
-      } else {
+      if (ngram_file.empty() || ! boost::filesystem::exists(ngram_file))
+	throw std::runtime_error(std::string("no ngram file? ") + ngram_file.directory_string());
+      if (output_file.empty())
+	throw std::runtime_error(std::string("no output?"));
+      
+      // we are reducers..
+      
+      const path_type tmp_dir = utils::tempfile::tmp_dir();
+      const path_type path_count = utils::tempfile::directory_name(tmp_dir / "expgram.count.XXXXXX");
+      
+      ngram_type ngram;
+      
+      boost::iostreams::filtering_ostream os_count;
+      os_count.push(utils::packed_sink<count_type, std::allocator<count_type> >(path_count));
+      
+      index_unigram(ngram_file, output_file, ngram, os_count);
+      
+      if (unique)
+	index_ngram_unique(ngram_file, ngram, os_count);
+      else {
 	const std::string name = (boost::filesystem::exists(prog_name) ? prog_name.file_string() : std::string(argv[0]));
 	utils::mpi_intercomm comm_child(MPI::COMM_WORLD.Spawn(name.c_str(), &(*args.begin()), mpi_size, MPI::INFO_NULL, 0));
 	
+	if (mpi_rank == 0) {
+	  const int unigram_size = ngram.index[0].offsets[1];
+	  comm_child.comm.Send(&unigram_size, 1, MPI::INT, 0, size_tag);
+	}
 	
+	index_ngram_reducer(comm_child, ngram, os_count);
       }
+      
+      // perform indexing and open
+      os_count.pop();
+      
+      utils::tempfile::permission(path_count);
+      
+      ngram.counts[mpi_rank].counts.open(path_count);
+      
+      // final dump...
+      ngram.write_shard(output_file, mpi_rank);
     }
   }
+  catch (const std::exception& err) {
+    std::cerr << "error: " << err.what() << std::endl;
+    return 1;
+  }
+  return 0;
 }
   
 inline
 word_type escape_word(const std::string& word)
 {
-  static const std::string& __BOS = static_cast<const std::string&>(Vocab::BOS);
-  static const std::string& __EOS = static_cast<const std::string&>(Vocab::EOS);
-  static const std::string& __UNK = static_cast<const std::string&>(Vocab::UNK);
+  static const std::string& __BOS = static_cast<const std::string&>(vocab_type::BOS);
+  static const std::string& __EOS = static_cast<const std::string&>(vocab_type::EOS);
+  static const std::string& __UNK = static_cast<const std::string&>(vocab_type::UNK);
   
   if (strcasecmp(word.c_str(), __BOS.c_str()) == 0)
-    return Vocab::BOS;
+    return vocab_type::BOS;
   else if (strcasecmp(word.c_str(), __EOS.c_str()) == 0)
-    return Vocab::EOS;
+    return vocab_type::EOS;
   else if (strcasecmp(word.c_str(), __UNK.c_str()) == 0)
-    return Vocab::UNK;
+    return vocab_type::UNK;
   else
     return word;
 }
 
-void index_unigram(const path_type& path, const path_type& output, ngram_type& ngram, shard_data_type& shard)
+template <typename Stream>
+void index_unigram(const path_type& path, const path_type& output, ngram_type& ngram, Stream& os_counts)
 {
   typedef utils::repository repository_type;
-
+  
   typedef ngram_type::count_type count_type;
   typedef ngram_type::id_type    id_type;
   
@@ -88,19 +233,10 @@ void index_unigram(const path_type& path, const path_type& output, ngram_type& n
   if (mpi_rank == 0) {
     
     typedef std::vector<word_type, std::allocator<word_type> > word_set_type;
-
-    {
-      // first, create output direcories...
-      repository_type repository(output, repository_type::write);
-      repository_type rep_index(repository.path("index"), repository_type::write);
-      repository_type rep_count(repository.path("count"), repository_type::write);
-      
-      std::ostringstream stream_shard;
-      stream_shard << mpi_size;
-      rep_index["shard"] = stream_shard.str();
-      rep_count["shard"] = stream_shard.str();
-    }
-
+    
+    // prepare directory structures...
+    ngram.write_prepare(output);
+    
     repository_type repository(output, repository_type::read);
     repository_type rep(repository.path("index"), repository_type::read);
     
@@ -126,14 +262,14 @@ void index_unigram(const path_type& path, const path_type& output, ngram_type& n
       const word_type word = escape_word(tokens.front());
       const count_type count = atoll(tokens.back().c_str());
       
-      shard.os_counts->write((char*) &count, sizeof(count_type));
+      os_counts.write((char*) &count, sizeof(count_type));
       
       words.push_back(word);
       
       ++ word_id;
     }
     
-    vocab_type& vocab = index.vocab();
+    vocab_type& vocab = ngram.index.vocab();
     vocab.open(rep.path("vocab"), 1024 * 1024 * 16);
     
     word_set_type::const_iterator witer_end = words.end();
@@ -178,7 +314,7 @@ void index_unigram(const path_type& path, const path_type& output, ngram_type& n
     while (! boost::filesystem::exists(rep.path("vocab")))
       boost::thread::yield();
     
-    vocab_type& vocab = index.vocab();
+    vocab_type& vocab = ngram.index.vocab();
     vocab.open(rep.path("vocab"));
   }
 }
@@ -187,6 +323,8 @@ void index_unigram(const path_type& path, const path_type& output, ngram_type& n
 struct VocabMap
 {
   typedef std::vector<id_type, std::allocator<id_type> > cache_type;
+
+  VocabMap(vocab_type& __vocab) : vocab(__vocab) {}
   
   id_type operator[](const word_type& word)
   {
@@ -280,7 +418,7 @@ void index_ngram_mapper(intercomm_type& reducer, const PathSet& paths, ngram_typ
   
   for (int i = 0; i < paths.size(); ++ i) {
     
-    istreams.push_back(new utils::compress_istream(paths[i], 1024 * 1024));
+    istreams.push_back(istream_ptr_type(new utils::compress_istream(paths[i], 1024 * 1024)));
     
     while (std::getline(*istreams.back(), line)) {
       tokenizer_type tokenizer(line);
@@ -291,9 +429,9 @@ void index_ngram_mapper(intercomm_type& reducer, const PathSet& paths, ngram_typ
       
       context_count_stream_ptr_type context_stream(new context_count_stream_type());
       context_stream->first.clear();
-      context_stream->first.inset(context_stream->first.end(), tokens.begin(), tokens.end() - 1);
+      context_stream->first.insert(context_stream->first.end(), tokens.begin(), tokens.end() - 1);
       context_stream->second.first = atoll(tokens.back().c_str());
-      context_stream->scond.second = &(*istreams.back());
+      context_stream->second.second = &(*istreams.back());
       
       pqueue.push(context_stream);
       break;
@@ -311,9 +449,8 @@ void index_ngram_mapper(intercomm_type& reducer, const PathSet& paths, ngram_typ
     context_count_stream_ptr_type context_stream(pqueue.top());
     pqueue.pop();
     
-    if (context != context_stram->first) {
+    if (context != context_stream->first) {
       if (count > 0) {
-	
 	if (context.size() == 2)
 	  ngram_shard = shard_index(ngram, vocab_map, context);
 	else if (prefix_shard.empty() || ! std::equal(prefix_shard.begin(), prefix_shard.end(), context.begin())) {
@@ -331,7 +468,7 @@ void index_ngram_mapper(intercomm_type& reducer, const PathSet& paths, ngram_typ
       count = 0;
     }
     
-    count += count_stream->second.first;
+    count += context_stream->second.first;
     
     while (std::getline(*(context_stream->second.second), line)) {
       tokenizer_type tokenizer(line);
@@ -341,7 +478,7 @@ void index_ngram_mapper(intercomm_type& reducer, const PathSet& paths, ngram_typ
       if (tokens.size() < 2) continue;
       
       context_stream->first.clear();
-      context_stream->first.inset(context_stream->first.end(), tokens.begin(), tokens.end() - 1);
+      context_stream->first.insert(context_stream->first.end(), tokens.begin(), tokens.end() - 1);
       context_stream->second.first = atoll(tokens.back().c_str());
       
       pqueue.push(context_stream);
@@ -369,27 +506,17 @@ void index_ngram_mapper(intercomm_type& reducer, const PathSet& paths, ngram_typ
 
 void index_ngram_mapper_root(intercomm_type& reducer, const path_type& path, ngram_type& ngram)
 {
-  typedef boost::iostreams::filtering_istream istream_type;
   typedef boost::iostreams::filtering_ostream ostream_type;
-  
-  typedef utils::mpi_device_source            idevice_type;
-  typedef utils::mpi_device_sink              odevice_type;
-
-  typedef boost::shared_ptr<istream_type> istream_ptr_type;
   typedef boost::shared_ptr<ostream_type> ostream_ptr_type;
-  
-  typedef boost::shared_ptr<idevice_type> idevice_ptr_type;
-  typedef boost::shared_ptr<odevice_type> odevice_ptr_type;
-  
-  typedef std::vector<istream_ptr_type, std::allocator<istream_ptr_type> > istream_ptr_set_type;
   typedef std::vector<ostream_ptr_type, std::allocator<ostream_ptr_type> > ostream_ptr_set_type;
-  
-  typedef std::vector<idevice_ptr_type, std::allocator<idevice_ptr_type> > idevice_ptr_set_type;
-  typedef std::vector<odevice_ptr_type, std::allocator<odevice_ptr_type> > odevice_ptr_set_type;
   
   typedef std::vector<path_type, std::allocator<path_type> >     path_set_type;
   typedef std::vector<std::string, std::allocator<std::string> > tokens_type;
   typedef boost::tokenizer<utils::space_separator>               tokenizer_type;
+  
+  typedef VocabMap vocab_map_type;
+  
+  vocab_map_type vocab_map(ngram.index.vocab());
   
   const int mpi_rank = MPI::COMM_WORLD.Get_rank();
   const int mpi_size = MPI::COMM_WORLD.Get_size();
@@ -438,7 +565,7 @@ void index_ngram_mapper_root(intercomm_type& reducer, const path_type& path, ngr
     if (count_file_size == 0) break;
     
     if (debug)
-      std::cerr << "order: " << order << std::endl;
+      std::cerr << "mapper order: " << order << " # of files: " << count_file_size << std::endl;
     
     // distribute files...
     ostream_ptr_set_type stream(mpi_size);
@@ -447,25 +574,34 @@ void index_ngram_mapper_root(intercomm_type& reducer, const path_type& path, ngr
       stream[rank]->push(boost::iostreams::gzip_compressor());
       stream[rank]->push(utils::mpi_device_sink(MPI::COMM_WORLD, rank, file_tag, 1024 * 4));
     }
+    
     path_set_type paths_map;
     for (int i = 0; i < paths_ngram.size(); ++ i) {
-      if (i % mpi_size == mpi_rank)
+      const int rank = i % mpi_size;
+      
+      if (rank == mpi_rank)
 	paths_map.push_back(paths_ngram[i]);
       else
 	*stream[rank] << paths_ngram[i].file_string() << '\n';
     }
+    
     for (int rank = 1; rank < mpi_size; ++ rank) {
       *stream[rank] << '\n';
       stream[rank].reset();
     }
+    stream.clear();
     
     index_ngram_mapper(reducer, paths_map, ngram, vocab_map);
   }
 }
 
-void index_ngram_mapper_others(intercomm_type& reducer, const path_type& path, ngram_type& ngram)
+void index_ngram_mapper_others(intercomm_type& reducer, ngram_type& ngram)
 {
   typedef std::vector<path_type, std::allocator<path_type> >     path_set_type;
+
+  typedef VocabMap vocab_map_type;
+  
+  vocab_map_type vocab_map(ngram.index.vocab());
   
   const int mpi_rank = MPI::COMM_WORLD.Get_rank();
   const int mpi_size = MPI::COMM_WORLD.Get_size();
@@ -474,7 +610,7 @@ void index_ngram_mapper_others(intercomm_type& reducer, const path_type& path, n
     int count_file_size = 0;
     MPI::COMM_WORLD.Bcast(&count_file_size, 1, MPI::INT, 0);
     
-    if (coun_file_size == 0) break;
+    if (count_file_size == 0) break;
     
     path_set_type paths_map;
     boost::iostreams::filtering_istream stream;
@@ -525,7 +661,7 @@ struct IndexNGramReducer
   typedef IndexNGramMapReduce map_reduce_type;
   
   typedef map_reduce_type::context_type       context_type;
-  typedef map_reduce_tyep::context_count_type context_count_type;
+  typedef map_reduce_type::context_count_type context_count_type;
   
   typedef map_reduce_type::queue_type   queue_type;
   typedef map_reduce_type::ostream_type ostream_type;
@@ -551,12 +687,15 @@ struct IndexNGramReducer
   
   void operator()()
   {
+    typedef std::pair<id_type, count_type> word_count_type;
+    typedef std::vector<word_count_type, std::allocator<word_count_type> > word_count_set_type;
+
     indexer_type indexer;
     
     context_count_type  context_count;
     context_type        prefix;
     word_count_set_type words;
-
+    
     map_reduce_type shard_data;
     
     int order = 0;
@@ -592,11 +731,10 @@ struct IndexNGramReducer
       indexer(shard, ngram, os_count, debug);
     }
   }
-  
 };
 
-template <typename ShardData, typename VocabMap>
-void index_ngram_reducer(intercomm_type& mapper, ngram_type& ngram, ShardData& shard, VocabMap& vocab_map)
+template <typename Stream, typename VocabMap>
+void index_ngram_reducer(intercomm_type& mapper, ngram_type& ngram, Stream& os_count, VocabMap& vocab_map)
 {
   typedef boost::iostreams::filtering_istream istream_type;
   typedef utils::mpi_device_source            idevice_type;
@@ -617,16 +755,24 @@ void index_ngram_reducer(intercomm_type& mapper, ngram_type& ngram, ShardData& s
   
   typedef std::vector<std::string, std::allocator<std::string> > tokens_type;
   typedef boost::tokenizer<utils::space_separator>               tokenizer_type;
+  
+  typedef IndexNGramMapReduce map_reduce_type;
+  typedef IndexNGramReducer   reducer_type;
+  
+  typedef map_reduce_type::context_type       context_type;
+  typedef map_reduce_type::context_count_type context_count_type;
+  typedef map_reduce_type::queue_type         queue_type;
+  typedef map_reduce_type::thread_type        thread_type;
 
-  typedef std::vector<id_type, std::allocator<id_type> > context_type;
-  typedef std::pair<id_type, count_type> word_count_type;
-  typedef std::vector<word_count_type, std::allocator<word_count_type> > word_count_set_type;
   
   const int mpi_rank = MPI::COMM_WORLD.Get_rank();
   const int mpi_size = MPI::COMM_WORLD.Get_size();
   
-  istream_ptr_type stream(mpi_size);
-  idevice_ptr_type device(mpi_size);
+  queue_type queue(1024 * 64);
+  std::auto_ptr<thread_type> thread(new thread_type(reducer_type(ngram, queue, os_count, mpi_rank, debug)));
+  
+  istream_ptr_set_type stream(mpi_size);
+  idevice_ptr_set_type device(mpi_size);
 
   pqueue_type pqueue;
   
@@ -649,9 +795,9 @@ void index_ngram_reducer(intercomm_type& mapper, ngram_type& ngram, ShardData& s
       
       context_count_stream_ptr_type context_stream(new context_count_stream_type());
       context_stream->first.clear();
-      context_stream->first.inset(context_stream->first.end(), tokens.begin(), tokens.end() - 1);
+      context_stream->first.insert(context_stream->first.end(), tokens.begin(), tokens.end() - 1);
       context_stream->second.first = atoll(tokens.back().c_str());
-      context_stream->scond.second = &(*istreams.back());
+      context_stream->second.second = &(*stream[rank]);
       
       pqueue.push(context_stream);
       break;
@@ -659,34 +805,104 @@ void index_ngram_reducer(intercomm_type& mapper, ngram_type& ngram, ShardData& s
   }
   
   context_type        context;
-  context_type        prefix;
-  word_count_set_type words;
+  context_count_type  context_count;
   
-  const size_t iteration_mask = (1 << 13) - 1;
+  context_count.first.clear();
+  context_count.second = 0;
+  
   for (size_t iteration = 0; ! pqueue.empty(); ++ iteration) {
     context_count_stream_ptr_type context_stream(pqueue.top());
     pqueue.pop();
     
     context.clear();
-    ngram_context_type::const_iterator niter_end = context_queue->first.end();
-    for (ngram_context_type::const_iterator niter = context_queue->first.begin(); niter != niter_end; ++ niter)
+    ngram_context_type::const_iterator niter_end = context_stream->first.end();
+    for (ngram_context_type::const_iterator niter = context_stream->first.begin(); niter != niter_end; ++ niter)
       context.push_back(vocab_map[escape_word(*niter)]);
     
+    if (context_count.first.size() != context.size() || ! std::equal(context_count.first.begin(), context_count.first.end(), context.begin())) {
+      if (context_count.second > 0)
+	queue.push_swap(context_count);
+      
+      context_count.first.swap(context);
+      context_count.second = 0;
+    }
+    
+    context_count.second += context_stream->second.first;
+    
+    while (std::getline(*(context_stream->second.second), line)) {
+      tokenizer_type tokenizer(line);
+      tokens.clear();
+      tokens.insert(tokens.end(), tokenizer.begin(), tokenizer.end());
+      
+      if (tokens.size() < 2) continue;
+      
+      context_count_stream_ptr_type context_stream(new context_count_stream_type());
+      context_stream->first.clear();
+      context_stream->first.insert(context_stream->first.end(), tokens.begin(), tokens.end() - 1);
+      context_stream->second.first = atoll(tokens.back().c_str());
+      
+      pqueue.push(context_stream);
+      break;
+    }
   }
   
   
-  
-  
+  queue.push(std::make_pair(context_type(), count_type(0)));
+  thread->join();
 }
 
-void index_ngram_unique(const path_type& path, ngram_type& ngram, shard_data_type& shard)
+template <typename Stream>
+void index_ngram_reducer(intercomm_type& mapper, ngram_type& ngram, Stream& os_count)
 {
+  typedef VocabMap vocab_map_type;
+
   const int mpi_rank = MPI::COMM_WORLD.Get_rank();
   const int mpi_size = MPI::COMM_WORLD.Get_size();
   
-  //
-  // run a thread....
-  //
+  vocab_map_type vocab_map(ngram.index.vocab());
+  
+  for (int order = 2; /**/; ++ order) {
+    
+    int count_file_size = 0;
+    if (mpi_rank == 0)
+      mapper.comm.Recv(&count_file_size, 1, MPI::INT, 0, size_tag);
+    MPI::COMM_WORLD.Bcast(&count_file_size, 1, MPI::INT, 0);
+    
+    if (count_file_size == 0) break;
+    
+    if (debug)
+      std::cerr << "reducer: rank: " << mpi_rank << " order: " << order << std::endl;
+    
+    index_ngram_reducer(mapper, ngram, os_count, vocab_map);
+  }
+}
+
+template <typename Stream>
+void index_ngram_unique(const path_type& path, ngram_type& ngram, Stream& os_count)
+{
+  typedef std::vector<std::string, std::allocator<std::string> > ngram_context_type;
+
+  typedef std::vector<std::string, std::allocator<std::string> > tokens_type;
+  typedef boost::tokenizer<utils::space_separator>               tokenizer_type;
+  
+  typedef IndexNGramMapReduce map_reduce_type;
+  typedef IndexNGramReducer   reducer_type;
+  
+  typedef map_reduce_type::context_type       context_type;
+  typedef map_reduce_type::context_count_type context_count_type;
+  
+  typedef map_reduce_type::queue_type         queue_type;
+  typedef map_reduce_type::thread_type        thread_type;
+
+  typedef VocabMap vocab_map_type;
+  
+  const int mpi_rank = MPI::COMM_WORLD.Get_rank();
+  const int mpi_size = MPI::COMM_WORLD.Get_size();
+  
+  queue_type queue(1024 * 64);
+  std::auto_ptr<thread_type> thread(new thread_type(reducer_type(ngram, queue, os_count, mpi_rank, debug)));
+
+  vocab_map_type vocab_map(ngram.index.vocab());
 
   for (int order = 2; /**/; ++ order) {
     
@@ -704,6 +920,7 @@ void index_ngram_unique(const path_type& path, ngram_type& ngram, shard_data_typ
     
     if (! boost::filesystem::exists(ngram_dir) || ! boost::filesystem::exists(index_file)) break;
 
+    context_count_type context_count;
 
     ngram_context_type ngram_prefix;
     int                ngram_rank = 0;
@@ -711,7 +928,7 @@ void index_ngram_unique(const path_type& path, ngram_type& ngram, shard_data_typ
     utils::compress_istream is_index(index_file);
     std::string line;
     tokens_type tokens;
-    context_type context;
+    
     while (std::getline(is_index, line)) {
       tokenizer_type tokenizer(line);
       
@@ -744,13 +961,16 @@ void index_ngram_unique(const path_type& path, ngram_type& ngram, shard_data_typ
 	// check if the rank of this ngram data is mpi_rank...
 	
 	if (order == 2) {
-	  context.clear();
+	  context_count.first.clear();
 	  tokens_type::const_iterator titer_end = tokens.end() - 1;
 	  for (tokens_type::const_iterator titer = tokens.begin(); titer != titer_end; ++ titer)
-	    context.push_back(vocab_map[escape_word(*titer)]);
+	    context_count.first.push_back(vocab_map[escape_word(*titer)]);
 	  
-	  if (ngram.shard_index(context.begin(), context.end()) == mpi_rank)
-	    queue.push(std::make_pair(context, atol(tokens.back().c_str())));
+	  if (ngram.index.shard_index(context_count.first.begin(), context_count.first.end()) == mpi_rank) {
+	    context_count.second = atoll(tokens.back().c_str());
+	    
+	    queue.push_swap(context_count);
+	  }
 	  
 	} else {
 	  
@@ -762,12 +982,14 @@ void index_ngram_unique(const path_type& path, ngram_type& ngram, shard_data_typ
 	  }
 	  
 	  if (ngram_rank == mpi_rank) {
-	    context.clear();
+	    context_count.first.clear();
 	    tokens_type::const_iterator titer_end = tokens.end() - 1;
 	    for (tokens_type::const_iterator titer = tokens.begin(); titer != titer_end; ++ titer)
-	      context.push_back(vocab_map[escape_word(*titer)]);
+	      context_count.first.push_back(vocab_map[escape_word(*titer)]);
 	    
-	    queue.push(std::make_pair(context, atol(tokens.back().c_str())));
+	    context_count.second = atoll(tokens.back().c_str());
+	    
+	    queue.push_swap(context_count);
 	  }
 	}
       }
@@ -777,4 +999,36 @@ void index_ngram_unique(const path_type& path, ngram_type& ngram, shard_data_typ
   // termination!
   queue.push(std::make_pair(context_type(), count_type(0)));
   thread->join();
+}
+
+int getoptions(int argc, char** argv)
+{
+  const int mpi_rank = MPI::COMM_WORLD.Get_rank();
+  const int mpi_size = MPI::COMM_WORLD.Get_size();
+
+  namespace po = boost::program_options;
+  
+  po::options_description desc("options");
+  desc.add_options()
+    ("ngram",  po::value<path_type>(&ngram_file),  "ngram counts in Google ngram format")
+    ("output", po::value<path_type>(&output_file), "output in binary format")
+
+    ("prog",   po::value<path_type>(&prog_name),   "this binary")
+    
+    ("unique", po::bool_switch(&unique),           "unique counts (i.e. ngram counts from LDC/GSK)")
+    
+    ("debug", po::value<int>(&debug)->implicit_value(1), "debug level")
+    ("help", "help message");
+  
+  po::variables_map vm;
+  po::store(po::parse_command_line(argc, argv, desc), vm);
+  po::notify(vm);
+  
+  if (vm.count("help")) {
+    if (mpi_rank == 0)
+      std::cout << argv[0] << " [options]" << '\n' << desc << '\n';
+    return 1;
+  }
+  
+  return 0;
 }

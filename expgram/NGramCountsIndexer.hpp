@@ -44,6 +44,7 @@ namespace expgram
     void operator()(int shard, ngram_type& ngram, Stream& os_count, int debug)
     {
       const int order_prev = ngram.index[shard].offsets.size() - 1;
+      const int order      = order_prev + 1;
       const size_type positions_size = ngram.index[shard].offsets[order_prev] - ngram.index[shard].offsets[order_prev - 1];
       
       const path_type tmp_dir       = utils::tempfile::tmp_dir();
@@ -114,6 +115,7 @@ namespace expgram
       ngram.index[shard].ids.open(path_id);
       ngram.index[shard].positions.open(path_position);
       ngram.index[shard].offsets.push_back(ngram.index[shard].offsets.back() + ids.size());
+      ngram.index.order() = order;
       
       if (debug)
 	std::cerr << "shard: " << shard

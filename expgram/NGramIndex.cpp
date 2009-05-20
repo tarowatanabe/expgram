@@ -179,7 +179,6 @@ namespace expgram
     stream_order << __order;
     rep["shard"] = stream_shard.str();
     rep["order"] = stream_order.str();
-    
   }
   
   void NGramIndex::write_shard(const path_type& file, int shard) const
@@ -190,12 +189,16 @@ namespace expgram
     
     while (! boost::filesystem::exists(file))
       boost::thread::yield();
-
+    
     repository_type rep(file, repository_type::read);
     
     std::ostringstream stream_shard;
     stream_shard << "ngram-" << std::setfill('0') << std::setw(6) << shard;
     
     __shards[shard].write(rep.path(stream_shard.str()));
+    
+    std::ostringstream stream_order;
+    stream_order << __order;
+    rep["order"] = stream_order.str();
   }
 };
