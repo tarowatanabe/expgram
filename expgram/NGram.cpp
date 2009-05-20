@@ -664,6 +664,8 @@ namespace expgram
       threads[shard].reset(new thread_type(mapper_type(*this, *queues[shard], shard)));
     }
     
+    const id_type bos_id = index.vocab()[vocab_type::BOS];
+    
     vocab_map_type vocab_map;
     vocab_map.reserve(index[0].offsets[1]);
     
@@ -686,9 +688,16 @@ namespace expgram
 
     // unigrams...
     {
+      static const logprob_type logprob_bos = double(-99) * utils::mathop::log(10);
+
       os << "\\1-grams:" << '\n';
       for (size_type pos = 0; pos < index[0].offsets[1]; ++ pos) {
-	const logprob_type logprob = logprobs[0](pos, 1);
+	logprob_type logprob = logprobs[0](pos, 1);
+	
+	// escape for BOS
+	if (logprob == logprob_min() && pos == bos_id)
+	  logprob = logprob_bos;
+	
 	if (logprob != logprob_min()) {
 	  const id_type id(pos);
 	  
@@ -697,7 +706,7 @@ namespace expgram
 	  if (! vocab_map[id])
 	    vocab_map[id] = static_cast<const std::string&>(index.vocab()[id]).c_str();
 	  
-	  const logprob_type backoff = (pos < backoffs[0].size() ? backoffs[0](pos, 1) : logprob_type(0.0));
+	  const logprob_type backoff = (pos < backoffs[0].size() ? backoffs[0](pos, 1) : logprob_type(0.0));	  
 	  os << (logprob / log_10) << '\t' << vocab_map[id];
 	  if (backoff != 0.0)
 	    os << '\t' << (backoff / log_10);
@@ -952,8 +961,9 @@ namespace expgram
       const path_type path = utils::tempfile::file_name(utils::tempfile::tmp_dir() / "expgram.logbound.XXXXXX");
       utils::tempfile::insert(path);
       dump_file(path, logbounds);
-      ngram.logbounds[shard].logprobs.open(path);
       utils::tempfile::permission(path);
+      ngram.logbounds[shard].logprobs.open(path);
+      
       
       if (debug)
 	std::cerr << "shard: " << shard << " logbound: " << ngram.logbounds[shard].size() << std::endl;
@@ -1435,9 +1445,11 @@ namespace expgram
       const logprob_type logprob = atof(tokens.front().c_str()) * log_10;
       const logprob_type logbackoff = (tokens.size() == order + 2 ? (atof(tokens.back().c_str()) * log_10) : 0.0);
       
-      logprob_lowest = std::min(logprob_lowest, logprob);
       
       unigrams.push_back(std::make_pair(escape_word(tokens[1]), std::make_pair(logprob, logbackoff)));
+      
+      if (unigrams.back().first != vocab_type::BOS)
+	logprob_lowest = std::min(logprob_lowest, logprob);
     }
     
     // index unigrams!

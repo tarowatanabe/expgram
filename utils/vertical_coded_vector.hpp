@@ -552,7 +552,7 @@ template <typename Tp, typename Alloc=std::allocator<Tp> >
       
       stream_integral_size << sizeof(value_type);
       stream_size << size();
-      stream_coded_size << off.size();
+      stream_coded_size << off.size() - 1;
       
       rep["size"] = stream_size.str();
       rep["integral-size"] = stream_integral_size.str();

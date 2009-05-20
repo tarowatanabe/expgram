@@ -171,6 +171,8 @@ namespace utils
       os_off->write((char*) &off, sizeof(off_type));
       os_off->write((char*) &size, sizeof(off_type));
 
+      const off_type value_size = size;
+
       bool finished = (inverted.back() <= 0xff);
       int code_size = 1;
       
@@ -211,7 +213,7 @@ namespace utils
 	std::ostringstream stream_coded_size;
 	
 	stream_integral_size << sizeof(value_type);
-	stream_size << size;
+	stream_size << value_size;
 	stream_coded_size << code_size;
 	
 	rep["size"] = stream_size.str();

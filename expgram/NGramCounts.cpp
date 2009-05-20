@@ -453,6 +453,8 @@ namespace expgram
 	    for (int shard = 0; shard < ngram.index.size(); ++ shard) {
 	      const size_type pos_first = ngram.index[shard].children_first(pos_context);
 	      const size_type pos_last  = ngram.index[shard].children_last(pos_context);
+
+	      const size_type offset = ngram.counts[shard].offset;
 	      
 	      for (size_type pos = pos_first; pos != pos_last; ++ pos) {
 		const id_type    id = ngram.index[shard][pos];
@@ -471,7 +473,7 @@ namespace expgram
 		
 		logsum = utils::mathop::logsum(logsum, double(logprob));
 		
-		logprobs[shard][pos] = logprob;
+		logprobs[shard][pos - offset] = logprob;
 	      }
 	    }
 	  }
@@ -584,6 +586,9 @@ namespace expgram
 
       for (int order_prev = 2; order_prev < ngram.index.order(); ++ order_prev) {
 	const int order = order_prev + 1;
+
+	if (debug)
+	  std::cerr << "order: " << order << " shard: " << shard << std::endl;
 	
 	const size_type pos_context_first = ngram.index[shard].offsets[order_prev - 1];
 	const size_type pos_context_last  = ngram.index[shard].offsets[order_prev];
@@ -682,7 +687,7 @@ namespace expgram
 	  {
 	    size_type position;
 	    do {
-	      const size_type position = utils::atomicop::fetch_and_add(offsets[shard], size_type(0));
+	      position = utils::atomicop::fetch_and_add(offsets[shard], size_type(0));
 	    } while (! utils::atomicop::compare_and_swap(offsets[shard], position, pos_last));
 	  }
 	}
@@ -735,7 +740,7 @@ namespace expgram
     
     if (debug)
       for (int order = 1; order <= index.order(); ++ order)
-	std::cerr << "order: " << order << discounts[order] << std::endl;
+	std::cerr << "order: " << order << ' ' << discounts[order] << std::endl;
     
     // assignment for index...
     ngram.index = index;
@@ -756,6 +761,9 @@ namespace expgram
     }
     
     {
+      if (debug)
+	std::cerr << "order: "  << 1 << std::endl;
+      
       // unigrams...
       const id_type bos_id = index.vocab()[vocab_type::BOS];
       const id_type unk_id = index.vocab()[vocab_type::UNK];
@@ -833,9 +841,15 @@ namespace expgram
       // fallback to uniform distribution...
       if (ngram.smooth == boost::numeric::bounds<logprob_type>::lowest())
 	ngram.smooth = utils::mathop::log(uniform_distribution);
+
+      if (debug)
+	std::cerr << "\tsmooth: " << ngram.smooth << std::endl;
     }
     
     {
+      if (debug)
+	std::cerr << "order: " << 2 << std::endl;
+
       // bigrams...
       typedef NGramCountsEstimateBigramMapper mapper_type;
       
@@ -853,8 +867,11 @@ namespace expgram
       
       thread_ptr_set_type threads(index.size());
       offset_set_type     offsets(index.size(), size_type(0));
-      for (int shard = 0; shard < offsets.size(); ++ shard)
+      for (int shard = 0; shard < offsets.size(); ++ shard) {
 	offsets[shard] = ngram.index[shard].offsets[2];
+	
+	std::cerr << "shard: " << shard << " offset: " << offsets[shard] << std::endl;
+      }
       
       for (int shard = 0; shard < threads.size(); ++ shard)
 	threads[shard].reset(new thread_type(mapper_type(*this, discounts, logprobs, backoffs, offsets, ngram.logprob_min(), shard, debug)));
@@ -1433,23 +1450,13 @@ namespace expgram
     typedef std::pair<id_type, count_type>                                 word_count_type;
     typedef std::vector<word_count_type, std::allocator<word_count_type> > word_count_set_type;
     
-    typedef utils::packed_vector<id_type, std::allocator<id_type> >       id_set_type;
-    typedef utils::packed_vector<count_type, std::allocator<count_type> > count_set_type;
-    typedef std::vector<size_type, std::allocator<size_type> >            size_set_type;
-
-    typedef NGramCountsIndexer indexer_type;
+    typedef NGramCountsIndexer<ngram_type> indexer_type;
     
     ngram_type&           ngram;
     queue_type&           queue;
     ostream_type&         os_count;
     int                   shard;
     int                   debug;
-    
-    // thread local...
-    id_set_type    ids;
-    count_set_type counts;
-    size_set_type  positions_first;
-    size_set_type  positions_last;
     
     NGramCountsIndexUniqueReducer(ngram_type&           _ngram,
 				  queue_type&           _queue,
@@ -1464,6 +1471,8 @@ namespace expgram
     
     void operator()()
     {
+      indexer_type indexer;
+
       context_count_type  context_count;
       context_type        prefix;
       word_count_set_type words;
@@ -1473,7 +1482,7 @@ namespace expgram
       
       while (1) {
 	
-	queue.pop(context_count);
+	queue.pop_swap(context_count);
 	if (context_count.first.empty()) break;
 	
 	const context_type& context = context_count.first;
@@ -1481,11 +1490,11 @@ namespace expgram
 	
 	if (context.size() != prefix.size() + 1 || ! std::equal(prefix.begin(), prefix.end(), context.begin())) {
 	  if (! words.empty()) {
-	    indexer_type::index_ngram(shard, ngram, *this, prefix, words);
+	    indexer(shard, ngram, prefix, words);
 	    words.clear();
 	    
 	    if (context.size() != order)
-	      indexer_type::index_ngram(shard, ngram, *this, debug);
+	      indexer(shard, ngram, os_count, debug);
 	  }
 	  
 	  prefix.clear();
@@ -1498,8 +1507,8 @@ namespace expgram
       
       // perform final indexing...
       if (! words.empty()) {
-	indexer_type::index_ngram(shard, ngram, *this, prefix, words);
-	indexer_type::index_ngram(shard, ngram, *this, debug);
+	indexer(shard, ngram, prefix, words);
+	indexer(shard, ngram, os_count, debug);
       }
     }
   };
@@ -1749,13 +1758,9 @@ namespace expgram
     typedef map_reduce_type::vocab_map_type           vocab_map_type;
     
     typedef std::pair<id_type, count_type>                                 word_count_type;
-    typedef std::vector<word_count_type, std::allocator<word_count_type> > word_count_set_type;
+    typedef std::vector<word_count_type, std::allocator<word_count_type> > word_count_set_type;    
     
-    typedef utils::packed_vector<id_type, std::allocator<id_type> >       id_set_type;
-    typedef utils::packed_vector<count_type, std::allocator<count_type> > count_set_type;
-    typedef std::vector<size_type, std::allocator<size_type> >            size_set_type;
-    
-    typedef NGramCountsIndexer indexer_type;
+    typedef NGramCountsIndexer<ngram_type> indexer_type;
     
     ngram_type&           ngram;
     const vocab_map_type& vocab_map;
@@ -1763,12 +1768,6 @@ namespace expgram
     ostream_type&         os_count;
     int                   shard;
     int                   debug;
-    
-    // thread local...
-    id_set_type    ids;
-    count_set_type counts;
-    size_set_type  positions_first;
-    size_set_type  positions_last;
     
     NGramCountsIndexReducer(ngram_type&           _ngram,
 			    const vocab_map_type& _vocab_map,
@@ -1790,6 +1789,8 @@ namespace expgram
       typedef boost::shared_ptr<context_count_queue_type>     context_count_queue_ptr_type;
       typedef std::vector<context_count_queue_ptr_type, std::allocator<context_count_queue_ptr_type> > pqueue_base_type;
       typedef std::priority_queue<context_count_queue_ptr_type, pqueue_base_type, greater_pfirst_size_value<context_count_queue_type> > pqueue_type;
+
+      indexer_type indexer;
 
       pqueue_type pqueue;
       
@@ -1832,7 +1833,7 @@ namespace expgram
 	
 	if (prefix.size() + 1 != context.size() || ! std::equal(prefix.begin(), prefix.end(), context.begin())) {
 	  if (! words.empty()) {
-	    indexer_type::index_ngram(shard, ngram, *this, prefix, words);
+	    indexer(shard, ngram, prefix, words);
 	    words.clear();
 	  }
 	  
@@ -1855,8 +1856,8 @@ namespace expgram
       }
       
       if (! words.empty()) {
-	indexer_type::index_ngram(shard, ngram, *this, prefix, words);
-	indexer_type::index_ngram(shard, ngram, *this, debug);
+	indexer(shard, ngram, prefix, words);
+	indexer(shard, ngram, os_count, debug);
       } 
     }
   };
@@ -1905,17 +1906,16 @@ namespace expgram
     vocab_map_type vocab_map;
     size_type      unigram_size = 0;
     {
-      const path_type path_vocab = utils::tempfile::directory_name(utils::tempfile::tmp_dir() / "expgram.vocab.XXXXXX");
-      utils::tempfile::insert(path_vocab);
-      
-      vocab_type& vocab = index.vocab();
-      vocab.open(path_vocab, 1024 * 1024 * 16);
+      typedef std::vector<word_type, std::allocator<word_type> > word_set_type;
+
       
       const path_type ngram_dir         = path / "1gms";
       const path_type vocab_file        = ngram_dir / "vocab.gz";
       const path_type vocab_sorted_file = ngram_dir / "vocab_cs.gz";
       
       utils::compress_istream is(vocab_sorted_file, 1024 * 1024);
+
+      word_set_type words;
       
       id_type word_id = 0;
       std::string line;
@@ -1936,17 +1936,35 @@ namespace expgram
 	
 	os_counts[0]->write((char*) &count, sizeof(count_type));
 	
-	vocab.insert(word);
+	words.push_back(word);
+	
 	++ word_id;
       }
       
-      vocab_map_type(vocab_map).swap(vocab_map);
+      
+      
+      const path_type path_vocab = utils::tempfile::directory_name(utils::tempfile::tmp_dir() / "expgram.vocab.XXXXXX");
+      utils::tempfile::insert(path_vocab);
+      
+      vocab_type& vocab = index.vocab();
+      vocab.open(path_vocab, words.size() >> 1);
+      
+      word_set_type::const_iterator witer_end = words.end();
+      for (word_set_type::const_iterator witer = words.begin(); witer != witer_end; ++ witer)
+	vocab.insert(*witer);
+      
+      words.clear();
+      word_set_type(words).swap(words);
+      
       vocab.close();
       
       utils::tempfile::permission(path_vocab);
-
+      
       vocab.open(path_vocab);
       unigram_size = word_id;
+      
+      
+      vocab_map_type(vocab_map).swap(vocab_map);
     }
     
     if (debug)

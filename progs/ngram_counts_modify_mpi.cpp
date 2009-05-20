@@ -4,7 +4,7 @@
 
 #include <vector>
 
-#include <expgram/NGram.hpp>
+#include <expgram/NGramCounts.hpp>
 
 #include <boost/thread.hpp>
 #include <boost/filesystem.hpp>
@@ -23,14 +23,15 @@
 #include <utils/mpi_device_bcast.hpp>
 
 
-typedef expgram::NGram ngram_type;
+typedef expgram::NGramCounts ngram_type;
 
 typedef ngram_type::size_type       size_type;
 typedef ngram_type::difference_type difference_type;
 typedef ngram_type::path_type       path_type;
 
-typedef ngram_type::logprob_type    logprob_type;
-typedef ngram_type::quantized_type  quantized_type;
+
+typedef ngram_type::count_type      count_type;
+typedef ngram_type::vocab_type      vocab_type;
 typedef ngram_type::word_type       word_type;
 typedef ngram_type::id_type         id_type;
 
@@ -44,12 +45,12 @@ path_type prog_name;
 int debug = 0;
 
 enum {
-  bound_tag = 1000,
+  modify_tag = 2000,
   sync_tag,
 };
 
-void ngram_bound_mapper(const ngram_type& ngram, intercomm_type& reducer);
-void ngram_bound_reducer(ngram_type& ngram, intercomm_type& mapper);
+void ngram_modify_mapper(const ngram_type& ngram, intercomm_type& reducer);
+void ngram_modify_reducer(ngram_type& ngram, intercomm_type& mapper);
 
 int getoptions(int argc, char** argv);
 
@@ -71,11 +72,7 @@ int main(int argc, char** argv)
       ngram_type ngram(debug);
       ngram.open_shard(ngram_file, mpi_rank);
       
-      // set up logbounds...
-      ngram.logbounds.reserve(ngram.index.size());
-      ngram.logbounds.resize(ngram.index.size());
-      
-      ngram_bound_reducer(ngram, comm_parent);
+      ngram_modify_reducer(ngram, comm_parent);
       
       if (mpi_rank == 0)
 	ngram.write_prepare(output_file);
@@ -111,7 +108,7 @@ int main(int argc, char** argv)
       if (ngram.index.size() != mpi_size)
 	throw std::runtime_error("MPI universe size do not match with ngram shard size");
       
-      ngram_bound_mapper(ngram, comm_child);
+      ngram_modify_mapper(ngram, comm_child);
 
       // do we synchronize here...?
     }
@@ -126,7 +123,7 @@ int main(int argc, char** argv)
 
 
 
-void ngram_bound_mapper(const ngram_type& ngram, intercomm_type& reducer)
+void ngram_modify_mapper(const ngram_type& ngram, intercomm_type& reducer)
 {
   typedef boost::iostreams::filtering_ostream ostream_type;
   typedef utils::mpi_device_sink              odevice_type;
@@ -137,7 +134,7 @@ void ngram_bound_mapper(const ngram_type& ngram, intercomm_type& reducer)
   typedef std::vector<ostream_ptr_type, std::allocator<ostream_ptr_type> > ostream_ptr_set_type;
   typedef std::vector<odevice_ptr_type, std::allocator<odevice_ptr_type> > odevice_ptr_set_type;
 
-  typedef std::vector<logprob_type, std::allocator<logprob_type> > logprob_set_type;
+  typedef std::vector<count_type, std::allocator<count_type> > count_set_type;
 
   typedef std::vector<id_type, std::allocator<id_type> > context_type;
   
@@ -149,7 +146,7 @@ void ngram_bound_mapper(const ngram_type& ngram, intercomm_type& reducer)
   
   for (int rank = 0; rank < mpi_size; ++ rank) {
     stream[rank].reset(new ostream_type());
-    device[rank].reset(new odevice_type(reducer.comm, rank, bound_tag, 1024 * 1024, false, true));
+    device[rank].reset(new odevice_type(reducer.comm, rank, modify_tag, 1024 * 1024, false, true));
     
     stream[rank]->push(boost::iostreams::gzip_compressor());
     stream[rank]->push(*device[rank]);
@@ -157,8 +154,11 @@ void ngram_bound_mapper(const ngram_type& ngram, intercomm_type& reducer)
     stream[rank]->precision(20);
   }
   
-  logprob_set_type unigrams(ngram.index[mpi_rank].offsets[1], ngram.logprob_min());
-  context_type     context;
+  const id_type bos_id = ngram.index.vocab()[vocab_type::BOS];
+  const int max_order = ngram.index.order();
+  
+  count_set_type unigrams(ngram.index[mpi_rank].offsets[1], count_type(0));
+  context_type   context;
   
   for (int order_prev = 1; order_prev < ngram.index.order(); ++ order_prev) {
     const size_type pos_context_first = ngram.index[mpi_rank].offsets[order_prev - 1];
@@ -181,23 +181,25 @@ void ngram_bound_mapper(const ngram_type& ngram, intercomm_type& reducer)
       for (size_type pos_curr = pos_context; pos_curr != size_type(-1); pos_curr = ngram.index[mpi_rank].parent(pos_curr), -- citer_curr)
 	*citer_curr = ngram.index[mpi_rank][pos_curr];
       
+      // BOS handling...
+      if (mpi_rank == 0 && order_prev == 1 && context.front() == bos_id)
+	unigrams[context.front()] += ngram.counts[mpi_rank][pos_context];
+      
       for (size_type pos = pos_first; pos != pos_last; ++ pos) {
 	context.back() = ngram.index[mpi_rank][pos];
 	
-	const logprob_type logprob = ngram.logprobs[mpi_rank](pos, order_prev + 1);
-	if (logprob != ngram.logprob_min()) {
-	  
-	  context_type::const_iterator citer_end = context.end();
-	  for (context_type::const_iterator citer = context.begin() + 1; citer != citer_end; ++ citer) {
-	    if (citer_end - citer == 1)
-	      unigrams[*citer] = std::max(unigrams[*citer], logprob);
-	    else {
-	      const int shard = ngram.index.shard_index(citer, citer_end);
-	      
-	      std::copy(citer, citer_end, std::ostream_iterator<id_type>(*stream[shard], " "));
-	      *stream[shard] << logprob << '\n';
-	    }
-	  }
+	if (context.size() == 2)
+	  ++ unigrams[context.back()];
+	else {
+	  const int shard = ngram.index.shard_index(context.begin() + 1, context.end());
+	  std::copy(context.begin() + 1, context.end(), std::ostream_iterator<id_type>(*stream[shard], " "));
+	  *stream[shard] << 1 << '\n';
+	}
+	
+	if (context.front() == bos_id && order_prev + 1 != max_order) {
+	  const int shard = ngram.index.shard_index(context.begin(), context.end());
+	  std::copy(context.begin(), context.end(), std::ostream_iterator<id_type>(*stream[shard], " "));
+	  *stream[shard] << ngram.counts[mpi_rank][pos] << '\n';
 	}
       }
       
@@ -207,7 +209,7 @@ void ngram_bound_mapper(const ngram_type& ngram, intercomm_type& reducer)
   }
   
   for (id_type id = 0; id < unigrams.size(); ++ id)
-    if (unigrams[id] > ngram.logprob_min())
+    if (unigrams[id] > 0)
       *stream[0] << id << ' ' << unigrams[id] << '\n';
 
   
@@ -237,7 +239,19 @@ void dump_file(const Path& file, const Data& data)
       os->write(((char*) &(*data.begin())) + offset, std::min(int64_t(1024 * 1024), file_size - offset));
 }
 
-void ngram_bound_reducer(ngram_type& ngram, intercomm_type& mapper)
+template <typename Iterator>
+void dump(std::ostream& os, Iterator first, Iterator last)
+{
+  typedef typename std::iterator_traits<Iterator>::value_type value_type;
+      
+  while (first != last) {
+    const size_type write_size = std::min(size_type(1024 * 1024), size_type(last - first));
+    os.write((char*) &(*first), write_size * sizeof(value_type));
+    first += write_size;
+  }
+}
+
+void ngram_modify_reducer(ngram_type& ngram, intercomm_type& mapper)
 {
   typedef boost::iostreams::filtering_istream istream_type;
   typedef utils::mpi_device_source            idevice_type;
@@ -248,7 +262,7 @@ void ngram_bound_reducer(ngram_type& ngram, intercomm_type& mapper)
   typedef std::vector<istream_ptr_type, std::allocator<istream_ptr_type> > istream_ptr_set_type;
   typedef std::vector<idevice_ptr_type, std::allocator<idevice_ptr_type> > idevice_ptr_set_type;
 
-  typedef std::vector<logprob_type, std::allocator<logprob_type> > logprob_set_type;
+  typedef std::vector<count_type, std::allocator<count_type> > count_set_type;
   
   typedef std::vector<id_type, std::allocator<id_type> > context_type;
   
@@ -263,19 +277,16 @@ void ngram_bound_reducer(ngram_type& ngram, intercomm_type& mapper)
   
   for (int rank = 0; rank < mpi_size; ++ rank) {
     stream[rank].reset(new istream_type());
-    device[rank].reset(new idevice_type(mapper.comm, rank, bound_tag, 1024 * 1024));
+    device[rank].reset(new idevice_type(mapper.comm, rank, modify_tag, 1024 * 1024));
     
     stream[rank]->push(boost::iostreams::gzip_decompressor());
     stream[rank]->push(*device[rank]);
   }
   
-  // set up offset...
-  ngram.logbounds[mpi_rank].offset = ngram.logprobs[mpi_rank].offset;
   
-  const size_type offset = ngram.logbounds[mpi_rank].offset;
-  logprob_set_type logbounds(ngram.logprobs[mpi_rank].logprobs.begin(),
-			     ngram.logprobs[mpi_rank].logprobs.begin() + ngram.index[mpi_rank].position_size() - offset);
-
+  const size_type offset = ngram.counts[mpi_rank].offset;
+  count_set_type  counts_modified(ngram.index[mpi_rank].position_size() - offset, count_type(0));
+  
   std::string line;
   tokens_type tokens;
   context_type context;
@@ -302,8 +313,7 @@ void ngram_bound_reducer(ngram_type& ngram, intercomm_type& mapper)
 	  if (result.first != context.end() || result.second == size_type(-1))
 	    throw std::runtime_error("no ngram?");
 	  
-	  logprob_type& bound = logbounds[result.second - offset];
-	  bound = std::max(bound, logprob_type(atof(tokens.back().c_str())));
+	  counts_modified[result.second - offset] += atoll(tokens.back().c_str());
 	  
 	} else {
 	  stream[rank].reset();
@@ -313,18 +323,31 @@ void ngram_bound_reducer(ngram_type& ngram, intercomm_type& mapper)
 	found = true;
       }
     
-
+    
     if (std::count(device.begin(), device.end(), idevice_ptr_type()) == mpi_size) break;
     
     if (! found)
       boost::thread::yield();
   }
   
-  const path_type path = utils::tempfile::file_name(utils::tempfile::tmp_dir() / "expgram.logbound.XXXXXX");
+  const path_type path = utils::tempfile::file_name(utils::tempfile::tmp_dir() / "expgram.modified.XXXXXX");
   utils::tempfile::insert(path);
-  dump_file(path, logbounds);
+  
+  boost::iostreams::filtering_ostream os;
+  os.push(utils::packed_sink<count_type, std::allocator<count_type> >(path));
+  dump(os, counts_modified.begin(), counts_modified.end());
+  
+  // dump the last order...
+  for (size_type pos = ngram.index[mpi_rank].position_size(); pos < ngram.counts[mpi_rank].size(); ++ pos) {
+    const count_type count = ngram.counts[mpi_rank][pos];
+    os.write((char*) &count, sizeof(count_type));
+  }
+  os.pop();
+  
   utils::tempfile::permission(path);
-  ngram.logbounds[mpi_rank].logprobs.open(path);
+  
+  ngram.counts[mpi_rank].counts.close();
+  ngram.counts[mpi_rank].modified.open(path);
 }
 
 int getoptions(int argc, char** argv)

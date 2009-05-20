@@ -522,14 +522,12 @@ struct GoogleNGramCounts
       typedef boost::tokenizer<utils::space_separator> tokenizer_type;
       
       ngram_type sentence;
-      
-      // every 4096 iterations, we will check for memory boundary
-      const size_t iteration_mask = (1 << 12) - 1;
-      
+
       const int max_order = paths.size();
       
-      size_t iteration = 0;
-      for (/**/; first != last; ++ first, ++ iteration) {
+      // every 4096 iterations, we will check for memory boundary
+      const size_t iteration_mask = (1 << 13) - 1;
+      for (size_t iteration = 0; first != last; ++ first, ++ iteration) {
 	tokenizer_type tokenizer(*first);
 	
 	sentence.clear();
@@ -550,7 +548,7 @@ struct GoogleNGramCounts
 	  }
 	}
 	
-	if (iteration & iteration_mask == iteration_mask) {
+	if ((iteration & iteration_mask) == iteration_mask) {
 	  size_t num_allocated = 0;
 	  MallocExtension::instance()->GetNumericProperty("generic.current_allocated_bytes", &num_allocated);
 	  
@@ -577,10 +575,9 @@ struct GoogleNGramCounts
       const int max_order = paths.size();
       
       // every 1024 * 8 iterations, we will check for memory boundary
-      const size_t iter_mask = (1 << 13) - 1;
+      const size_t iteration_mask = (1 << 13) - 1;
       
-      size_t iter = 0;
-      for (/**/; first != last; ++ first, ++ iter) {
+      for (size_t iteration = 0; first != last; ++ first, ++ iteration) {
 	tokenizer_type tokenizer(*first);
 	
 	tokens.clear();
@@ -591,7 +588,7 @@ struct GoogleNGramCounts
 	
 	counts[counts.insert(tokens.begin(), tokens.end() - 1)] += atoll(tokens.back().c_str());
 	
-	if (iter & iter_mask == iter_mask) {
+	if ((iteration & iteration_mask) == iteration_mask) {
 	  size_t num_allocated = 0;
 	  MallocExtension::instance()->GetNumericProperty("generic.current_allocated_bytes", &num_allocated);
 	  

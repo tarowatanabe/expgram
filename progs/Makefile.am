@@ -26,10 +26,14 @@ bin_PROGRAMS = \
 	\
 	ngram_counts_index \
 	ngram_counts_modify \
+	ngram_counts_modify_mpi \
 	ngram_counts_dump \
 	ngram_counts_estimate \
 	\
 	tokenize_en
+
+noinst_HEADERS = \
+	ngram_counts_impl.hpp
 
 ### ngram counts accumulation
 ngram_counts_SOURCES = ngram_counts.cpp
@@ -66,6 +70,10 @@ ngram_counts_index_LDADD   = $(LIBEXPGRAM) $(LIBUTILS) $(boost_LDADD) $(perftool
 
 ngram_counts_modify_SOURCES = ngram_counts_modify.cpp
 ngram_counts_modify_LDADD   = $(LIBEXPGRAM) $(LIBUTILS) $(boost_LDADD) $(perftools_LDADD)
+
+ngram_counts_modify_mpi_SOURCES = ngram_counts_modify_mpi.cpp
+ngram_counts_modify_mpi_CPPFLAGS = $(MPI_CPPFLAGS) $(AM_CPPFLAGS)
+ngram_counts_modify_mpi_LDADD   = $(MPI_LDFLAGS) $(LIBEXPGRAM) $(LIBUTILS) $(boost_LDADD) $(perftools_LDADD)
 
 ngram_counts_dump_SOURCES = ngram_counts_dump.cpp
 ngram_counts_dump_LDADD   = $(LIBEXPGRAM) $(LIBUTILS) $(boost_LDADD) $(perftools_LDADD)

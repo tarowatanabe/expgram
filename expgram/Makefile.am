@@ -12,11 +12,15 @@ libexpgraminclude_HEADERS = \
 NGram.hpp \
 NGramCounts.hpp \
 NGramIndex.hpp \
-Quantizer.hpp \
 Sentence.hpp \
 Stemmer.hpp \
 Vocab.hpp \
 Word.hpp
+
+noinst_HEADERS = \
+Discount.hpp \
+Quantizer.hpp \
+NGramCountsIndexer.hpp
 
 libexpgram_la_SOURCES = \
 NGram.cpp \
