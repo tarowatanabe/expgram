@@ -23,10 +23,6 @@
 #include <utils/hashmurmur.hpp>
 #include <utils/filesystem.hpp>
 
-#include <codec/quicklz_codec.hpp>
-#include <codec/zlib_codec.hpp>
-#include <codec/block_file.hpp>
-#include <codec/block_device.hpp>
 
 namespace utils
 {
@@ -228,7 +224,6 @@ template <typename Tp, typename Alloc=std::allocator<Tp> >
     typedef typename Alloc::template rebind<byte_type>::other  byte_allocator_type;
     typedef typename Alloc::template rebind<off_type>::other   off_allocator_type;
     
-    //typedef codec::block_file<byte_type, codec::quicklz_codec, byte_allocator_type> compressed_vector_type;
     typedef utils::map_file<byte_type, byte_allocator_type>   compressed_vector_type;
     typedef utils::map_file<off_type, off_allocator_type>     off_vector_type;
 
@@ -543,8 +538,8 @@ template <typename Tp, typename Alloc=std::allocator<Tp> >
 	build();
       
       repository_type rep(path, repository_type::write);
-      dump_file(rep.path("data"), compressed, false);
-      dump_file(rep.path("offsets"), off, false);
+      dump_file(rep.path("data"), compressed);
+      dump_file(rep.path("offsets"), off);
       
       std::ostringstream stream_integral_size;
       std::ostringstream stream_size;
@@ -563,17 +558,15 @@ template <typename Tp, typename Alloc=std::allocator<Tp> >
   private:
     template <typename _Path, typename _Data>
     inline
-    void dump_file(const _Path& file, const _Data& data, const bool compressed=false)
+    void dump_file(const _Path& file, const _Data& data)
     {
-      std::auto_ptr<boost::iostreams::filtering_ostream> os(new boost::iostreams::filtering_ostream());
-      if (compressed)
-	os->push(codec::block_sink<codec::quicklz_codec>(file, 1024 * 1024));
-      else
-	os->push(boost::iostreams::file_sink(file.native_file_string(), std::ios_base::out | std::ios_base::trunc), 1024 * 1024);
+      boost::iostreams::filtering_ostream os;
+      os.push(boost::iostreams::file_sink(file.native_file_string(), std::ios_base::out | std::ios_base::trunc), 1024 * 1024);
       
       const int64_t file_size = sizeof(typename _Data::value_type) * data.size();
       for (int64_t offset = 0; offset < file_size; offset += 1024 * 1024)
-	os->write(((char*) &(*data.begin())) + offset, std::min(int64_t(1024 * 1024), file_size - offset));
+	if (! os.write(((char*) &(*data.begin())) + offset, std::min(int64_t(1024 * 1024), file_size - offset)))
+	  throw std::runtime_error("vertical_coded_vector::write()");
     }
     
   private:

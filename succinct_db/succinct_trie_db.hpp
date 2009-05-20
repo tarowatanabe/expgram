@@ -61,9 +61,11 @@ namespace succinctdb
     
     void open(const path_type& path)
     {
+      const path_type tmp_dir = utils::tempfile::tmp_dir();
+
       path_output = path;
-      path_key_data = utils::tempfile::file_name(utils::tempfile::tmp_dir() / "succinct-db.key-data.XXXXXX");
-      path_size = utils::tempfile::file_name(utils::tempfile::tmp_dir() / "succinct-db.size.XXXXXX");
+      path_key_data = utils::tempfile::file_name(tmp_dir / "succinct-db.key-data.XXXXXX");
+      path_size = utils::tempfile::file_name(tmp_dir / "succinct-db.size.XXXXXX");
       
       utils::tempfile::insert(path_key_data);
       utils::tempfile::insert(path_size);
@@ -71,10 +73,10 @@ namespace succinctdb
       __os_key_data.reset(new boost::iostreams::filtering_ostream());
       __os_size.reset(new boost::iostreams::filtering_ostream());
       
-      __os_key_data->push(boost::iostreams::file_sink(path_key_data.file_string()), 1024 * 1024);
+      __os_key_data->push(boost::iostreams::file_sink(path_key_data.file_string(), std::ios_base::out | std::ios_base::trunc), 1024 * 1024);
       
       __os_size->push(boost::iostreams::gzip_compressor());
-      __os_size->push(boost::iostreams::file_sink(path_size.file_string()), 1024 * 1024);
+      __os_size->push(boost::iostreams::file_sink(path_size.file_string(), std::ios_base::out | std::ios_base::trunc), 1024 * 1024);
       
       __size = 0;
     }
@@ -121,7 +123,7 @@ namespace succinctdb
       map_file_type map_key_data(path_key_data);
       __value_set_type values(__size);
       
-      {
+      if (__size > 0) {
 	const char* iter = reinterpret_cast<const char*>(&(*map_key_data.begin()));
 	boost::iostreams::filtering_istream is;
 	is.push(boost::iostreams::gzip_decompressor());

@@ -396,7 +396,7 @@ namespace succinctdb
     {
       typedef typename _Data::value_type value_type;
       typedef typename Alloc::template rebind<value_type>::other value_alloc_type;
-
+      
       std::auto_ptr<boost::iostreams::filtering_ostream> os(new boost::iostreams::filtering_ostream());
       if (packed)
 	os->push(utils::packed_sink<value_type, value_alloc_type>(file));
@@ -405,7 +405,8 @@ namespace succinctdb
       
       const int64_t file_size = sizeof(typename _Data::value_type) * data.size();
       for (int64_t offset = 0; offset < file_size; offset += 1024 * 1024)
-	os->write(((char*) &(*data.begin())) + offset, std::min(int64_t(1024 * 1024), file_size - offset));
+	if (! os->write(((char*) &(*data.begin())) + offset, std::min(int64_t(1024 * 1024), file_size - offset)))
+	  throw std::runtime_error("error: succinct hash: write");
     }
     
   private:
@@ -548,8 +549,10 @@ namespace succinctdb
 	os->push(boost::iostreams::file_sink(file.native_file_string(), std::ios_base::out | std::ios_base::trunc), 1024 * 1024);
       
       const int64_t file_size = sizeof(typename _Data::value_type) * data.size();
-      for (int64_t offset = 0; offset < file_size; offset += 1024 * 1024)
-	os->write(((char*) &(*data.begin())) + offset, std::min(int64_t(1024 * 1024), file_size - offset));
+      for (int64_t offset = 0; offset < file_size; offset += 1024 * 1024) {
+	if (! os->write(((char*) &(*data.begin())) + offset, std::min(int64_t(1024 * 1024), file_size - offset)))
+	  throw std::runtime_error("error: succinct hash: write");
+      }
     }
     
     bool equal_to(pos_type pos, const key_type* buf, size_type size) const

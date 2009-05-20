@@ -23,11 +23,6 @@
 #include <utils/hashmurmur.hpp>
 #include <utils/filesystem.hpp>
 
-#include <codec/quicklz_codec.hpp>
-#include <codec/zlib_codec.hpp>
-#include <codec/block_file.hpp>
-#include <codec/block_device.hpp>
-
 namespace utils
 {
   struct __succinct_vector_base
@@ -658,20 +653,19 @@ namespace utils
     }
 
   private:
-    template <typename Path, typename Data>
+    template <typename _Path, typename _Data>
     inline
-    void dump_file(const Path& file, const Data& data, const bool compressed=false)
+    void dump_file(const _Path& file, const _Data& data)
     {
-      std::auto_ptr<boost::iostreams::filtering_ostream> os(new boost::iostreams::filtering_ostream());
-      if (compressed)
-	os->push(codec::block_sink<codec::quicklz_codec>(file, 1024 * 1024));
-      else
-	os->push(boost::iostreams::file_sink(file.native_file_string(), std::ios_base::out | std::ios_base::trunc), 1024 * 1024);
+      boost::iostreams::filtering_ostream os;
+      os.push(boost::iostreams::file_sink(file.native_file_string(), std::ios_base::out | std::ios_base::trunc), 1024 * 1024);
       
-      const int64_t file_size = sizeof(typename Data::value_type) * data.size();
+      const int64_t file_size = sizeof(typename _Data::value_type) * data.size();
       for (int64_t offset = 0; offset < file_size; offset += 1024 * 1024)
-	os->write(((char*) &(*data.begin())) + offset, std::min(int64_t(1024 * 1024), file_size - offset));
-    }  
+	if (! os.write(((char*) &(*data.begin())) + offset, std::min(int64_t(1024 * 1024), file_size - offset)))
+	  throw std::runtime_error("succinct_vector write():");
+    }
+    
     
   private:
     size_type          __size;

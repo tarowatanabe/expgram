@@ -65,6 +65,37 @@ int main(int argc, char** argv)
   return 0;
 }
 
+/*
+  split all:
+  !"$%~{}[]<>\
+  
+  split all, but sgml entity:
+  #&;
+
+  &(#|)[a-z0-9A-Z];
+
+  split all but smiley
+  ()|
+  
+  8-(
+  :-(
+  ;-(
+  8-)
+  :-)
+  ;-)
+  8-|
+  :-|
+  ;-|
+
+  ??:
+  '
+
+  grop: ``
+
+  data like:
+  
+ */
+
 void initialize(regex_group_type& regex_group)
 {
   regex_group.insert()
@@ -73,10 +104,10 @@ void initialize(regex_group_type& regex_group)
     ("[[:C:][:White_Space:]]+", " ")
     
     // split by punctuations...
-    ("[;@$&#%`~|\\/^\"]", "\t$0\t")
+    ("[;@$&#%`~|\\/\"^]", "\t$0\t")
     
     // brackets
-    ("[\\[\\](){}]", "\t$0\t")
+    ("[\\[\\](){}<>]", "\t$0\t")
     
     // fix-up sgml entities...
     ("\t&\t#\t([a-zA-Z0-9]+)\t;\t", "&#$1;")

@@ -6,6 +6,7 @@
 #include <stdint.h>
 
 #include <vector>
+#include <stdexcept>
 
 #include <succinct_db/succinct_hash.hpp>
 
@@ -14,11 +15,6 @@
 #include <utils/repository.hpp>
 #include <utils/map_file.hpp>
 #include <utils/hashmurmur.hpp>
-
-#include <codec/quicklz_codec.hpp>
-#include <codec/zlib_codec.hpp>
-#include <codec/block_file.hpp>
-#include <codec/block_device.hpp>
 
 namespace succinctdb
 {
@@ -141,7 +137,7 @@ namespace succinctdb
 	rep["type"] = "succinct-hash-db";
 	
 	__succinct_hash->write(rep.path("index"));
-	dump_file(rep.path("data"), *__data, false);
+	dump_file(rep.path("data"), *__data);
       }
     }
     
@@ -188,17 +184,15 @@ namespace succinctdb
   private:
     template <typename _Path, typename _Data>
     inline
-    void dump_file(const _Path& file, const _Data& data, const bool compressed=false)
+    void dump_file(const _Path& file, const _Data& data)
     {
-      std::auto_ptr<boost::iostreams::filtering_ostream> os(new boost::iostreams::filtering_ostream());
-      if (compressed)
-	os->push(codec::block_sink<codec::quicklz_codec>(file, 1024 * 1024));
-      else
-	os->push(boost::iostreams::file_sink(file.native_file_string(), std::ios_base::out | std::ios_base::trunc), 1024 * 1024);
+      boost::iostreams::filtering_ostream os;
+      os.push(boost::iostreams::file_sink(file.native_file_string(), std::ios_base::out | std::ios_base::trunc), 1024 * 1024);
       
       const int64_t file_size = sizeof(typename _Data::value_type) * data.size();
       for (int64_t offset = 0; offset < file_size; offset += 1024 * 1024)
-	os->write(((char*) &(*data.begin())) + offset, std::min(int64_t(1024 * 1024), file_size - offset));
+	if (! os.write(((char*) &(*data.begin())) + offset, std::min(int64_t(1024 * 1024), file_size - offset)))
+	  throw std::runtime_error("succinct_hash_db::write()");
     }
     
   private:

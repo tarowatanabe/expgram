@@ -189,11 +189,9 @@ namespace utils
 	{
 	  lock_type lock(spinlock_push);
 	  if (atomicop::compare_and_swap(border_push.value(), border_prev.value(), border_post.value())) {
-	    
 	    atomicop::memory_barrier();
 	    __assign(buffer[border_prev.back() % buffer.size()], x);
 	    
-	    //lock.release();
 	    atomicop::fetch_and_add(border_pop.back(), 1);
 	    return true;
 	  }
@@ -223,7 +221,6 @@ namespace utils
 	    atomicop::memory_barrier();
 	    __assign(x, buffer[border_prev.front() % buffer.size()]);
 	    
-	    //lock.release();
 	    atomicop::fetch_and_add(border_push.front(), 1);
 	    return true;
 	  }
