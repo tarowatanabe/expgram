@@ -197,8 +197,10 @@ namespace expgram
     
     __shards[shard].write(rep.path(stream_shard.str()));
     
-    std::ostringstream stream_order;
-    stream_order << __order;
-    rep["order"] = stream_order.str();
+    if (shard == 0) {
+      std::ostringstream stream_order;
+      stream_order << __order;
+      rep["order"] = stream_order.str();
+    }
   }
 };
