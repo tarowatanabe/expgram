@@ -29,10 +29,6 @@ namespace utils
     {
       int32_t version;
       int32_t count;
-      
-      //entry_tag_type() : version(0), count(0) {}
-      
-      //void clear() { version = 0; count = 0; }
     };
     
     struct exit_tag_type
@@ -41,8 +37,6 @@ namespace utils
       int32_t transfers_left:30;
       int32_t nl_p:1;
       int32_t to_be_freed:1;
-      
-      //exit_tag_type() : count(0), transfers_left(2), nl_p(false), to_be_freed(false) {}
       
       void clear()
       {
@@ -135,6 +129,7 @@ namespace utils
   public:
     lockfree_list_queue(size_type max_size=0) : head(), tail()
     {
+      //__alloc_size = 0;
       __size = 0;
       __max_size = max_size;
 
@@ -169,6 +164,9 @@ namespace utils
     }
     ~lockfree_list_queue()
     {
+      // clear...
+      value_type x;
+      while (pop(x, true));
       
       node_type* nodes[4] = {head.ptr0, head.ptr1, node_init0, node_init1};
       std::sort(nodes, nodes + 4);
@@ -180,22 +178,46 @@ namespace utils
       if (nodes[2] && nodes[2] != nodes[1])
 	deallocate(nodes[2]);
       if (nodes[3] && nodes[3] != nodes[2])
-	deallocate(nodes[3]);      
+	deallocate(nodes[3]);
+
+#if 0
+      if (__alloc_size != 0)
+	throw std::runtime_error("alloc size do not match...?");
+#endif
     }
 
   private:
     lockfree_list_queue(const lockfree_list_queue&) {}
     lockfree_list_queue& operator=(const lockfree_list_queue&) {}
+
+  private:
+    struct assign_equal
+    {
+      void operator()(value_type& x, const value_type& y) const
+      {
+	x = y;
+      }
+    };
+    
+    struct assign_swap
+    {
+      void operator()(value_type& x, const value_type& y) const
+      {
+	using namespace boost;
+	using namespace std;
+	swap(x, const_cast<value_type&>(y));
+      }
+    };
     
   public:
     bool push(const value_type& x, const bool no_wait=false)
     {
       if (no_wait)
-	return __push(x);
+	return __push(x, assign_equal());
       else {
 	for (;;) {
 	  for (int i = 0; i < 50; ++ i) {
-	    if (__push(x))
+	    if (__push(x, assign_equal()))
 	      return true;
 	    else
 	      boost::thread::yield();
@@ -209,11 +231,11 @@ namespace utils
     bool push_swap(value_type& x, const bool no_wait=false)
     {
       if (no_wait)
-	return __push_swap(x);
+	return __push(x, assign_swap());
       else {
 	for (;;) {
 	  for (int i = 0; i < 50; ++ i) {
-	    if (__push_swap(x))
+	    if (__push(x, assign_swap()))
 	      return true;
 	    else
 	      boost::thread::yield();
@@ -227,11 +249,11 @@ namespace utils
     bool pop(value_type& x, const bool no_wait=false)
     {
       if (no_wait)
-	return __pop(x);
+	return __pop(x, assign_equal());
       else {
 	for (;;) {
 	  for (int i = 0; i < 50; ++ i) {
-	    if (__pop(x))
+	    if (__pop(x, assign_equal()))
 	      return true;
 	    else
 	      boost::thread::yield();
@@ -245,11 +267,11 @@ namespace utils
     bool pop_swap(value_type& x, const bool no_wait=false)
     {
       if (no_wait)
-	return __pop_swap(x);
+	return __pop(x, assign_swap());
       else {
 	for (;;) {
 	  for (int i = 0; i < 50; ++ i) {
-	    if (__pop_swap(x))
+	    if (__pop(x, assign_swap()))
 	      return true;
 	    else
 	      boost::thread::yield();
@@ -269,19 +291,19 @@ namespace utils
       nanosleep(&tm, NULL);
     }
 
-    bool __push_swap(value_type& __value) {
-      atomicop::memory_barrier();
-      
-      if (__max_size > 0 && __size == __max_size) return false;
 
+    template <typename Assigner>
+    bool __push(const value_type& __value, Assigner __assign)
+    {
+      atomicop::memory_barrier();
+      if (__max_size > 0 && __size >= __max_size) return false;
+      
       local_data_type local_data;
       node_type* node = allocate(value_type());
-      using namespace boost;
-      using namespace std;
-      swap(node->value, __value);
+      
+      __assign(node->value, __value);
       
       for (;;) {
-	atomicop::memory_barrier();
 	node_type* node_tail = ll_op(tail, local_data);
 	node->pred = node_tail;
 	
@@ -294,29 +316,9 @@ namespace utils
       }
     }
     
-    bool __push(const value_type& __value) {
-      atomicop::memory_barrier();
-      
-      if (__max_size > 0 && __size == __max_size) return false;
-      
-      local_data_type local_data;
-      node_type* node = allocate(__value);
-      
-      for (;;) {
-	atomicop::memory_barrier();
-	node_type* node_tail = ll_op(tail, local_data);
-	node->pred = node_tail;
-	
-	if (atomicop::compare_and_swap((volatile void**) &(node_tail->next), (void*) 0, (void*) node)) {
-	  sc_op(tail, node, local_data);
-	  atomicop::fetch_and_add(__size, difference_type(1));
-	  return true;
-	} else
-	  sc_op(tail, const_cast<node_type*>(node_tail->next), local_data);
-      }
-    }
-    
-    bool __pop_swap(value_type& __value) {
+    template <typename Assigner>
+    bool __pop(value_type& __value, Assigner __assign)
+    {
       local_data_type local_data;
       
       for (;;) {
@@ -329,9 +331,9 @@ namespace utils
 	  return false;
 	}
 	if (sc_op(head, node_next, local_data)) {
-	  using namespace boost;
-	  using namespace std;
-	  swap(__value, node_next->value);
+	  
+	  __assign(__value, node_next->value);
+	  
 	  set_to_be_freed(node_next);
 	  atomicop::fetch_and_add(__size, difference_type(-1));	  
 	  return true;
@@ -339,26 +341,6 @@ namespace utils
       }
     }
     
-    bool __pop(value_type& __value) {
-      local_data_type local_data;
-      
-      for (;;) {
-	node_type* node_head = ll_op(head, local_data);
-	node_type* node_next = const_cast<node_type*>(node_head->next);
-	if (node_next == 0) {
-	  //unlink_op(head, local_data);
-	  release_op(local_data.node);
-	  return false;
-	}
-	if (sc_op(head, node_next, local_data)) {
-	  __value = node_next->value;
-	  set_to_be_freed(node_next);
-	  atomicop::fetch_and_add(__size, difference_type(-1));
-	  return true;
-	}
-      }
-    }
-
   private:
 
     node_type* ll_op(llsc_type& llsc, local_data_type& local_data)
@@ -519,6 +501,8 @@ namespace utils
       atomicop::memory_barrier();
       node_type* node = alloc().allocate(1);
       utils::construct_object(&(node->value), __value);
+      //atomicop::fetch_and_add(__alloc_size, difference_type(1));
+      
       node->next = 0;
       
       node->exit.value().count = 0;
@@ -526,10 +510,6 @@ namespace utils
       node->exit.value().nl_p = false;
       node->exit.value().to_be_freed = false;
       
-      //utils::construct_object(&const_cast<exit_tag_type&>(node->exit.value()), exit_tag_type());
-      
-      //atomicop::fetch_and_add(__num_allocated, size_type(1));
-
       return node;
     }
 
@@ -538,8 +518,7 @@ namespace utils
       atomicop::memory_barrier();
       utils::destroy_object(&(node->value));
       alloc().deallocate(node, 1);
-      
-      //atomicop::fetch_and_add(__num_deallocated, size_type(1));
+      //atomicop::fetch_and_add(__alloc_size, difference_type(-1));
     }
     
     inline const node_alloc_type& alloc() const { return static_cast<const node_alloc_type&>(*this); }
@@ -552,6 +531,7 @@ namespace utils
     node_type* node_init0;
     node_type* node_init1;
     
+    //volatile difference_type __alloc_size;
     volatile difference_type __size;
     size_type __max_size;
   };

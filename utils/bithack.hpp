@@ -315,7 +315,7 @@ namespace utils
       static const uint64_t X5 = uint64_t(X4) + (uint64_t(X4) >> 16);
       static const uint64_t X6 = uint64_t(X5) + (uint64_t(X5) >> 32) & 0x0000007F;
     public:
-      static const size_t result = size_t(X6);
+      static const uint64_t result = size_t(X6);
     };
     
     // floor_log2

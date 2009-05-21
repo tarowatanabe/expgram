@@ -19,10 +19,6 @@
 
 #include <boost/shared_ptr.hpp>
 
-#include <codec/quicklz_codec.hpp>
-#include <codec/zlib_codec.hpp>
-#include <codec/block_device.hpp>
-
 namespace utils
 {
   
@@ -243,7 +239,6 @@ namespace utils
     rep["type"] = "vertical-coded";
     
     os_data.reset(new boost::iostreams::filtering_ostream());
-    //os_data->push(codec::block_sink<codec::quicklz_codec>(rep.path("data"), buffer_size));
     os_data->push(boost::iostreams::file_sink(rep.path("data").file_string()), buffer_size);
     
     const size_type buffer_size_new = ((buffer_size + sizeof(value_type) - 1) / sizeof(value_type)) * sizeof(value_type);

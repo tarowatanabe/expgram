@@ -19,6 +19,7 @@
 
 #include <utils/compress_stream.hpp>
 #include <utils/lockfree_queue.hpp>
+#include <utils/lockfree_list_queue.hpp>
 #include <utils/tempfile.hpp>
 #include <utils/resource.hpp>
 #include <utils/repository.hpp>
@@ -634,7 +635,7 @@ struct IndexNGramMapReduce
   typedef std::vector<id_type, std::allocator<id_type> > context_type;
   typedef std::pair<context_type, count_type> context_count_type;
   
-  typedef utils::lockfree_queue<context_count_type, std::allocator<context_count_type> > queue_type;
+  typedef utils::lockfree_list_queue<context_count_type, std::allocator<context_count_type> > queue_type;
   typedef boost::shared_ptr<queue_type>                                                  queue_ptr_type;
   typedef std::vector<queue_ptr_type, std::allocator<queue_ptr_type> >                   queue_ptr_set_type;
   

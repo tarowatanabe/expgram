@@ -54,6 +54,12 @@ map_file.hpp \
 map_file_allocator.hpp \
 mathop.hpp \
 memory.hpp \
+mpi.hpp \
+mpi_allocator.hpp \
+mpi_device.hpp \
+mpi_device_bcast.hpp \
+mpi_stream.hpp \
+mpi_traits.hpp \
 pfor_vector.hpp \
 packed_vector.hpp \
 regex_group.hpp \

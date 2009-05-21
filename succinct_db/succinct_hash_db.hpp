@@ -50,7 +50,6 @@ namespace succinctdb
     typedef succinct_hash_stream<key_type, key_alloc_type> succinct_hash_stream_type;
     
     typedef std::vector<data_type, data_alloc_type>            data_set_type;
-    //typedef codec::block_file<data_type, codec::quicklz_codec, data_alloc_type> data_set_mapped_type;
     typedef utils::map_file<data_type, data_alloc_type> data_set_mapped_type;
     
   public:
@@ -116,7 +115,6 @@ namespace succinctdb
 	
 	__succinct_hash_stream.reset(new succinct_hash_stream_type(rep.path("index"), bin_size));
 	__data_stream.reset(new boost::iostreams::filtering_ostream());
-	//__data_stream->push(codec::block_sink<codec::quicklz_codec>(rep.path("data"), 1024 * 1024));
 	__data_stream->push(boost::iostreams::file_sink(rep.path("data").file_string()), 1024 * 1024);
 	
       } else {

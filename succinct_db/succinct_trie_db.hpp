@@ -23,6 +23,7 @@
 
 #include <utils/repository.hpp>
 #include <utils/tempfile.hpp>
+#include <utils/bithack.hpp>
 
 namespace succinctdb
 {
@@ -45,14 +46,33 @@ namespace succinctdb
     typedef typename Alloc::template rebind<key_type>::other  key_alloc_type;
     typedef typename Alloc::template rebind<data_type>::other data_alloc_type;
     typedef typename Alloc::template rebind<char>::other      byte_alloc_type;
+
+    static const size_type pointer_size = sizeof(data_type*);
+    static const size_type pointer_shift = utils::bithack::static_bit_count<pointer_size - 1>::result;
     
     __succinct_trie_db_writer(const path_type& path) { open(path); }
     ~__succinct_trie_db_writer() { close(); }
     
     size_type insert(const key_type* buf, size_type buf_size, const data_type* data)
     {
-      __os_key_data->write((char*) buf, sizeof(key_type) * buf_size);
+      const size_type buf_size_bytes   = buf_size * sizeof(key_type);
+      const size_type buf_size_aligned = ((buf_size_bytes + pointer_size - 1) >> pointer_shift) << pointer_shift;
+      
+      const size_type data_size_bytes   = sizeof(data_type);
+      const size_type data_size_aligned = ((data_size_bytes + pointer_size - 1) >> pointer_shift) << pointer_shift;
+      
+      __os_key_data->write((char*) buf, buf_size * sizeof(key_type));
+      if (buf_size_aligned > buf_size_bytes) {
+	char __buf[pointer_size];
+	__os_key_data->write((char*) __buf, buf_size_aligned - buf_size_bytes);
+      }
+
       __os_key_data->write((char*) data, sizeof(data_type));
+      if (data_size_aligned > data_size_bytes) {
+	char __buf[pointer_size];
+	__os_key_data->write((char*) __buf, data_size_aligned - data_size_bytes);
+      }
+      
       __os_size->write((char*) &buf_size, sizeof(size_type));
       return __size ++;
     }
@@ -61,6 +81,8 @@ namespace succinctdb
     
     void open(const path_type& path)
     {
+      close();
+      
       const path_type tmp_dir = utils::tempfile::tmp_dir();
 
       path_output = path;
@@ -102,7 +124,13 @@ namespace succinctdb
 
     struct __extract_data
     {
-      const data_type& operator()(const __value_type& x) const { return *reinterpret_cast<const data_type*>(x.last);}
+      const data_type& operator()(const __value_type& x) const
+      {
+	const size_type key_size_bytes = sizeof(key_type) * (x.last - x.first);
+	const size_type key_size_aligned = ((key_size_bytes + pointer_size - 1) >> pointer_shift) << pointer_shift;
+	
+	return *reinterpret_cast<const data_type*>(((char*) x.first) + key_size_aligned);
+      }
     };
 
     struct __less_value
@@ -111,50 +139,60 @@ namespace succinctdb
 	return std::lexicographical_compare(x.first, x.last, y.first, x.last);
       }
     };
+
+    void clear() { close(); }
     
     void close()
     {
-      // close...
-      __os_key_data.reset();
-      __os_size.reset();
-      
       typedef utils::map_file<char, byte_alloc_type> map_file_type;
-      
-      map_file_type map_key_data(path_key_data);
-      __value_set_type values(__size);
-      
-      if (__size > 0) {
-	const char* iter = reinterpret_cast<const char*>(&(*map_key_data.begin()));
-	boost::iostreams::filtering_istream is;
-	is.push(boost::iostreams::gzip_decompressor());
-	is.push(boost::iostreams::file_source(path_size.file_string()));
-	for (size_t i = 0; i < __size; ++ i) {
-	  size_type key_size = 0;
-	  is.read((char*) &key_size, sizeof(size_type));
-	  
-	  values[i].first = reinterpret_cast<const key_type*>(iter);
-	  values[i].last = values[i].first + key_size;
-
-	  iter += sizeof(key_type) * key_size + sizeof(data_type);
-	}
-      }
-      boost::filesystem::remove(path_size);
-      utils::tempfile::erase(path_size);
-      
       typedef succinct_trie<key_type, data_type, Alloc> succinct_trie_type;
       
-      std::sort(values.begin(), values.end(), __less_value());
+      __os_key_data.reset();
+      __os_size.reset();
+
+      if (boost::filesystem::exists(path_key_data) && boost::filesystem::exists(path_size) && ! path_output.empty()) {
+	
+	map_file_type map_key_data(path_key_data);
+	__value_set_type values(__size);
+	
+	if (__size > 0) {
+	  const char* iter = reinterpret_cast<const char*>(&(*map_key_data.begin()));
+	  boost::iostreams::filtering_istream is;
+	  is.push(boost::iostreams::gzip_decompressor());
+	  is.push(boost::iostreams::file_source(path_size.file_string()));
+	  for (size_type i = 0; i < __size; ++ i) {
+	    size_type key_size = 0;
+	    is.read((char*) &key_size, sizeof(size_type));
+	    
+	    values[i].first = reinterpret_cast<const key_type*>(iter);
+	    values[i].last = values[i].first + key_size;
+
+	    const size_type key_size_bytes = key_size * sizeof(key_type);
+	    const size_type key_size_aligned = ((key_size_bytes + pointer_size - 1) >> pointer_shift) << pointer_shift;
+	    
+	    const size_type data_size_bytes   = sizeof(data_type);
+	    const size_type data_size_aligned = ((data_size_bytes + pointer_size - 1) >> pointer_shift) << pointer_shift;
+	    
+	    iter += key_size_aligned + data_size_aligned;
+	  }
+	}
+	boost::filesystem::remove(path_size);
+	utils::tempfile::erase(path_size);
+	
+	// sorting
+	std::sort(values.begin(), values.end(), __less_value());
+	
+	succinct_trie_type succinct_trie;
+	succinct_trie.build(path_output, values.begin(), values.end(), __extract_key(), __extract_data());
+	
+	boost::filesystem::remove(path_key_data);
+	utils::tempfile::erase(path_key_data);
+      }
       
-      // we will build and dump simultaneously..
-      succinct_trie_type succinct_trie;
-      succinct_trie.build(path_output, values.begin(), values.end(), __extract_key(), __extract_data());
-      //succinct_trie.write(path_output);
-      
-      map_key_data.clear();
-      values.clear();
-      
-      boost::filesystem::remove(path_key_data);
-      utils::tempfile::erase(path_key_data);
+      path_output = path_type();
+      path_key_data = path_type();
+      path_size = path_type();
+      __size = 0;
     }
 
   private:

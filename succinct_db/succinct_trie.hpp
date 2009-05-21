@@ -784,26 +784,26 @@ namespace succinctdb
     template <typename _Tp, typename Index>
     struct __push_back_vector
     {
-      __push_back_vector(Index& __index) : index(&__index) {}
+      __push_back_vector(Index& __index) : index(__index) {}
       
       void push_back(const _Tp& x)
       {
-	index->push_back(x);
+	index.push_back(x);
       }
-      Index* index;
+      Index& index;
     };
     
     template <typename _Tp, typename Stream>
     struct __push_back_stream
     {
-      __push_back_stream(Stream& __stream) : stream(&__stream) {}
+      __push_back_stream(Stream& __stream) : stream(__stream) {}
       
       void push_back(const _Tp& x)
       {
-	stream->write((char*) &x, sizeof(x));
+	stream.write((char*) &x, sizeof(_Tp));
       }
       
-      Stream* stream;
+      Stream& stream;
     };
     
   public:
@@ -812,18 +812,26 @@ namespace succinctdb
     {
       typedef utils::repository repository_type;
       
-      repository_type rep(path, repository_type::write);
-      rep["type"] = "succinct-trie";
+      // open and close..
+      {
+	repository_type rep(path, repository_type::write);
+	rep["type"] = "succinct-trie";
+      }
+      
+      repository_type rep(path, repository_type::read);
       
       boost::iostreams::filtering_ostream os_index;
       boost::iostreams::filtering_ostream os_mapped;
-      os_index.push(boost::iostreams::file_sink(rep.path("index").file_string()), 1024 * 1024);
-      os_mapped.push(boost::iostreams::file_sink(rep.path("mapped").file_string()), 1024 * 1024);
+      os_index.push(boost::iostreams::file_sink(rep.path("index").file_string(), std::ios_base::out | std::ios_base::trunc), 1024 * 1024);
+      os_mapped.push(boost::iostreams::file_sink(rep.path("mapped").file_string(), std::ios_base::out | std::ios_base::trunc), 1024 * 1024);
       
       __push_back_stream<key_type, boost::iostreams::filtering_ostream> __index(os_index);
       __push_back_stream<data_type, boost::iostreams::filtering_ostream> __mapped(os_mapped);
       
       __build(first, last, extract_key, extract_data, __index, __mapped);
+
+      os_index.pop();
+      os_mapped.pop();
       
       positions.write(rep.path("positions"));
       index_map.write(rep.path("index-map"));
@@ -834,18 +842,25 @@ namespace succinctdb
     {
       typedef utils::repository repository_type;
       
-      repository_type rep(path, repository_type::write);
-      rep["type"] = "succinct-trie";
+      // open and close...
+      {
+	repository_type rep(path, repository_type::write);
+	rep["type"] = "succinct-trie";
+      }
+      repository_type rep(path, repository_type::read);
       
       boost::iostreams::filtering_ostream os_index;
       boost::iostreams::filtering_ostream os_mapped;
-      os_index.push(boost::iostreams::file_sink(rep.path("index").file_string()), 1024 * 1024);
-      os_mapped.push(boost::iostreams::file_sink(rep.path("mapped").file_string()), 1024 * 1024);
+      os_index.push(boost::iostreams::file_sink(rep.path("index").file_string(), std::ios_base::out | std::ios_base::trunc), 1024 * 1024);
+      os_mapped.push(boost::iostreams::file_sink(rep.path("mapped").file_string(), std::ios_base::out | std::ios_base::trunc), 1024 * 1024);
       
       __push_back_stream<key_type, boost::iostreams::filtering_ostream> __index(os_index);
       __push_back_stream<data_type, boost::iostreams::filtering_ostream> __mapped(os_mapped);
       
       __build(first, last, extract_key, __index, __mapped);
+
+      os_index.pop();
+      os_mapped.pop();
       
       positions.write(rep.path("positions"));
       index_map.write(rep.path("index-map"));
@@ -930,10 +945,9 @@ namespace succinctdb
 	
 	queue.pop_back();
 	
-	size_type pos_bit = positions.size();
-	for (size_type i = 0; i < children_size; ++ i, ++ pos_bit)
-	  positions.set(pos_bit, true);
-	positions.set(pos_bit, false);
+	for (size_type i = 0; i < children_size; ++ i)
+	  positions.set(positions.size(), true);
+	positions.set(positions.size(), false);
       }
       
       index_map.build();
@@ -998,10 +1012,9 @@ namespace succinctdb
 	
 	queue.pop_back();
 	
-	size_type pos_bit = positions.size();
-	for (size_type i = 0; i < children_size; ++ i, ++ pos_bit)
-	  positions.set(pos_bit, true);
-	positions.set(pos_bit, false);
+	for (size_type i = 0; i < children_size; ++ i)
+	  positions.set(positions.size(), true);
+	positions.set(positions.size(), false);
       }
       
       index_map.build();

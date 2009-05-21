@@ -23,6 +23,7 @@
 #include <utils/compact_trie.hpp>
 #include <utils/bithack.hpp>
 #include <utils/lockfree_queue.hpp>
+#include <utils/lockfree_list_queue.hpp>
 #include <utils/istream_line_iterator.hpp>
 #include <utils/tempfile.hpp>
 
@@ -52,7 +53,7 @@ struct GoogleNGramCounts
     typedef std::string line_type;
     typedef std::vector<line_type, std::allocator<line_type> > line_set_type;
     
-    typedef utils::lockfree_queue<line_set_type, std::allocator<line_set_type> >  queue_type;
+    typedef utils::lockfree_list_queue<line_set_type, std::allocator<line_set_type> >  queue_type;
     
     typedef boost::thread                                                  thread_type;
     typedef boost::shared_ptr<thread_type>                                 thread_ptr_type;
@@ -107,7 +108,7 @@ struct GoogleNGramCounts
   template <typename Task>
   struct TaskFile
   {
-    typedef utils::lockfree_queue<path_type, std::allocator<path_type> >   queue_type;
+    typedef utils::lockfree_list_queue<path_type, std::allocator<path_type> >   queue_type;
     
     typedef boost::thread                                                  thread_type;
     typedef boost::shared_ptr<thread_type>                                 thread_ptr_type;

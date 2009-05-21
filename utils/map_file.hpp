@@ -56,9 +56,11 @@ namespace utils
       filesize = static_cast<off_type>(boost::filesystem::file_size(file));
       modifiable = writable;
       
-      const int fd = ::open(file.file_string().c_str(), (writable ? O_RDWR | O_NDELAY : O_RDONLY | O_NDELAY));
-      if (fd == -1)
-	throw std::runtime_error("map_file:: open()");
+      int fd = ::open(file.file_string().c_str(), (writable ? O_RDWR | O_NDELAY : O_RDONLY | O_NDELAY));
+      if (fd < 0)
+	fd = ::open(file.file_string().c_str(), (writable ? O_RDWR : O_RDONLY));
+      if (fd < 0)
+	throw std::runtime_error("map_file::open() open()");
       
       const size_t page_size = getpagesize();
       mmap_size = static_cast<off_type>(((filesize + page_size - 1) / page_size) * page_size);
@@ -77,7 +79,7 @@ namespace utils
       if (x + 1)
 	mmapped = x;
       else
-	throw std::runtime_error("map_file:: mmap()");
+	throw std::runtime_error("map_file::open() mmap()");
     }
 
     void close()

@@ -11,6 +11,7 @@
 #include <boost/thread.hpp>
 
 #include "utils/lockfree_queue.hpp"
+#include "utils/lockfree_list_queue.hpp"
 #include "utils/compress_stream.hpp"
 #include "utils/space_separator.hpp"
 #include "utils/tempfile.hpp"
@@ -47,7 +48,7 @@ namespace expgram
     typedef std::vector<id_type, std::allocator<id_type> > context_type;
     typedef std::pair<context_type, count_type>            context_count_type;
     
-    typedef utils::lockfree_queue<context_count_type, std::allocator<context_count_type> > queue_type;
+    typedef utils::lockfree_list_queue<context_count_type, std::allocator<context_count_type> > queue_type;
     typedef boost::shared_ptr<queue_type>                                                  queue_ptr_type;
     typedef std::vector<queue_ptr_type, std::allocator<queue_ptr_type> >                   queue_ptr_set_type;
     
@@ -955,7 +956,7 @@ namespace expgram
     typedef std::vector<word_count_type, std::allocator<word_count_type> > word_set_type;
     typedef std::pair<context_type, word_set_type>                         context_count_type;
     
-    typedef utils::lockfree_queue<context_count_type, std::allocator<context_count_type> > queue_type;
+    typedef utils::lockfree_list_queue<context_count_type, std::allocator<context_count_type> > queue_type;
     typedef boost::shared_ptr<queue_type>                                                  queue_ptr_type;
     typedef std::vector<queue_ptr_type, std::allocator<queue_ptr_type> >                   queue_ptr_set_type;
   };
@@ -1420,7 +1421,7 @@ namespace expgram
 
     typedef std::vector<id_type, std::allocator<id_type> > vocab_map_type;
     
-    typedef utils::lockfree_queue<context_count_type, std::allocator<context_count_type> > queue_type;
+    typedef utils::lockfree_list_queue<context_count_type, std::allocator<context_count_type> > queue_type;
     typedef boost::shared_ptr<queue_type>                                                  queue_ptr_type;
     typedef std::vector<queue_ptr_type, std::allocator<queue_ptr_type> >                   queue_ptr_set_type;
     
@@ -1558,7 +1559,7 @@ namespace expgram
     typedef std::vector<std::string, std::allocator<std::string> > ngram_context_type;
     typedef std::pair<ngram_context_type, count_type>              ngram_context_count_type;
     
-    typedef utils::lockfree_queue<ngram_context_count_type, std::allocator<ngram_context_count_type> > queue_type;
+    typedef utils::lockfree_list_queue<ngram_context_count_type, std::allocator<ngram_context_count_type> > queue_type;
     typedef boost::shared_ptr<queue_type>                                                              queue_ptr_type;
     typedef utils::vector2<queue_ptr_type, std::allocator<queue_ptr_type> >                            queue_ptr_set_type;
     
