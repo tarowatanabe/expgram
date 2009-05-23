@@ -10,7 +10,7 @@
 
 typedef boost::filesystem::path path_type;
 
-path_type ngram_file = "-";
+path_type ngram_file;
 path_type output_file;
 
 int shards = 4;
@@ -44,11 +44,11 @@ int getoptions(int argc, char** argv)
   
   po::options_description desc("options");
   desc.add_options()
-    ("ngram",  po::value<path_type>(&ngram_file),  "ngram counts in Google ngram format")
-    ("output", po::value<path_type>(&output_file), "output in binary format")
+    ("ngram",  po::value<path_type>(&ngram_file)->default_value(ngram_file),   "ngram counts in Google or binary format")
+    ("output", po::value<path_type>(&output_file)->default_value(output_file), "output in binary format")
     
-    ("shard",  po::value<int>(&shards),            "# of shards (or # of threads)")
-    ("unique", po::bool_switch(&unique),           "unique counts (i.e. ngram counts from LDC/GSK)")
+    ("shard",  po::value<int>(&shards)->default_value(shards),                 "# of shards (or # of threads)")
+    ("unique", po::bool_switch(&unique),                                       "unique counts (i.e. ngram counts from LDC/GSK)")
     
     ("debug", po::value<int>(&debug)->implicit_value(1), "debug level")
     ("help", "help message");

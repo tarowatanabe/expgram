@@ -79,7 +79,6 @@ namespace utils
 			  0, 0, &status);
     if (U_FAILURE(status))
       throw std::runtime_error(std::string("ucnv_setFromUCallBack(): ") + u_errorName(status));
-
     
     pivot_start = new UChar[boost::iostreams::default_device_buffer_size];
     pivot_source = pivot_start;
@@ -93,6 +92,31 @@ namespace utils
     // if the same encoding, clear!
     if (strcasecmp(encoding_from, encoding_to) == 0)
       __clear();
+
+    message_from.clear();
+    message_to.clear();
+  }
+
+  void __icu_filter_impl::__close()
+  {
+    if (ucnv_from)
+      ucnv_reset(ucnv_from);
+    if (ucnv_to)
+      ucnv_reset(ucnv_to);
+    
+    // dump error message...
+    if (! message_from.empty())
+      std::cerr << message_from << std::endl;
+    if (! message_to.empty())
+      std::cerr << message_to << std::endl;
+    
+    offset_from = 0;
+    offset_pivot_source = 0;
+    offset_pivot_target = 0;
+    offset_to = 0;
+    
+    message_from.clear();
+    message_to.clear();
   }
   
   void __icu_filter_impl::__clear()
@@ -103,13 +127,21 @@ namespace utils
       ucnv_close(ucnv_to);
     if (pivot_start)
       delete [] pivot_start;
-    
+ 
     ucnv_from = 0;
     ucnv_to = 0;
     
     pivot_start = 0;
     pivot_source = 0;
     pivot_target = 0;
+
+    offset_from = 0;
+    offset_pivot_source = 0;
+    offset_pivot_target = 0;
+    offset_to = 0;
+    
+    message_from.clear();
+    message_to.clear();
   }
   
 }

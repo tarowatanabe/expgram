@@ -44,10 +44,10 @@ int getoptions(int argc, char** argv)
   
   po::options_description desc("options");
   desc.add_options()
-    ("ngram",  po::value<path_type>(&ngram_file),  "ngram in ARPA format")
-    ("output", po::value<path_type>(&output_file), "output in binary format")
+    ("ngram",  po::value<path_type>(&ngram_file)->default_value(ngram_file),   "ngram in ARPA or binary format")
+    ("output", po::value<path_type>(&output_file)->default_value(output_file), "output in binary format")
     
-    ("shard",  po::value<int>(&shards),            "# of shards (or # of threads)")
+    ("shard",  po::value<int>(&shards)->default_value(shards),                 "# of shards (or # of threads)")
     
     ("debug", po::value<int>(&debug)->implicit_value(1), "debug level")
     ("help", "help message");

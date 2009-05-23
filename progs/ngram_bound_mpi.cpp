@@ -336,8 +336,8 @@ int getoptions(int argc, char** argv)
   
   po::options_description desc("options");
   desc.add_options()
-    ("ngram",  po::value<path_type>(&ngram_file),  "ngram language model")
-    ("output", po::value<path_type>(&output_file), "output")
+    ("ngram",  po::value<path_type>(&ngram_file)->default_value(ngram_file),   "ngram language model")
+    ("output", po::value<path_type>(&output_file)->default_value(output_file), "output in binary format")
     
     ("prog",   po::value<path_type>(&prog_name),   "this binary")
     

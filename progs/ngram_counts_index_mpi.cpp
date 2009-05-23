@@ -482,8 +482,12 @@ void index_ngram_mapper(intercomm_type& reducer, const PathSet& paths, ngram_typ
       context_stream->first.insert(context_stream->first.end(), tokens.begin(), tokens.end() - 1);
       context_stream->second.first = atoll(tokens.back().c_str());
       
-      pqueue.push(context_stream);
-      break;
+      if (context_stream->first == context)
+	count += context_stream->second.first;
+      else {
+	pqueue.push(context_stream);
+	break;
+      }
     }
     
     if ((iteration & iteration_mask) == iteration_mask && mpi_flush_devices(stream, device))

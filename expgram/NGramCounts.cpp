@@ -23,12 +23,12 @@ namespace expgram
   inline
   void dump_file(const Path& file, const Data& data)
   {
-    std::auto_ptr<boost::iostreams::filtering_ostream> os(new boost::iostreams::filtering_ostream());
-    os->push(boost::iostreams::file_sink(file.native_file_string(), std::ios_base::out | std::ios_base::trunc), 1024 * 1024);
+    boost::iostreams::filtering_ostream os;
+    os.push(boost::iostreams::file_sink(file.native_file_string(), std::ios_base::out | std::ios_base::trunc), 1024 * 1024);
     
     const int64_t file_size = sizeof(typename Data::value_type) * data.size();
     for (int64_t offset = 0; offset < file_size; offset += 1024 * 1024)
-      os->write(((char*) &(*data.begin())) + offset, std::min(int64_t(1024 * 1024), file_size - offset));
+      os.write(((char*) &(*data.begin())) + offset, std::min(int64_t(1024 * 1024), file_size - offset));
   }  
   
   
@@ -618,12 +618,8 @@ namespace expgram
 	  const size_type pos_last = ngram.index[shard].children_last(pos_context);
 	  pos_last_prev = pos_last;
 	  
-	  {
-	    size_type position;
-	    do {
-	      position = utils::atomicop::fetch_and_add(offsets[shard], size_type(0));
-	    } while (! utils::atomicop::compare_and_swap(offsets[shard], position, pos_first));
-	  }
+	  // update offsets
+	  offsets[shard] = pos_first;
 	  
 	  if (pos_first == pos_last) continue;
 	  
@@ -704,12 +700,8 @@ namespace expgram
 	    }
 	  }
 	  
-	  {
-	    size_type position;
-	    do {
-	      position = utils::atomicop::fetch_and_add(offsets[shard], size_type(0));
-	    } while (! utils::atomicop::compare_and_swap(offsets[shard], position, pos_last));
-	  }
+	  // update offsets
+	  offsets[shard] = pos_last;
 	}
       }
     }
@@ -764,6 +756,8 @@ namespace expgram
     
     // assignment for index...
     ngram.index = index;
+    ngram.logprobs.reserve(index.size());
+    ngram.backoffs.reserve(index.size());
     ngram.logprobs.resize(index.size());
     ngram.backoffs.resize(index.size());
     for (int shard = 0; shard < index.size(); ++ shard) {
@@ -1724,13 +1718,17 @@ namespace expgram
 	    tokens.insert(tokens.end(), tokenizer.begin(), tokenizer.end());
 	    if (tokens.size() < 3)
 	      continue;
-	  
+	    
 	    context_stream->first.clear();
 	    context_stream->first.insert(context_stream->first.end(), tokens.begin(), tokens.end() - 1);
 	    context_stream->second.first  = atoll(tokens.back().c_str());
-	  
-	    pqueue.push(context_stream);
-	    break;
+	    
+	    if (context_stream->first == context)
+	      count += context_stream->second.first;
+	    else {
+	      pqueue.push(context_stream);
+	      break;
+	    }
 	  }
 	}
       

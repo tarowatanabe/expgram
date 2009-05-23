@@ -228,7 +228,6 @@ int getoptions(int argc, char** argv)
     
     ("prog",   po::value<path_type>(&prog_name),   "this binary")
     
-    
     ("debug", po::value<int>(&debug)->implicit_value(1), "debug level")
     ("help", "help message");
   
