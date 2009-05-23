@@ -48,7 +48,7 @@ namespace succinctdb
       : impl(_impl), node_pos(_node_pos) {}
 
     size_type node() const { return node_pos; }
-    bool has_data() const { return impl->has_data(node_pos); }
+    bool exists() const { return impl->exists(node_pos); }
     const data_type& data() const { return impl->data(node_pos); }
     const data_type& operator*() const { return data(); }
     
@@ -150,33 +150,32 @@ namespace succinctdb
     
     typedef typename Alloc::template rebind<node_type>::other node_alloc_type;
     typedef std::deque<node_type, node_alloc_type > node_set_type;
-
+    
+  public:
+    typedef typename node_type::buffer_type key_buffer_type;
+    
   public:
     __succinct_trie_iterator() : nodes(), impl() {}
     __succinct_trie_iterator(const __succinct_trie_iterator& x) : nodes(x.nodes), impl(x.impl) {}
     __succinct_trie_iterator(const impl_type& _impl) : nodes(), impl(&_impl) {}
     __succinct_trie_iterator(const size_type pos, const impl_type& _impl) : nodes(1, node_type(pos)), impl(&_impl)
     {
-      if (! has_data())
+      if (! exists())
 	increment();
     }
     
   public:
+    size_type node() const { return  nodes.back().pos; }
+    
     cursor begin() const { return cursor(nodes.back().pos, impl); }
     cursor end() const { return cursor(); }
-
-    size_type key_size() const { return nodes.back().buffer.size(); }
     
-    size_type node() const { return  nodes.back().pos; }
-    bool has_data() const { return impl->has_data(nodes.back().pos); }
+    bool exists() const { return impl->exists(nodes.back().pos); }
     const data_type& data() const { return impl->data(nodes.back().pos); }
     const data_type& operator*() const { return data(); }
     
-    void read(key_type* buffer)
-    {
-      std::copy(nodes.back().buffer.begin(), nodes.back().buffer.end(), buffer);
-    }
-
+    const key_buffer_type& key() const { return nodes.back().buffer; }
+    
     self_type operator++(int)
     {
       self_type tmp = *this;
@@ -203,7 +202,7 @@ namespace succinctdb
     void increment()
     {
       move();
-      while (! nodes.empty() && ! impl->has_data(nodes.back().pos))
+      while (! nodes.empty() && ! impl->exists(nodes.back().pos))
 	move();
     }
     
@@ -282,7 +281,7 @@ namespace succinctdb
     cursor end() const { return cursor(); }
     
     size_type node() const { return node_pos; }
-    bool has_data() const { return impl->has_data(node_pos); }
+    bool exists() const { return impl->exists(node_pos); }
     const data_type& data() const { return impl->data(node_pos); }
     const data_type& operator*() const { return data(); }
     
@@ -382,7 +381,7 @@ namespace succinctdb
     }
     
     template <typename IndexMap>
-    bool __has_data(const IndexMap& index_map, size_type node_pos) const
+    bool __exists(const IndexMap& index_map, size_type node_pos) const
     {
       return (node_pos < index_map.size() && index_map[node_pos]);
     }
@@ -600,10 +599,14 @@ namespace succinctdb
     {
       return base_type::__data(index_map, mapped, node_pos);
     }
-    
-    bool has_data(size_type node_pos) const
+    const data_type& operator[](size_type node_pos) const
     {
-      return base_type::__has_data(index_map, node_pos);
+      return data(node_pos);
+    }
+    
+    bool exists(size_type node_pos) const
+    {
+      return base_type::__exists(index_map, node_pos);
     }
 
     bool has_children(size_type node_pos) const
@@ -716,10 +719,14 @@ namespace succinctdb
     {
       return base_type::__data(index_map, mapped, node_pos);
     }
-    
-    bool has_data(size_type node_pos) const
+    const data_type& operator[](size_type node_pos) const
     {
-      return base_type::__has_data(index_map, node_pos);
+      return data(node_pos);
+    }
+    
+    bool exists(size_type node_pos) const
+    {
+      return base_type::__exists(index_map, node_pos);
     }
 
     bool has_children(size_type node_pos) const

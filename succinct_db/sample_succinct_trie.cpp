@@ -77,7 +77,7 @@ int main(int argc, char** argv)
     size_type key_pos = 0;
     
     const int result = succinct_trie.traverse((const uint8_t*) data[i], node_pos, key_pos, length[i]);
-    if (succinct_trie.has_data(result)) {
+    if (succinct_trie.exists(result)) {
       if (succinct_trie.is_next_sibling(node_pos))
 	std::cerr << "next is sibling!" << std::endl;
       else
@@ -95,7 +95,7 @@ int main(int argc, char** argv)
     
     std::cout << "result: " << result << std::endl;
     std::cout << data[i] << std::endl;
-    if (succinct_trie.has_data(result))
+    if (succinct_trie.exists(result))
       std::cout << data[succinct_trie.data(result)] << std::endl;
     else
       std::cerr << "no result?" << std::endl;
@@ -140,8 +140,8 @@ int main(int argc, char** argv)
   
   std::ostringstream os_memory;
   for (succinct_trie_type::const_iterator iter = succinct_trie.begin(); iter != succinct_trie.end(); ++ iter) {
-    std::vector<uint8_t> buffer(iter.key_size());
-    iter.read(&(*buffer.begin()));
+    std::vector<uint8_t> buffer(iter.key().begin(), iter.key().end());
+    
     os_memory << std::string(buffer.begin(), buffer.end()) << " : " << iter.data() << " - " << iter.node() << std::endl;
 
     for (succinct_trie_type::cursor citer = iter.begin(); citer != iter.end(); ++ citer)
@@ -154,8 +154,7 @@ int main(int argc, char** argv)
     std::cout << "MAPPED START" << std::endl;
     
     for (succinct_trie_mapped_type::const_iterator iter = succinct_trie_mapped.begin(); iter != succinct_trie_mapped.end(); ++ iter) {
-      std::vector<uint8_t> buffer(iter.key_size());
-      iter.read(&(*buffer.begin()));
+      std::vector<uint8_t> buffer(iter.key().begin(), iter.key().end());
       os_mapped << std::string(buffer.begin(), buffer.end()) << " : " << iter.data() << " - " << iter.node() << std::endl;
       
       for (succinct_trie_mapped_type::cursor citer = iter.begin(); citer != iter.end(); ++ citer)
@@ -174,8 +173,7 @@ int main(int argc, char** argv)
     std::cout << "MAPPED STREAM START" << std::endl;
     
     for (succinct_trie_mapped_type::const_iterator iter = succinct_trie_mapped_stream.begin(); iter != succinct_trie_mapped_stream.end(); ++ iter) {
-      std::vector<uint8_t> buffer(iter.key_size());
-      iter.read(&(*buffer.begin()));
+      std::vector<uint8_t> buffer(iter.key().begin(), iter.key().end());
       os_mapped_stream << std::string(buffer.begin(), buffer.end()) << " : " << iter.data() << " - " << iter.node() << std::endl;
       
       for (succinct_trie_mapped_type::cursor citer = iter.begin(); citer != iter.end(); ++ citer)
@@ -197,8 +195,7 @@ int main(int argc, char** argv)
     std::cout << result << std::endl;
     
     for (succinct_trie_type::const_iterator iter = succinct_trie.begin(node_pos); iter != succinct_trie.end(); ++ iter) {
-      std::vector<uint8_t> buffer(iter.key_size());
-      iter.read(&(*buffer.begin()));
+      std::vector<uint8_t> buffer(iter.key().begin(), iter.key().end());
       std::cout << std::string(buffer.begin(), buffer.end()) << " : " << iter.data() << std::endl;
     }
   }

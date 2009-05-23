@@ -1,11 +1,8 @@
 // -*- mode: c++ -*-
 
-#ifndef __SUCCINCT_DB__SUCCINCT_TRIE_DB__HPP__
-#define __SUCCINCT_DB__SUCCINCT_TRIE_DB__HPP__ 1
+#ifndef __SUCCINCT_DB__SUCCINCT_TRIE_DATABASE__HPP__
+#define __SUCCINCT_DB__SUCCINCT_TRIE_DATABASE__HPP__ 1
 
-//
-// directly store the fixed-sized data into succinct-trie data structure
-//
 
 #include <stdint.h>
 
@@ -21,58 +18,51 @@
 
 #include <succinct_db/succinct_trie.hpp>
 
+#include <utils/map_file.hpp>
+#include <utils/vertical_coded_vector.hpp>
+#include <utils/vertical_coded_device.hpp>
 #include <utils/repository.hpp>
 #include <utils/tempfile.hpp>
 #include <utils/bithack.hpp>
 
 namespace succinctdb
 {
-  // do we use template-only implementaion...?
-  // yes, for simplicity..
-  
+  // writer
   template <typename Key, typename Data, typename Alloc=std::allocator<std::pair<Key, Data> > >
-  struct __succinct_trie_db_writer
+  struct __succinct_trie_database_writer
   {
     typedef size_t    size_type;
     typedef ptrdiff_t difference_type;
+    typedef uint64_t  off_type;
+    typedef uint32_t  pos_type;
     
     typedef Key       key_type;
     typedef Data      data_type;
     typedef Data      mapped_type;
-
+    
     typedef boost::filesystem::path path_type;
-
+    
     typedef typename Alloc::template rebind<key_type>::other  key_alloc_type;
     typedef typename Alloc::template rebind<data_type>::other data_alloc_type;
+    typedef typename Alloc::template rebind<off_type>::other  off_alloc_type;
     typedef typename Alloc::template rebind<char>::other      byte_alloc_type;
-
-    static const size_type pointer_size = sizeof(data_type*);
-    static const size_type pointer_shift = utils::bithack::static_bit_count<pointer_size - 1>::result;
+    typedef typename Alloc::template rebind<std::pair<key_type, pos_type> >::other trie_alloc_type;
     
-    __succinct_trie_db_writer(const path_type& path) { open(path); }
-    ~__succinct_trie_db_writer() { close(); }
+    __succinct_trie_database_writer(const path_type& path) { open(path); }
+    ~__succinct_trie_database_writer() { close(); }
     
-    size_type insert(const key_type* buf, size_type buf_size, const data_type* data)
+    size_type insert(const key_type* buf, size_type buf_size, const data_type* data, size_type data_size)
     {
-      const size_type buf_size_bytes   = buf_size * sizeof(key_type);
-      const size_type buf_size_aligned = ((buf_size_bytes + pointer_size - 1) >> pointer_shift) << pointer_shift;
-      
-      const size_type data_size_bytes   = sizeof(data_type);
-      const size_type data_size_aligned = ((data_size_bytes + pointer_size - 1) >> pointer_shift) << pointer_shift;
-      
+      // key value
       __os_key_data->write((char*) buf, buf_size * sizeof(key_type));
-      if (buf_size_aligned > buf_size_bytes) {
-	char __buf[pointer_size];
-	__os_key_data->write((char*) __buf, buf_size_aligned - buf_size_bytes);
-      }
-
-      __os_key_data->write((char*) data, sizeof(data_type));
-      if (data_size_aligned > data_size_bytes) {
-	char __buf[pointer_size];
-	__os_key_data->write((char*) __buf, data_size_aligned - data_size_bytes);
-      }
+      __os_key_data->write((char*) &__size, sizeof(pos_type));
+      __os_key_size->write((char*) &buf_size, sizeof(size_type));
       
-      __os_size->write((char*) &buf_size, sizeof(size_type));
+      // mapped value
+      __os_data->write((char*) data, sizeof(data_type) * data_size);
+      __offset += data_size;
+      __os_data_off->write((char*) &__offset, sizeof(off_type));
+      
       return __size ++;
     }
     size_type size() const { return __size; }
@@ -80,8 +70,12 @@ namespace succinctdb
     
     void open(const path_type& path)
     {
+      typedef utils::repository repository_type;
+      
       close();
       
+      repository_type rep(path, repository_type::write);
+
       const path_type tmp_dir = utils::tempfile::tmp_dir();
 
       path_output = path;
@@ -92,15 +86,24 @@ namespace succinctdb
       utils::tempfile::insert(path_key_data);
       utils::tempfile::insert(path_size);
       
+      __offset = 0;
+      __size = 0;
+      
       __os_key_data.reset(new boost::iostreams::filtering_ostream());
-      __os_size.reset(new boost::iostreams::filtering_ostream());
+      __os_key_size.reset(new boost::iostreams::filtering_ostream());
+      
+      __os_data.reset(new boost::iostreams::filtering_ostream());
+      __os_data_off.reset(new boost::iostreams::filtering_ostream());
       
       __os_key_data->push(boost::iostreams::file_sink(path_key_data.file_string(), std::ios_base::out | std::ios_base::trunc), 1024 * 1024);
+      __os_key_size->push(boost::iostreams::gzip_compressor());
+      __os_key_size->push(boost::iostreams::file_sink(path_size.file_string(), std::ios_base::out | std::ios_base::trunc), 1024 * 1024);
       
-      __os_size->push(boost::iostreams::gzip_compressor());
-      __os_size->push(boost::iostreams::file_sink(path_size.file_string(), std::ios_base::out | std::ios_base::trunc), 1024 * 1024);
+      __os_data->push(boost::iostreams::file_sink(rep.path("mapped").file_string(), std::ios_base::out | std::ios_base::trunc), 1024 * 1024);
+      __os_data_off->push(utils::vertical_coded_sink<off_type, off_alloc_type>(rep.path("offset"), 1024 * 1024));
       
-      __size = 0;
+      // initial data offset...
+      __os_data_off->write((char*) &__offset, sizeof(off_type));
     }
 
 
@@ -111,7 +114,7 @@ namespace succinctdb
       
       size_type size() const { return last - first; }
       const key_type& operator[](size_type pos) const { return *(first + pos); }
-
+      
       __value_type() {}
     };
     typedef typename Alloc::template rebind<__value_type>::other __value_alloc_type;
@@ -121,15 +124,12 @@ namespace succinctdb
     {
       const __value_type& operator()(const __value_type& x) const { return x; }
     };
-
+    
     struct __extract_data
     {
-      const data_type& operator()(const __value_type& x) const
+      const pos_type& operator()(const __value_type& x) const
       {
-	const size_type key_size_bytes = sizeof(key_type) * (x.last - x.first);
-	const size_type key_size_aligned = ((key_size_bytes + pointer_size - 1) >> pointer_shift) << pointer_shift;
-	
-	return *reinterpret_cast<const data_type*>(((char*) x.first) + key_size_aligned);
+	return *reinterpret_cast<const pos_type*>(x.last);
       }
     };
 
@@ -145,12 +145,18 @@ namespace succinctdb
     void close()
     {
       typedef utils::map_file<char, byte_alloc_type> map_file_type;
-      typedef succinct_trie<key_type, data_type, Alloc> succinct_trie_type;
+      typedef succinct_trie<key_type, pos_type, trie_alloc_type> succinct_trie_type;
       
       __os_key_data.reset();
-      __os_size.reset();
-
+      __os_key_size.reset();
+      
+      __os_data.reset();
+      __os_data_off.reset();
+      
       if (boost::filesystem::exists(path_key_data) && boost::filesystem::exists(path_size) && ! path_output.empty()) {
+	typedef utils::repository repository_type;
+	
+	repository_type rep(path_output, repository_type::read);
 	
 	map_file_type map_key_data(path_key_data);
 	__value_set_type values(__size);
@@ -166,14 +172,8 @@ namespace succinctdb
 	    
 	    values[i].first = reinterpret_cast<const key_type*>(iter);
 	    values[i].last = values[i].first + key_size;
-
-	    const size_type key_size_bytes = key_size * sizeof(key_type);
-	    const size_type key_size_aligned = ((key_size_bytes + pointer_size - 1) >> pointer_shift) << pointer_shift;
 	    
-	    const size_type data_size_bytes   = sizeof(data_type);
-	    const size_type data_size_aligned = ((data_size_bytes + pointer_size - 1) >> pointer_shift) << pointer_shift;
-	    
-	    iter += key_size_aligned + data_size_aligned;
+	    iter += key_size * sizeof(key_type) + sizeof(pos_type);
 	  }
 	}
 	boost::filesystem::remove(path_size);
@@ -183,7 +183,7 @@ namespace succinctdb
 	std::sort(values.begin(), values.end(), __less_value());
 	
 	succinct_trie_type succinct_trie;
-	succinct_trie.build(path_output, values.begin(), values.end(), __extract_key(), __extract_data());
+	succinct_trie.build(rep.path("index"), values.begin(), values.end(), __extract_key(), __extract_data());
 	
 	boost::filesystem::remove(path_key_data);
 	utils::tempfile::erase(path_key_data);
@@ -192,87 +192,141 @@ namespace succinctdb
       path_output = path_type();
       path_key_data = path_type();
       path_size = path_type();
+            
+      __offset = 0;
       __size = 0;
     }
-
+    
   private:
     path_type path_output;
+    
     path_type path_key_data;
     path_type path_size;
+        
     boost::shared_ptr<boost::iostreams::filtering_ostream> __os_key_data;
-    boost::shared_ptr<boost::iostreams::filtering_ostream> __os_size;
-    size_type __size;
+    boost::shared_ptr<boost::iostreams::filtering_ostream> __os_key_size;
+    
+    boost::shared_ptr<boost::iostreams::filtering_ostream> __os_data;
+    boost::shared_ptr<boost::iostreams::filtering_ostream> __os_data_off;
+    
+    off_type __offset;
+    pos_type __size;
+  };
+  
+  
+  
+  // mapped value access...
+  template <typename Iterator>
+  struct __succinct_trie_database_mapped
+  {
+    typedef size_t    size_type;
+    typedef ptrdiff_t difference_type;
+    
+    typedef Iterator iterator;
+    
+  public:
+    __succinct_trie_database_mapped()
+      : __first(), __last() {}
+    __succinct_trie_database_mapped(iterator first, iterator last)
+      : __first(first), __last(last) {}
+    
+  public:
+    iterator begin() const { return __first; }
+    iterator end() const { return __last; }
+    
+    size_type size() const { return __last - __first; }
+    bool empty() const { return __first == __last; }
+    
+  private:
+    iterator __first;
+    iterator __last;
   };
   
   template <typename Key, typename Data, typename Alloc=std::allocator<std::pair<Key, Data> > >
-  class succinct_trie_db
+  class succinct_trie_database
   {
   public:
     typedef enum {
       read,
       write,
     } mode_type;
-    
+      
     typedef size_t    size_type;
     typedef ptrdiff_t difference_type;
-    
+    typedef uint64_t  off_type;
+    typedef uint32_t  pos_type;
+      
     typedef Key  key_type;
     typedef Data data_type;
     typedef Data mapped_type;
-    
+      
     typedef boost::filesystem::path path_type;
+
+  private:
+    typedef typename Alloc::template rebind<data_type>::other data_alloc_type;
+    typedef typename Alloc::template rebind<off_type>::other  off_alloc_type;
+    typedef typename Alloc::template rebind<std::pair<key_type, pos_type> >::other trie_alloc_type;
     
   private:
-    typedef succinct_trie_mapped<Key, Data, Alloc>     succinct_trie_type;
-    typedef __succinct_trie_db_writer<Key,Data,Alloc> succinct_writer_type;
+    typedef succinct_trie_mapped<Key, pos_type, trie_alloc_type>          succinct_trie_type;
+    typedef utils::map_file<data_type, data_alloc_type>                   data_set_type;
+    typedef utils::vertical_coded_vector_mapped<off_type, off_alloc_type> off_set_type;
     
+    typedef __succinct_trie_database_writer<Key,Data,Alloc>                     succinct_writer_type;
+
   public:
-    succinct_trie_db() {}
-    succinct_trie_db(const path_type& path, const mode_type mode=read) { open(path, mode); }
-    ~succinct_trie_db() { close(); }
-    
+    typedef __succinct_trie_database_mapped<typename data_set_type::const_iterator> value_type;
+      
+  public:
+    succinct_trie_database() {}
+    succinct_trie_database(const path_type& path, const mode_type mode=read) { open(path, mode); }
+    ~succinct_trie_database() { close(); }
+      
   public:
     // methods supported by both read/write mode
     void open(const path_type& path, const mode_type mode=read)
     {
       clear();
-      if (mode == read)
-	__succinct_trie.reset(new succinct_trie_type(path));
-      else
+	
+      if (mode == read) {
+	typedef utils::repository repository_type;
+	  
+	repository_type rep(path, repository_type::read);
+	  
+	__succinct_trie.reset(new succinct_trie_type(rep.path("index")));
+	__mapped.open(rep.path("mapped"));
+	__offsets.open(rep.path("offset"));
+	  
+      } else
 	__succinct_writer.reset(new succinct_writer_type(path));
     }
     
-    void close() { __succinct_trie.reset(); __succinct_writer.reset(); }
+    void close() { __succinct_trie.reset(); __succinct_writer.reset(); __mapped.clear(); __offsets.clear(); }
     void clear() { close(); }
-    
+      
     bool is_open() const { return __succinct_trie || __succinct_writer; }
     bool is_writer() const { return __succinct_writer; }
     bool is_reader() const { return __succinct_trie; }
-    
+      
     size_type size() const { return (is_open() ? (is_reader() ? __succinct_trie->size() : __succinct_writer->size()) : size_type(0)); }
     bool empty() const { return size() == 0; }
-    
+      
   public:
-    // the only method supported by write-mode
-    // close() will invoke index-building
-    size_type insert(const key_type* key, size_type key_size, const data_type& data)
+    size_type insert(const key_type* key, size_type key_size, const data_type* data, size_type data_size)
     {
-      return insert(key, key_size, &data);
-    }
-    size_type insert(const key_type* key, size_type key_size, const data_type* data)
-    {
-      return __succinct_writer->insert(key, key_size, data);
+      return __succinct_writer->insert(key, key_size, data, data_size);
     }
     
   public:    
     // structures supported by read-mode
+    // TODO!
     typedef typename succinct_trie_type::const_iterator         const_iterator;
     typedef typename succinct_trie_type::iterator               iterator;
     typedef typename succinct_trie_type::const_reverse_iterator const_reverse_iterator;
     typedef typename succinct_trie_type::reverse_iterator       reverse_iterator;
     typedef typename succinct_trie_type::const_cursor           const_cursor;
     typedef typename succinct_trie_type::cursor                 cursor;
-    
+
   public:
     // operations supported by read-mode
     
@@ -290,7 +344,7 @@ namespace succinctdb
     const_cursor cend(size_type node_pos)   const { return __succinct_trie->cend(node_pos); }
     const_cursor cbegin() const { return __succinct_trie->cbegin(); }
     const_cursor cend()   const { return __succinct_trie->cend(); }
-
+      
     size_type find(const key_type* key_buf, size_type key_size) const
     {
       size_type node_pos = 0;
@@ -305,12 +359,24 @@ namespace succinctdb
     
     bool exists(size_type node_pos) const { return __succinct_trie->exists(node_pos); }
     bool is_valid(size_type node_pos) const { return node_pos != succinct_trie_type::out_of_range(); }
-    const data_type& operator[](size_type node_pos) const { return __succinct_trie->data(node_pos); }
     
-  private:
+    value_type operator[](size_type node_pos) const
+    {
+      const pos_type pos = __succinct_trie->operator[](node_pos);
+      
+      typename data_set_type::const_iterator first = __mapped.begin() + __offsets[pos];
+      typename data_set_type::const_iterator last  = __mapped.begin() + __offsets[pos + 1];
+      
+      return value_type(first, last);
+    }
+    
+  public:
     boost::shared_ptr<succinct_trie_type>   __succinct_trie;
     boost::shared_ptr<succinct_writer_type> __succinct_writer;
-  };
+    
+    data_set_type __mapped;
+    off_set_type  __offsets;
+  };  
 };
 
 #endif

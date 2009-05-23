@@ -17,12 +17,14 @@ succinct_dbinclude_HEADERS = \
 	succinct_trie.hpp \
 	succinct_hash.hpp \
 	succinct_trie_db.hpp \
+	succinct_trie_database.hpp \
 	succinct_hash_db.hpp
 
 noinst_PROGRAMS = \
 	sample_succinct_trie \
 	sample_succinct_hash \
-	sample_succinct_trie_db
+	sample_succinct_trie_db \
+	sample_succinct_trie_database
 
 sample_succinct_trie_SOURCES = sample_succinct_trie.cpp
 sample_succinct_trie_LDADD = $(boost_LDADD) $(LIBCODEC) $(LIBUTILS)
@@ -32,3 +34,6 @@ sample_succinct_hash_LDADD = $(boost_LDADD) $(LIBCODEC) $(LIBUTILS)
 
 sample_succinct_trie_db_SOURCES = sample_succinct_trie_db.cpp
 sample_succinct_trie_db_LDADD = $(boost_LDADD) $(LIBUTILS) $(perftools_LDADD) $(LIBCODEC) $(LIBUTILS)
+
+sample_succinct_trie_database_SOURCES = sample_succinct_trie_database.cpp
+sample_succinct_trie_database_LDADD = $(boost_LDADD) $(LIBUTILS) $(perftools_LDADD) $(LIBCODEC) $(LIBUTILS)
