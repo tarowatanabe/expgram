@@ -48,7 +48,8 @@ namespace succinctdb
     typedef typename Alloc::template rebind<char>::other      byte_alloc_type;
     typedef typename Alloc::template rebind<std::pair<key_type, pos_type> >::other trie_alloc_type;
     
-    __succinct_trie_database_writer(const path_type& path) { open(path); }
+    __succinct_trie_database_writer(const path_type& path) 
+      : path_output(), path_key_data(), path_size(), __offset(0), __size(0) { open(path); }
     ~__succinct_trie_database_writer() { close(); }
     
     size_type insert(const key_type* buf, size_type buf_size, const data_type* data, size_type data_size)
@@ -109,13 +110,13 @@ namespace succinctdb
 
     struct __value_type
     {
-      const key_type* first;
-      const key_type* last;
-      
       size_type size() const { return last - first; }
       const key_type& operator[](size_type pos) const { return *(first + pos); }
       
-      __value_type() {}
+      __value_type() : first(0), last(0) {}
+      
+      const key_type* first;
+      const key_type* last;
     };
     typedef typename Alloc::template rebind<__value_type>::other __value_alloc_type;
     typedef std::vector<__value_type, __value_alloc_type> __value_set_type;
@@ -171,7 +172,7 @@ namespace succinctdb
 	    is.read((char*) &key_size, sizeof(size_type));
 	    
 	    values[i].first = reinterpret_cast<const key_type*>(iter);
-	    values[i].last = values[i].first + key_size;
+	    values[i].last  = reinterpret_cast<const key_type*>(iter) + key_size;
 	    
 	    iter += key_size * sizeof(key_type) + sizeof(pos_type);
 	  }
@@ -182,9 +183,12 @@ namespace succinctdb
 	// sorting
 	std::sort(values.begin(), values.end(), __less_value());
 	
-	succinct_trie_type succinct_trie;
-	succinct_trie.build(rep.path("index"), values.begin(), values.end(), __extract_key(), __extract_data());
+	{
+	  succinct_trie_type succinct_trie;
+	  succinct_trie.build(rep.path("index"), values.begin(), values.end(), __extract_key(), __extract_data());
+	}
 	
+	map_key_data.clear();
 	boost::filesystem::remove(path_key_data);
 	utils::tempfile::erase(path_key_data);
       }

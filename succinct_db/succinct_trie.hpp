@@ -11,6 +11,7 @@
 #include <stdexcept>
 #include <memory>
 #include <utility>
+#include <fstream>
 
 #include <boost/filesystem.hpp>
 #include <boost/iostreams/filtering_stream.hpp>
@@ -768,7 +769,8 @@ namespace succinctdb
     
     // build!
   private:
-    typedef std::vector<size_type> terminal_set_type;
+    typedef typename Alloc::template rebind<size_type>::other size_alloc_type;
+    typedef std::vector<size_type, size_alloc_type> terminal_set_type;
 
     struct Node
     {
@@ -784,8 +786,12 @@ namespace succinctdb
 	: depth(_depth), first(_first), last(_last), terminals(), key() {}
     };
     typedef Node node_type;
-    typedef std::vector<node_type> node_set_type;
-    typedef std::deque<node_set_type > queue_type;
+    
+    typedef typename Alloc::template rebind<node_type>::other node_alloc_type;
+    typedef std::vector<node_type, node_alloc_type> node_set_type;
+
+    typedef typename Alloc::template rebind<node_set_type>::other node_set_alloc_type;
+    typedef std::deque<node_set_type, node_set_alloc_type> queue_type;
     
   private:
     template <typename _Tp, typename Index>
@@ -807,7 +813,8 @@ namespace succinctdb
       
       void push_back(const _Tp& x)
       {
-	stream.write((char*) &x, sizeof(_Tp));
+	if (! stream.write((char*) &x, sizeof(_Tp)))
+	  throw std::runtime_error("sucinct trie: build()");
       }
       
       Stream& stream;
@@ -827,21 +834,33 @@ namespace succinctdb
       
       repository_type rep(path, repository_type::read);
       
-      boost::iostreams::filtering_ostream os_index;
-      boost::iostreams::filtering_ostream os_mapped;
-      os_index.push(boost::iostreams::file_sink(rep.path("index").file_string(), std::ios_base::out | std::ios_base::trunc), 1024 * 1024);
-      os_mapped.push(boost::iostreams::file_sink(rep.path("mapped").file_string(), std::ios_base::out | std::ios_base::trunc), 1024 * 1024);
-      
-      __push_back_stream<key_type, boost::iostreams::filtering_ostream> __index(os_index);
-      __push_back_stream<data_type, boost::iostreams::filtering_ostream> __mapped(os_mapped);
-      
-      __build(first, last, extract_key, extract_data, __index, __mapped);
-
-      os_index.pop();
-      os_mapped.pop();
+      {
+	boost::iostreams::filtering_ostream os_index;
+	boost::iostreams::filtering_ostream os_mapped;
+	os_index.push(boost::iostreams::file_sink(rep.path("index").file_string(), std::ios_base::out | std::ios_base::trunc), 1024 * 1024);
+	os_mapped.push(boost::iostreams::file_sink(rep.path("mapped").file_string(), std::ios_base::out | std::ios_base::trunc), 1024 * 1024);
+	
+	__push_back_stream<key_type, boost::iostreams::filtering_ostream> __index(os_index);
+	__push_back_stream<data_type, boost::iostreams::filtering_ostream> __mapped(os_mapped);
+	
+	try {
+	  __build(first, last, extract_key, extract_data, __index, __mapped);
+	}
+	catch (const std::exception& err) {
+	  throw err;
+	}
+	catch (...) {
+	  throw std::runtime_error("succinct_trie::build() memory error?");
+	}
+	
+	os_index.pop();
+	os_mapped.pop();
+      }
       
       positions.write(rep.path("positions"));
       index_map.write(rep.path("index-map"));
+
+      clear();
     }
     
     template <typename Iterator, typename ExtractKey>
@@ -856,21 +875,33 @@ namespace succinctdb
       }
       repository_type rep(path, repository_type::read);
       
-      boost::iostreams::filtering_ostream os_index;
-      boost::iostreams::filtering_ostream os_mapped;
-      os_index.push(boost::iostreams::file_sink(rep.path("index").file_string(), std::ios_base::out | std::ios_base::trunc), 1024 * 1024);
-      os_mapped.push(boost::iostreams::file_sink(rep.path("mapped").file_string(), std::ios_base::out | std::ios_base::trunc), 1024 * 1024);
-      
-      __push_back_stream<key_type, boost::iostreams::filtering_ostream> __index(os_index);
-      __push_back_stream<data_type, boost::iostreams::filtering_ostream> __mapped(os_mapped);
-      
-      __build(first, last, extract_key, __index, __mapped);
-
-      os_index.pop();
-      os_mapped.pop();
+      {
+	boost::iostreams::filtering_ostream os_index;
+	boost::iostreams::filtering_ostream os_mapped;
+	os_index.push(boost::iostreams::file_sink(rep.path("index").file_string(), std::ios_base::out | std::ios_base::trunc), 1024 * 1024);
+	os_mapped.push(boost::iostreams::file_sink(rep.path("mapped").file_string(), std::ios_base::out | std::ios_base::trunc), 1024 * 1024);
+	
+	__push_back_stream<key_type, boost::iostreams::filtering_ostream> __index(os_index);
+	__push_back_stream<data_type, boost::iostreams::filtering_ostream> __mapped(os_mapped);
+	
+	try {
+	  __build(first, last, extract_key, __index, __mapped);
+	}
+	catch (const std::exception& err) {
+	  throw err;
+	}
+	catch (...) {
+	  throw std::runtime_error("succinct_trie::build() memory error?");
+	}
+	
+	os_index.pop();
+	os_mapped.pop();
+      }
       
       positions.write(rep.path("positions"));
       index_map.write(rep.path("index-map"));
+
+      clear();
     }
 
     
@@ -902,47 +933,48 @@ namespace succinctdb
       const size_type data_size = last - first;
       
       queue_type queue;
-      node_set_type nodes;
       size_type index_size = 0;
       
-      children(node_type(0, 0, data_size), nodes, first, last, extract_key);
-      queue.push_front(nodes);
-      __index.push_back(key_type()); ++ index_size;
+      queue.push_front(node_set_type());
+      children(node_type(0, 0, data_size), queue.front(), first, last, extract_key);
+      
+      __index.push_back(key_type());
+      ++ index_size;
       
       // initial 01
       positions.set(0, true);
       positions.set(1, false);
       
-      for (size_type processed = 0; ! queue.empty(); ++ processed) {
+      while (! queue.empty()) {
 	const node_set_type& nodes = queue.back();
+	
+	size_type children_size = 0;
 	
 	typename node_set_type::const_iterator niter_begin = nodes.begin();
 	typename node_set_type::const_iterator niter_end = nodes.end();
-	
-	size_t children_size = 0;
-	
 	for (typename node_set_type::const_iterator niter = niter_begin; niter != niter_end; ++ niter) {
 	  // dump key and index...
 	  
 	  if (niter->terminals.empty()) {
-	    __index.push_back(niter->key); ++ index_size;
+	    __index.push_back(niter->key);
+	    ++ index_size;
 	    
-	    node_set_type nodes;
-	    children(*niter, nodes, first, last, extract_key);
-	    queue.push_front(nodes);
+	    queue.push_front(node_set_type());
+	    children(*niter, queue.front(), first, last, extract_key);
 	    
 	    ++ children_size;
 	  } else {
 	    typename terminal_set_type::const_iterator titer_end = niter->terminals.end();
 	    for (typename terminal_set_type::const_iterator titer = niter->terminals.begin(); titer != titer_end; ++ titer) {
-	      __index.push_back(niter->key); ++ index_size;
+	      __index.push_back(niter->key);
+	      ++ index_size;
 	      __mapped.push_back(extract_data(*(first + *titer)));
 	      index_map.set(index_size - 1, true);
 	    }
 	    
-	    node_set_type nodes;
-	    children(*niter, nodes, first, last, extract_key);
-	    queue.push_front(nodes);
+	    queue.push_front(node_set_type());
+	    children(*niter, queue.front(), first, last, extract_key);
+	    
 	    for (int i = 0; i < niter->terminals.size() - 1; ++ i)
 	      queue.push_front(node_set_type());
 	    
@@ -952,7 +984,7 @@ namespace succinctdb
 	
 	queue.pop_back();
 	
-	for (size_type i = 0; i < children_size; ++ i)
+	for (int i = 0; i < children_size; ++ i)
 	  positions.set(positions.size(), true);
 	positions.set(positions.size(), false);
       }
@@ -969,47 +1001,49 @@ namespace succinctdb
       const size_type data_size = last - first;
       
       queue_type queue;
-      node_set_type nodes;
       size_type index_size = 0;
       
-      children(node_type(0, 0, data_size), nodes, first, last, extract_key);
-      queue.push_front(nodes);
-      __index.push_back(key_type()); ++ index_size;
+      queue.push_front(node_set_type());
+      children(node_type(0, 0, data_size), queue.front(), first, last, extract_key);
+      
+      __index.push_back(key_type());
+      ++ index_size;
       
       // initial 01
       positions.set(0, true);
       positions.set(1, false);
       
-      for (size_type processed = 0; ! queue.empty(); ++ processed) {
+      while (! queue.empty()) {
 	const node_set_type& nodes = queue.back();
+	
+	size_type children_size = 0;
 	
 	typename node_set_type::const_iterator niter_begin = nodes.begin();
 	typename node_set_type::const_iterator niter_end = nodes.end();
-	
-	size_t children_size = 0;
-	
 	for (typename node_set_type::const_iterator niter = niter_begin; niter != niter_end; ++ niter) {
 	  // dump key and index...
 	  
 	  if (niter->terminals.empty()) {
-	    __index.push_back(niter->key); ++ index_size;
+	    __index.push_back(niter->key);
+	    ++ index_size;
 	    
-	    node_set_type nodes;
-	    children(*niter, nodes, first, last, extract_key);
-	    queue.push_front(nodes);
+	    queue.push_front(node_set_type());
+	    children(*niter, queue.front(), first, last, extract_key);
 	    
 	    ++ children_size;
 	  } else {
 	    typename terminal_set_type::const_iterator titer_end = niter->terminals.end();
 	    for (typename terminal_set_type::const_iterator titer = niter->terminals.begin(); titer != titer_end; ++ titer) {
-	      __index.push_back(niter->key); ++ index_size;
+	      __index.push_back(niter->key);
+	      ++ index_size;
 	      __mapped.push_back(*titer);
 	      index_map.set(index_size - 1, true);
 	    }
 	    
-	    node_set_type nodes;
-	    children(*niter, nodes, first, last, extract_key);
-	    queue.push_front(nodes);
+	    
+	    queue.push_front(node_set_type());
+	    children(*niter, queue.front(), first, last, extract_key);
+	    
 	    for (int i = 0; i < niter->terminals.size() - 1; ++ i)
 	      queue.push_front(node_set_type());
 	    
@@ -1019,7 +1053,7 @@ namespace succinctdb
 	
 	queue.pop_back();
 	
-	for (size_type i = 0; i < children_size; ++ i)
+	for (int i = 0; i < children_size; ++ i)
 	  positions.set(positions.size(), true);
 	positions.set(positions.size(), false);
       }
@@ -1038,7 +1072,7 @@ namespace succinctdb
 		  ExtractKey extract_key)
     {
       Iterator iter = first + parent.first;
-      for (size_type pos = parent.first; pos < parent.last; ++ pos, ++ iter) 
+      for (size_type pos = parent.first; pos != parent.last && iter != last; ++ pos, ++ iter)
 	if (parent.depth < extract_key(*iter).size()) {
 	  
 	  const key_type& key = extract_key(*iter)[parent.depth];
@@ -1054,7 +1088,7 @@ namespace succinctdb
 	    nodes.back().terminals.push_back(pos);
 	  nodes.back().last = pos + 1;
 	}
-    }
+      }
     
   private:
     position_set_type positions;

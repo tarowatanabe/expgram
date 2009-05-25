@@ -46,19 +46,22 @@ namespace succinctdb
     typedef typename Alloc::template rebind<data_type>::other data_alloc_type;
     typedef typename Alloc::template rebind<char>::other      byte_alloc_type;
 
+    // we assume that pointer size is multiple of two!
     static const size_type pointer_size = sizeof(data_type*);
-    static const size_type pointer_shift = utils::bithack::static_bit_count<pointer_size - 1>::result;
+    static const size_type pointer_mask = ~(pointer_size - 1);
+
     
-    __succinct_trie_db_writer(const path_type& path) { open(path); }
+    __succinct_trie_db_writer(const path_type& path)
+      : path_output(), path_key_data(), path_size(), __os_key_data(), __os_size(), __size(0) { open(path); }
     ~__succinct_trie_db_writer() { close(); }
     
     size_type insert(const key_type* buf, size_type buf_size, const data_type* data)
     {
       const size_type buf_size_bytes   = buf_size * sizeof(key_type);
-      const size_type buf_size_aligned = ((buf_size_bytes + pointer_size - 1) >> pointer_shift) << pointer_shift;
+      const size_type buf_size_aligned = (buf_size_bytes + pointer_size - 1) & pointer_mask;
       
       const size_type data_size_bytes   = sizeof(data_type);
-      const size_type data_size_aligned = ((data_size_bytes + pointer_size - 1) >> pointer_shift) << pointer_shift;
+      const size_type data_size_aligned = (data_size_bytes + pointer_size - 1) & pointer_mask;
       
       __os_key_data->write((char*) buf, buf_size * sizeof(key_type));
       if (buf_size_aligned > buf_size_bytes) {
@@ -106,13 +109,13 @@ namespace succinctdb
 
     struct __value_type
     {
-      const key_type* first;
-      const key_type* last;
-      
       size_type size() const { return last - first; }
       const key_type& operator[](size_type pos) const { return *(first + pos); }
 
-      __value_type() {}
+      __value_type() : first(0), last(0) {}
+      
+      const key_type* first;
+      const key_type* last;
     };
     typedef typename Alloc::template rebind<__value_type>::other __value_alloc_type;
     typedef std::vector<__value_type, __value_alloc_type> __value_set_type;
@@ -127,7 +130,7 @@ namespace succinctdb
       const data_type& operator()(const __value_type& x) const
       {
 	const size_type key_size_bytes = sizeof(key_type) * (x.last - x.first);
-	const size_type key_size_aligned = ((key_size_bytes + pointer_size - 1) >> pointer_shift) << pointer_shift;
+	const size_type key_size_aligned = (key_size_bytes + pointer_size - 1) & pointer_mask;
 	
 	return *reinterpret_cast<const data_type*>(((char*) x.first) + key_size_aligned);
       }
@@ -165,13 +168,13 @@ namespace succinctdb
 	    is.read((char*) &key_size, sizeof(size_type));
 	    
 	    values[i].first = reinterpret_cast<const key_type*>(iter);
-	    values[i].last = values[i].first + key_size;
+	    values[i].last  = reinterpret_cast<const key_type*>(iter) + key_size;
 
 	    const size_type key_size_bytes = key_size * sizeof(key_type);
-	    const size_type key_size_aligned = ((key_size_bytes + pointer_size - 1) >> pointer_shift) << pointer_shift;
+	    const size_type key_size_aligned = (key_size_bytes + pointer_size - 1) & pointer_mask;
 	    
 	    const size_type data_size_bytes   = sizeof(data_type);
-	    const size_type data_size_aligned = ((data_size_bytes + pointer_size - 1) >> pointer_shift) << pointer_shift;
+	    const size_type data_size_aligned = (data_size_bytes + pointer_size - 1) & pointer_mask;
 	    
 	    iter += key_size_aligned + data_size_aligned;
 	  }
@@ -182,8 +185,12 @@ namespace succinctdb
 	// sorting
 	std::sort(values.begin(), values.end(), __less_value());
 	
-	succinct_trie_type succinct_trie;
-	succinct_trie.build(path_output, values.begin(), values.end(), __extract_key(), __extract_data());
+	{
+	  succinct_trie_type succinct_trie;
+	  succinct_trie.build(path_output, values.begin(), values.end(), __extract_key(), __extract_data());
+	}
+	
+	map_key_data.clear();
 	
 	boost::filesystem::remove(path_key_data);
 	utils::tempfile::erase(path_key_data);
