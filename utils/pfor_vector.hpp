@@ -196,8 +196,8 @@ namespace utils
 
     typedef boost::filesystem::path path_type;
 
-    static const size_type entry_size = 128;       // 128 values... must be 128!
-    static const size_type block_size = 64 * 1024; // 64K values... must be power of two
+    static const size_type entry_size = 128;         // 128 values... must be 128!
+    static const size_type block_size = 1024 * 1024; // 1024K values... must be power of two
     
     static const size_type entry_bits = utils::bithack::static_floor_log2<entry_size>::result;
     static const size_type block_bits = utils::bithack::static_floor_log2<block_size>::result;

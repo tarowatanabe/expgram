@@ -79,13 +79,13 @@ namespace expgram
     double lower_order_weight(const count_type total, const count_type observed, const count_type min2, const count_type min3) const
     { 
       if (modified)
-       return (discount1 >= 0.0 && discount2 >= 0.0 && discount3plus > 0.0
-	       ? (discount1 * (observed - min2) + discount2 * (min2 - min3) + discount3plus * min3) / total // modified-KN smoothing
-	       : observed / (total + observed)); // witten-bell smoothing
-     else
-       return (discount1 >= 0.0
-	       ? (discount1 * observed) / total    // KN smoothing
-	       : double(observed) / (total + observed)); // witten-bell smoothing
+	return (discount1 >= 0.0 && discount2 >= 0.0 && discount3plus > 0.0
+		? (discount1 * (observed - min2) + discount2 * (min2 - min3) + discount3plus * min3) / total // modified-KN smoothing
+		: double(observed) / (total + observed)); // witten-bell smoothing
+      else
+	return (discount1 >= 0.0
+		? (discount1 * observed) / total    // KN smoothing
+		: double(observed) / (total + observed)); // witten-bell smoothing
     }
     
     double discount(const count_type count, const count_type total, const count_type observed) const

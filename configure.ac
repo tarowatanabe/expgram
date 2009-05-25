@@ -272,6 +272,7 @@ AC_CONFIG_FILES([Makefile
 		 codec/Makefile
                  expgram/Makefile
 		 progs/Makefile
+		 sample/Makefile
 		 scripts/Makefile
 		 stemmer/Makefile
                  succinct_db/Makefile

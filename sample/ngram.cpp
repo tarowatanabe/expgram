@@ -1,21 +1,32 @@
 
 #include <iostream>
+#include <vector>
+#include <string>
+#include <iterator>
+#include <algorithm>
 
 #include <boost/filesystem.hpp>
 #include <boost/program_options.hpp>
+#include <boost/tokenizer.hpp>
 
-#include <utils/resource.hpp>
+#include <utils/space_separator.hpp>
 
 #include <expgram/NGram.hpp>
+#include <expgram/Vocab.hpp>
 
 typedef boost::filesystem::path path_type;
 
+typedef boost::tokenizer<utils::space_separator>               tokenizer_type;
+typedef std::vector<std::string, std::allocator<std::string> > tokens_type;
+
+typedef expgram::Vocab vocab_type;
+
+
 path_type ngram_file = "-";
-path_type output_file;
 
 bool quantize = false;
-
 int shards = 4;
+
 int debug = 0;
 
 int getoptions(int argc, char** argv);
@@ -27,12 +38,33 @@ int main(int argc, char** argv)
       return 1;
     
     expgram::NGram ngram(ngram_file, shards, debug);
-    
     if (quantize)
       ngram.quantize();
+    
+    std::string  line;
+    tokens_type  tokens;
 
-    if (! output_file.empty())
-      ngram.write(output_file);
+    const int order = ngram.index.order();
+    
+    while (std::getline(std::cin, line)) {
+      tokenizer_type tokenizer(line);
+      tokens.clear();
+      tokens.push_back(vocab_type::BOS);
+      tokens.insert(tokens.end(), tokenizer.begin(), tokenizer.end());
+      tokens.push_back(vocab_type::EOS);
+
+      tokens_type::const_iterator titer_begin = tokens.begin();
+      tokens_type::const_iterator titer_end = tokens.end();
+      for (tokens_type::const_iterator titer = titer_begin + 1; titer != titer_end; ++ titer) {
+	
+	// ngram access must use containser that supports forward-iterator concepts.
+	// If not sure, use vector!
+
+	tokens_type::const_iterator titer_first = std::max(titer + 1 - order, titer_begin);
+	std::copy(titer_first, titer + 1, std::ostream_iterator<std::string>(std::cout, " "));
+	std::cout << ngram(titer_first, titer + 1) << std::endl;
+      }
+    }
   }
   catch (std::exception& err) {
     std::cerr << "error: " << err.what() << std::endl;
@@ -48,8 +80,7 @@ int getoptions(int argc, char** argv)
   po::options_description desc("options");
   desc.add_options()
     ("ngram",  po::value<path_type>(&ngram_file)->default_value(ngram_file),   "ngram in ARPA or binary format")
-    ("output", po::value<path_type>(&output_file)->default_value(output_file), "output in binary format")
-
+    
     ("quantize", po::bool_switch(&quantize), "perform quantization")
     
     ("shard",  po::value<int>(&shards)->default_value(shards),                 "# of shards (or # of threads)")
