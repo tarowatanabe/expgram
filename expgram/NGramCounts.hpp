@@ -44,30 +44,36 @@ namespace expgram
       typedef utils::packed_vector_mapped<count_type, std::allocator<count_type> > count_set_type;
       
     public:
-      ShardData() : counts(), modified(), offset(0) {}
-      ShardData(const path_type& path) : counts(), modified(), offset(0) { open(path); }
+      ShardData() : counts(), modified(), accumulated(), offset(0) {}
+      ShardData(const path_type& path) : counts(), modified(), accumulated(), offset(0) { open(path); }
       
     public:
       void open(const path_type& path);
       void write(const path_type& file) const;
-      path_type path() const { return (modified.is_open() ? modified.path().parent_path() : counts.path().parent_path()); }
+      path_type path() const { return __counts().path().parent_path(); }
       
       void close() { clear(); }
       void clear()
       {
 	counts.clear();
 	modified.clear();
+	accumulated.clear();
 	offset = 0;
       }
       
-      count_type operator[](size_type pos) const { return (modified.is_open() ? modified[pos - offset] : counts[pos - offset]); }
-      size_type size() const { return (modified.is_open() ? modified.size() + offset : counts.size() + offset); }
-
-      bool is_modified() const { return modified.is_open(); }
+      count_type operator[](size_type pos) const { return __counts()[pos - offset]; }
+      size_type size() const { return __counts().size() + offset; }
       
+      bool is_modified() const { return modified.is_open(); }
+      bool is_accumulated() const { return accumulated.is_open(); }
+      
+    private:
+      const count_set_type& __counts() const { return (accumulated.is_open() ? accumulated : (modified.is_open() ? modified : counts)); }
+
     public:
       count_set_type counts;
       count_set_type modified;
+      count_set_type accumulated;
       size_type      offset;
     };
     typedef ShardData                                                      shard_data_type;

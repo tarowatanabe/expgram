@@ -13,6 +13,8 @@
 #include <unicode/bytestream.h>
 #include <unicode/translit.h>
 
+#include <boost/thread.hpp>
+
 namespace expgram
 {
   // constants...
@@ -59,12 +61,29 @@ namespace expgram
   
   typedef WordCache word_cache_type;
   
+  template <typename String>
+  struct string_hash
+  {
+    utils::hashmurmur<size_t> __hasher;
+    size_t operator()(const String& x) const
+    {
+      return __hasher(x.begin(), x.end(), 0);
+    }
+  };
+  
 #ifdef HAVE_TR1_UNORDERED_MAP
   typedef std::tr1::unordered_map<size_t, word_cache_type, boost::hash<size_t>, std::equal_to<size_t>,
 				  std::allocator<std::pair<const size_t, word_cache_type> > > word_cache_set_type;
+  
+  typedef std::tr1::unordered_map<std::string, word_cache_type, string_hash<std::string>, std::equal_to<std::string>,
+				  std::allocator<std::pair<const std::string, word_cache_type> > > word_cache_map_type;
+
 #else
   typedef sgi::hash_map<size_t, word_cache_type, boost::hash<size_t>, std::equal_to<size_t>,
 			std::allocator<std::pair<const size_t, word_cache_type> > > word_cache_set_type;
+
+   typedef sgi::hash_map<std::string, word_cache_type, string_hash<std::string>, std::equal_to<std::string>,
+			 std::allocator<std::pair<const std::string, word_cache_type> > > word_cache_map_type;
 
 #endif
 
@@ -182,6 +201,35 @@ namespace expgram
     caches.set(cache, word.id(), word_latin.id());
     
     return word_latin;
+  }
+
+  Vocab::word_type Vocab::stem(const word_type& word, const std::string& algorithm)
+  {
+    typedef word_cache_type::cache_type cache_type;
+    typedef utils::spinlock spinlock_type;
+    typedef spinlock_type::scoped_lock lock_type;
+    
+    static spinlock_type       __spinlock;
+    static word_cache_map_type __caches;
+    
+    if (__is_tag(word)) return word;
+    
+    word_cache_type* caches;
+    {
+      lock_type lock(__spinlock);
+      caches = &(__caches[algorithm]);
+    }
+    
+    cache_type cache = caches->operator[](word.id());
+    
+    if (cache.id() == word.id())
+      return word_type(cache.word());
+    
+    const word_type word_stem = stem(static_cast<const std::string&>(word), algorithm);
+    
+    caches->set(cache, word.id(), word_stem.id());
+    
+    return word_stem;
   }
   
   std::string Vocab::prefix(const std::string& word, size_type size)
@@ -353,6 +401,30 @@ namespace expgram
       uword.toUTF8(__sink);
       return word_latin;
     }
+  }
+
+#ifdef HAVE_TR1_UNORDERED_MAP
+  typedef std::tr1::unordered_map<std::string, Vocab::stemmer_type, string_hash<std::string>, std::equal_to<std::string>,
+				  std::allocator<std::pair<const std::string, Vocab::stemmer_type> > > stemmer_set_type;
+#else
+  typedef sgi::hash_map<std::string, Vocab::stemmer_type, string_hash<std::string>, std::equal_to<std::string>,
+			std::allocator<std::pair<const std::string, Vocab::stemmer_type> > > stemmer_set_type;
+#endif
+
+  std::string Vocab::stem(const std::string& word, const std::string& algorithm)
+  {
+    static boost::thread_specific_ptr<stemmer_set_type> __stemmers;
+
+    if (__is_tag(word)) return word;
+    
+    if (! __stemmers.get())
+      __stemmers.reset(new stemmer_set_type());
+    
+    stemmer_set_type::iterator siter = __stemmers->find(algorithm);
+    if (siter == __stemmers->end())
+      siter = __stemmers->insert(std::make_pair(algorithm, stemmer(algorithm))).first;
+    
+    return siter->second(word);
   }
   
   Vocab::stemmer_type Vocab::stemmer(const std::string& algorithm)

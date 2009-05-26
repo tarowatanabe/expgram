@@ -713,6 +713,7 @@ namespace expgram
     vocab_map.reserve(index[0].offsets[1]);
     
     utils::compress_ostream os(path, 1024 * 1024);
+    os.precision(7);
     
     // dump headers...
     os << "\\data\\" << '\n';

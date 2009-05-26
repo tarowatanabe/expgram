@@ -42,6 +42,8 @@ compress_stream.hpp \
 config.hpp \
 config.h \
 filesystem.hpp \
+group_aligned_code.hpp \
+group_aligned_code_offsets.hpp \
 hashmurmur.hpp \
 icu_filter.hpp \
 indexed_hashtable.hpp \
@@ -84,6 +86,7 @@ sample_bitpack \
 sample_byte_aligned_code \
 sample_chunk_vector \
 sample_compress_stream \
+sample_group_aligned_code \
 sample_icu_filter \
 sample_indexed_set \
 sample_istream_line_iterator \
@@ -117,6 +120,10 @@ bitpack32_impl.hpp : bitpack_gen.py
 bitpack64_impl.hpp : bitpack_gen.py
 	./bitpack_gen.py --byte-size 8 > bitpack64_impl.hpp
 
+group_aligned_code.hpp : group_aligned_code_offsets.hpp
+
+group_aligned_code_offsets.hpp : group_aligned_code_offsets.py
+	./group_aligned_code_offsets.py > group_aligned_code_offsets.hpp
 
 sample_arc_list_SOURCES = sample_arc_list.cpp
 sample_arc_list_LDFLAGS = $(BOOST_THREAD_LDFLAGS) 
@@ -136,6 +143,7 @@ sample_chunk_vector_LDADD = $(BOOST_THREAD_LIBS)
 sample_compress_stream_SOURCES = sample_compress_stream.cpp
 sample_compress_stream_LDFLAGS = $(LIBUTILS)
 
+sample_group_aligned_code_SOURCES = sample_group_aligned_code.cpp
 
 sample_icu_filter_SOURCES = sample_icu_filter.cpp
 sample_icu_filter_LDFLAGS = $(LIBUTILS) $(BOOST_IOSTREAMS_LDFLAGS)

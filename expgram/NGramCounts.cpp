@@ -9,6 +9,7 @@
 #include <boost/tokenizer.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/thread.hpp>
+#include <boost/math/special_functions/expm1.hpp>
 
 #include "utils/lockfree_queue.hpp"
 #include "utils/lockfree_list_queue.hpp"
@@ -333,21 +334,29 @@ namespace expgram
     typedef map_reduce_type::ngram_type     ngram_type;
     typedef map_reduce_type::count_type     count_type;
     typedef map_reduce_type::size_type      size_type;
+    typedef map_reduce_type::id_type        id_type;
+    typedef map_reduce_type::vocab_type     vocab_type;
     typedef map_reduce_type::count_map_type count_map_type;
     
     const ngram_type& ngram;
     count_map_type& count_of_counts;
     int shard;
+    bool remove_unk;
     
     NGramCountsEstimateDiscountMapper(const ngram_type& _ngram,
 				      count_map_type&   _count_of_counts,
-				      const int         _shard)
+				      const int         _shard,
+				      const bool        _remove_unk)
       : ngram(_ngram),
 	count_of_counts(_count_of_counts),
-	shard(_shard) {}
+	shard(_shard),
+	remove_unk(_remove_unk) {}
     
     void operator()()
     {
+      const id_type bos_id = ngram.index.vocab()[vocab_type::BOS];
+      const id_type unk_id = ngram.index.vocab()[vocab_type::UNK];
+
       count_of_counts.clear();
       count_of_counts.reserve(ngram.index.order() + 1);
       count_of_counts.resize(ngram.index.order() + 1);
@@ -358,7 +367,7 @@ namespace expgram
 	
 	for (size_type pos = pos_first; pos != pos_last; ++ pos) {
 	  const count_type count = ngram.counts[shard][pos];
-	  if (count)
+	  if (count && (order == 1 || ! remove_unk || ngram.index[shard][pos] != unk_id))
 	    ++ count_of_counts[order][count];
 	}
       }
@@ -488,9 +497,20 @@ namespace expgram
 	      }
 	    }
 	  }
+
+	  using namespace boost::math::policies;
+	  typedef policy<domain_error<errno_on_error>,
+	    pole_error<errno_on_error>,
+	    overflow_error<errno_on_error>,
+	    rounding_error<errno_on_error>,
+	    evaluation_error<errno_on_error>
+	    > policy_type;
 	  
-	  const double numerator = 1.0 - utils::mathop::exp(logsum);
-	  const double denominator = 1.0 - utils::mathop::exp(logsum_lower_order);
+	  //const double numerator = 1.0 - utils::mathop::exp(logsum);
+	  //const double denominator = 1.0 - utils::mathop::exp(logsum_lower_order);
+	  
+	  const double numerator = - boost::math::expm1(logsum, policy_type());
+	  const double denominator =  - boost::math::expm1(logsum_lower_order, policy_type());
 	  
 	  if (numerator > 0.0) {
 	    if (denominator > 0.0)
@@ -536,7 +556,6 @@ namespace expgram
     logprob_shard_set_type&  logprobs;
     backoff_shard_set_type&  backoffs;
     offset_set_type&         offsets;
-    logprob_type             logprob_min;
     int                      shard;
     bool                     remove_unk;
     int                      debug;
@@ -546,7 +565,6 @@ namespace expgram
 			      logprob_shard_set_type&  _logprobs,
 			      backoff_shard_set_type&  _backoffs,
 			      offset_set_type&         _offsets,
-			      const logprob_type&      _logprob_min,
 			      const int                _shard,
 			      const bool               _remove_unk,
 			      const int                _debug)
@@ -555,7 +573,6 @@ namespace expgram
 	logprobs(_logprobs),
 	backoffs(_backoffs),
 	offsets(_offsets),
-	logprob_min(_logprob_min),
 	shard(_shard),
 	remove_unk(_remove_unk),
 	debug(_debug) {}
@@ -573,7 +590,7 @@ namespace expgram
 	  while (utils::atomicop::fetch_and_add(offsets[shard_index], size_type(0)) <= result.second)
 	    boost::thread::yield();
 	  
-	  if (logprobs[shard_index][result.second - offset] != logprob_min)
+	  if (logprobs[shard_index][result.second - offset] != expgram::NGram::logprob_min())
 	    return logbackoff + logprobs[shard_index][result.second - offset];
 	  else {
 	    const size_type parent = ngram.index[shard_index].parent(result.second);
@@ -686,9 +703,20 @@ namespace expgram
 	      logprobs[shard][pos - offset] = logprob;
 	    }
 	  }
+
+	  using namespace boost::math::policies;
+	  typedef policy<domain_error<errno_on_error>,
+	    pole_error<errno_on_error>,
+	    overflow_error<errno_on_error>,
+	    rounding_error<errno_on_error>,
+	    evaluation_error<errno_on_error>
+	    > policy_type;
 	  
-	  const double numerator = 1.0 - utils::mathop::exp(logsum);
-	  const double denominator = 1.0 - utils::mathop::exp(logsum_lower_order);
+	  //const double numerator = 1.0 - utils::mathop::exp(logsum);
+	  //const double denominator = 1.0 - utils::mathop::exp(logsum_lower_order);
+	  
+	  const double numerator = - boost::math::expm1(logsum, policy_type());
+	  const double denominator =  - boost::math::expm1(logsum_lower_order, policy_type());
 	  
 	  if (numerator > 0.0) {
 	    if (denominator > 0.0)
@@ -730,7 +758,7 @@ namespace expgram
       std::vector<count_map_type, std::allocator<count_map_type> > counts(index.size());
       thread_ptr_set_type threads(index.size());
       for (int shard = 0; shard < index.size(); ++ shard)
-	threads[shard].reset(new thread_type(mapper_type(*this, counts[shard], shard)));
+	threads[shard].reset(new thread_type(mapper_type(*this, counts[shard], shard, remove_unk)));
       
       for (int shard = 0; shard < index.size(); ++ shard) {
 	threads[shard]->join();
@@ -774,7 +802,7 @@ namespace expgram
       backoffs[shard].clear();
       
       logprobs[shard].reserve(index[shard].size() - counts[shard].offset);
-      logprobs[shard].resize(index[shard].size() - counts[shard].offset, ngram.logprob_min());
+      logprobs[shard].resize(index[shard].size() - counts[shard].offset, expgram::NGram::logprob_min());
       
       backoffs[shard].reserve(index[shard].position_size() - counts[shard].offset);
       backoffs[shard].resize(index[shard].position_size() - counts[shard].offset, 0.0);
@@ -839,7 +867,17 @@ namespace expgram
 	}
       }
       
-      const double discounted_mass =  1.0 - utils::mathop::exp(logsum);
+      using namespace boost::math::policies;
+      typedef policy<domain_error<errno_on_error>,
+	pole_error<errno_on_error>,
+	overflow_error<errno_on_error>,
+	rounding_error<errno_on_error>,
+	evaluation_error<errno_on_error>
+	> policy_type;
+      
+      //const double discounted_mass =  1.0 - utils::mathop::exp(logsum);
+
+      const double discounted_mass =  - boost::math::expm1(logsum, policy_type());
       if (discounted_mass > 0.0) {
 	if (zero_events > 0) {
 	  // distribute probability mass to zero events...
@@ -898,7 +936,7 @@ namespace expgram
       }
       
       for (int shard = 0; shard < threads.size(); ++ shard)
-	threads[shard].reset(new thread_type(mapper_type(*this, discounts, logprobs, backoffs, offsets, ngram.logprob_min(), shard, remove_unk, debug)));
+	threads[shard].reset(new thread_type(mapper_type(*this, discounts, logprobs, backoffs, offsets, shard, remove_unk, debug)));
       
       for (int shard = 0; shard < threads.size(); ++ shard)
 	threads[shard]->join();
