@@ -36,7 +36,7 @@ namespace utils
     
     size_type byte_size(const value_type& x) const
     {
-      return 1 + (uvalue_type(x) > 0x0f);
+      return 1 + bool(uvalue_type(x) & 0xf0);
     }
     
     template <typename Data, typename Index>
@@ -95,7 +95,7 @@ namespace utils
     
     size_type byte_size(const value_type& x) const
     {
-      return (1 + (uvalue_type(x) > 0xff));
+      return (1 + bool(uvalue_type(x) & 0xff00));
     }
     
     template <typename Data, typename Index>
@@ -147,10 +147,15 @@ namespace utils
     
     size_type byte_size(const value_type& x) const
     {
+      return __byte_size((uvalue_type) x);
+    }
+    
+    size_type __byte_size(uvalue_type x) const
+    {
       return (1 
-	      + (uvalue_type(x) > 0xff)
-	      + (uvalue_type(x) > 0xffff)
-	      + (uvalue_type(x) > 0xffffff));
+	      + bool(x & 0xffffff00)
+	      + bool(x & 0xffff0000)
+	      + bool(x & 0xff000000));
     }
     
     template <typename Data, typename Index>
@@ -206,14 +211,19 @@ namespace utils
     
     size_type byte_size(const value_type& x) const
     {
+      return __byte_size((uvalue_type) x);
+    }
+    
+    size_type __byte_size(const value_type& x) const
+    {
       return (1 
-	      + (uvalue_type(x) > 0xff)
-	      + (uvalue_type(x) > 0xffff)
-	      + (uvalue_type(x) > 0xffffff)
-	      + (uvalue_type(x) > 0xfffffffful)
-	      + (uvalue_type(x) > 0xffffffffffull)
-	      + (uvalue_type(x) > 0xffffffffffffull)
-	      + (uvalue_type(x) > 0xffffffffffffffull));
+	      + bool(x & 0xffffffffffffff00ull)
+	      + bool(x & 0xffffffffffff0000ull)
+	      + bool(x & 0xffffffffff000000ull)
+	      + bool(x & 0xffffffff00000000ull)
+	      + bool(x & 0xffffff0000000000ull)
+	      + bool(x & 0xffff000000000000ull)
+	      + bool(x & 0xff00000000000000ull));
     }
     
     template <typename Data, typename Index>

@@ -12,15 +12,18 @@
 #include <utils/space_separator.hpp>
 
 #include <expgram/NGram.hpp>
+#include <expgram/Word.hpp>
 #include <expgram/Vocab.hpp>
+#include <expgram/Sentence.hpp>
 
 typedef boost::filesystem::path path_type;
 
 typedef boost::tokenizer<utils::space_separator>               tokenizer_type;
 typedef std::vector<std::string, std::allocator<std::string> > tokens_type;
 
-typedef expgram::Vocab vocab_type;
-
+typedef expgram::Vocab    vocab_type;
+typedef expgram::Word     word_type;
+typedef expgram::Sentence sentence_type;
 
 path_type ngram_file = "-";
 
@@ -41,13 +44,35 @@ int main(int argc, char** argv)
     if (quantize)
       ngram.quantize();
     
-    std::string  line;
-    tokens_type  tokens;
+    std::string   line;
+    tokens_type   tokens;
+    sentence_type sentence;
 
     const int order = ngram.index.order();
     
     while (std::getline(std::cin, line)) {
       tokenizer_type tokenizer(line);
+      
+      // here, we store in vector<string>.
+      // alternatively you can try: (Remark: sentence_type is simply vector<word_type>)
+      // 
+      // sentence.clear();
+      // sentence.push_back(vocab_type::BOS);
+      // sentence.insert(sentence.end(), tokenizer.begin(), tokenizer.end());
+      // sentence.push_back(vocab_type::EOS);
+      //
+      // and iterate over sentence type...
+      //
+      // or even more: (Remark: we assume id_set is vector<word_type::id_type> )
+      //
+      // id_set.clear();
+      // id_set.push_back(ngram.index.vocab()[vocab_type::BOS]);
+      // for (tokenizer_type::iterator titer = tokenizer.begin(); titer != tokenizer.end(); ++ titer)
+      //   id_set.push_back(ngram.index.vocab()[*titer]);
+      // id_set.push_back(ngram.index.vocab()[vocab_type::EOS]);
+      //
+      // then, you can iterate over id_set
+      
       tokens.clear();
       tokens.push_back(vocab_type::BOS);
       tokens.insert(tokens.end(), tokenizer.begin(), tokenizer.end());
@@ -57,7 +82,7 @@ int main(int argc, char** argv)
       tokens_type::const_iterator titer_end = tokens.end();
       for (tokens_type::const_iterator titer = titer_begin + 1; titer != titer_end; ++ titer) {
 	
-	// ngram access must use containser that supports forward-iterator concepts.
+	// ngram access must use containser that supports random-iterator concepts.
 	// If not sure, use vector!
 
 	tokens_type::const_iterator titer_first = std::max(titer + 1 - order, titer_begin);

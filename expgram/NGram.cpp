@@ -1058,7 +1058,7 @@ namespace expgram
     for (int shard = 0; shard < logbounds.size(); ++ shard)
       threads_reducer[shard]->join();
   }
-  
+
   static const std::string& __BOS = static_cast<const std::string&>(Vocab::BOS);
   static const std::string& __EOS = static_cast<const std::string&>(Vocab::EOS);
   static const std::string& __UNK = static_cast<const std::string&>(Vocab::UNK);
@@ -1286,10 +1286,14 @@ namespace expgram
       const int order_prev = ngram.index[shard].offsets.size() - 1;
       const size_type positions_size = ngram.index[shard].offsets[order_prev] - ngram.index[shard].offsets[order_prev - 1];
       
-      if (positions_first.empty())
+      if (positions_first.empty()) {
+	positions_first.reserve(positions_size);
 	positions_first.resize(positions_size, size_type(0));
-      if (positions_last.empty())
+      }
+      if (positions_last.empty()) {
+	positions_last.reserve(positions_size);
 	positions_last.resize(positions_size, size_type(0));
+      }
 
       std::pair<context_type::const_iterator, size_type> result = ngram.index.traverse(shard, prefix.begin(), prefix.end());
       if (result.first != prefix.end() || result.second == size_type(-1)) {

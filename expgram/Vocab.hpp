@@ -125,8 +125,11 @@ namespace expgram
       return find(id);
     }
     
+    bool exists(const word_type& word) const
+    {
+      return find(word) != word_type::id_type(-1);
+    }
     
-    // do we perform caching...?
     word_type::id_type find(const word_type& word) const
     {
       if (__succinct_hash_mapped) {

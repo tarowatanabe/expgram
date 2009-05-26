@@ -37,10 +37,14 @@ namespace utils
   {
     static inline
     size_t byte_size(Tp x)  { return __byte_size((uint16_t) x); }
+    
+    static const uint16_t mask1 = ~uint16_t(0x7f);
+    static const uint16_t mask2 = mask1 << 7;
+
     static inline
     size_t __byte_size(uint16_t x)
     {
-      return 1 + (x >= 0x80) + (x >= 0x4000);
+      return 1 + bool(x & mask1) + bool(x & mask2);
     }
     
     static inline
@@ -75,10 +79,16 @@ namespace utils
   {
     static inline
     size_t byte_size(Tp x)  { return __byte_size((uint32_t) x); }
+    
+    static const uint32_t mask1 = ~uint32_t(0x7f);
+    static const uint32_t mask2 = mask1 << 7;
+    static const uint32_t mask3 = mask2 << 7;
+    static const uint32_t mask4 = mask3 << 7;
+    
     static inline
     size_t __byte_size(uint32_t x)
     {
-      return 1 + (x >= 0x80) + (x >= 0x4000) + (x >= 0x200000) + (x >= 0x10000000);
+      return 1 + bool(x & mask1) + bool(x & mask2) + bool(x & mask3) + bool(x & mask4);
     }
     
     static inline
@@ -116,19 +126,30 @@ namespace utils
   {
     static inline
     size_t byte_size(Tp x)  { return __byte_size((uint64_t) x); }
+    
+    static const uint64_t mask1 = ~uint64_t(0x7f);
+    static const uint64_t mask2 = mask1 << 7;
+    static const uint64_t mask3 = mask2 << 7;
+    static const uint64_t mask4 = mask3 << 7;
+    static const uint64_t mask5 = mask4 << 7;
+    static const uint64_t mask6 = mask5 << 7;
+    static const uint64_t mask7 = mask6 << 7;
+    static const uint64_t mask8 = mask7 << 7;
+    static const uint64_t mask9 = mask8 << 7;
+
     static inline
     size_t __byte_size(uint64_t x)
     {
       return (1 
-	      + (x >= 0x80) 
-	      + (x >= 0x4000)
-	      + (x >= 0x200000)
-	      + (x >= 0x10000000)
-	      + (x >= 0x800000000ull)
-	      + (x >= 0x40000000000ull)
-	      + (x >= 0x2000000000000ull)
-	      + (x >= 0x100000000000000ull)
-	      + (x >= 0x8000000000000000ull));
+	      + bool(x & mask1) 
+	      + bool(x & mask2)
+	      + bool(x & mask3)
+	      + bool(x & mask4)
+	      + bool(x & mask5)
+	      + bool(x & mask6)
+	      + bool(x & mask7)
+	      + bool(x & mask8)
+	      + bool(x & mask9));
     }
 
     static inline

@@ -7,10 +7,6 @@
 #ifndef __UTILS_TEMPFILE__HPP__
 #define __UTILS_TEMPFILE__HPP__ 1
 
-#include <iostream>
-
-#include <signal.h>
-
 #include <sys/types.h>
 #include <sys/stat.h>
 
@@ -23,10 +19,7 @@
 #include <algorithm>
 #include <stdexcept>
 
-#include <boost/thread/mutex.hpp>
 #include <boost/filesystem.hpp>
-
-#include <utils/filesystem.hpp>
 
 //
 // do we remove singnal installer...?
@@ -39,186 +32,14 @@ namespace utils
   {
   public:
     typedef boost::filesystem::path   path_type;
-
-  private:    
-    typedef struct sigaction sigaction_type;
-    
-    typedef std::vector<path_type>    file_set_type;
-    typedef std::vector<sigaction_type> handle_set_type;
-    
-    typedef boost::mutex              mutex_type;
-    typedef boost::mutex::scoped_lock lock_type;
-
-    static mutex_type mutex;
-    
-    
-    // file management...
-    struct __signal_blocker
-    {
-      __signal_blocker()
-      {
-	sigemptyset(&mask);
-	
-	sigaddset(&mask, SIGHUP);
-	sigaddset(&mask, SIGINT);
-	sigaddset(&mask, SIGQUIT);
-	sigaddset(&mask, SIGILL);
-	sigaddset(&mask, SIGABRT);
-	sigaddset(&mask, SIGKILL);
-	sigaddset(&mask, SIGSEGV);
-	sigaddset(&mask, SIGTERM);
-	sigaddset(&mask, SIGBUS);
-	
-	sigprocmask(SIG_BLOCK, &mask, &mask_saved);
-      }
-      
-      ~__signal_blocker()
-      {
-	sigprocmask(SIG_SETMASK, &mask_saved, 0);
-      }
-
-      sigset_t mask;
-      sigset_t mask_saved;
-    };
-
-    class __files_type
-    {
-      file_set_type files;
-      
-    public:
-      __files_type() {}
-      ~__files_type() throw() { clear(); }
-      
-      void insert(const path_type& file)
-      { 
-	if (file.empty()) return;
-	
-	__signal_blocker __block;
-	
-	lock_type lock(mutex);
-	
-	file_set_type::iterator fiter = std::find(files.begin(), files.end(), file);
-	if (fiter == files.end())
-	  files.push_back(file);
-      }
-      
-      void erase(const path_type& file)
-      {
-	if (file.empty()) return;
-	
-	__signal_blocker __block;
-	
-	lock_type lock(mutex);
-	
-	while (! files.empty()) {
-	  file_set_type::iterator fiter = std::find(files.begin(), files.end(), file);
-	  if (fiter == files.end()) break;
-	  files.erase(fiter);
-	}
-      }
-      
-      void clear()
-      {
-	__signal_blocker __block;
-	
-	lock_type lock(mutex);
-	
-	if (files.empty()) return;
-	
-	for (file_set_type::const_iterator riter = files.begin(); riter != files.end(); ++ riter) {
-	  try {
-	    if (boost::filesystem::exists(*riter))
-	      utils::filesystem::remove_all(*riter);
-	    errno = 0;
-	  }
-	  catch (...) { }
-	} 
-	files.clear();
-      }
-    };
-    
-    // signal management...
-    struct __signals_type
-    {
-      __signals_type() {}
-      
-      handle_set_type handles;
-    };
-    
-    static __files_type   __files;
-    static __signals_type __signals;
-    
-    // callback functions...
-    static void callback(int sig) throw()
-    {
-      // actual clear...
-      __files.clear();
-      
-      // is this safe without mutex???
-      const handle_set_type& handles = __signals.handles;
-      ::sigaction(sig, &handles[sig], 0);
-      ::kill(getpid(), sig);
-    }
-
-    struct __signal_installer
-    {
-      __signal_installer() 
-      {
-	handle_set_type& handles = __signals.handles;
-      
-	int sig_max = SIGHUP;
-	sig_max = std::max(sig_max, SIGINT);
-	sig_max = std::max(sig_max, SIGQUIT);
-	sig_max = std::max(sig_max, SIGILL);
-	sig_max = std::max(sig_max, SIGABRT);
-	sig_max = std::max(sig_max, SIGKILL);
-	sig_max = std::max(sig_max, SIGSEGV);
-	sig_max = std::max(sig_max, SIGTERM);
-	sig_max = std::max(sig_max, SIGBUS);
-      
-	handles.reserve(sig_max);
-	handles.resize(sig_max);
-      
-	sigaction_type sa;
-	sa.sa_handler = callback;
-	sa.sa_flags = SA_RESTART;
-	sigemptyset(&sa.sa_mask);
-      
-	::sigaction(SIGHUP, &sa, &handles[SIGHUP]);
-	::sigaction(SIGINT, &sa, &handles[SIGINT]);
-	::sigaction(SIGQUIT, &sa, &handles[SIGQUIT]);
-	::sigaction(SIGILL, &sa, &handles[SIGILL]);
-	::sigaction(SIGABRT, &sa, &handles[SIGABRT]);
-	::sigaction(SIGKILL, &sa, &handles[SIGKILL]);
-	::sigaction(SIGSEGV, &sa, &handles[SIGSEGV]);
-	::sigaction(SIGTERM, &sa, &handles[SIGTERM]);
-	::sigaction(SIGBUS, &sa, &handles[SIGBUS]);
-      }
-    };
-
-    static void install_signal() {
-      static __signal_installer __installed;
-    }
     
   public:
+    static void insert(const path_type& path);
     
-    // expose only two funcs...
-    
-    static void insert(const path_type& path)
-    {
-      install_signal();
-      __files.insert(path);
-    }
-    
-    static void erase(const path_type& path)
-    {
-      install_signal();
-      __files.erase(path);
-    }
+    static void erase(const path_type& path);
     
     static path_type tmp_dir();
     
-
     static path_type file_name(const std::string& file)
     {
       std::vector<char, std::allocator<char> > buffer(file.size() + 1, 0);

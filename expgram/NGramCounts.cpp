@@ -770,8 +770,14 @@ namespace expgram
     logprob_shard_set_type logprobs(index.size());
     backoff_shard_set_type backoffs(index.size());
     for (int shard = 0; shard < index.size(); ++ shard) {
-      logprobs[shard] = logprob_shard_type(index[shard].size() - counts[shard].offset, ngram.logprob_min());
-      backoffs[shard] = backoff_shard_type(index[shard].position_size() - counts[shard].offset, 0.0);
+      logprobs[shard].clear();
+      backoffs[shard].clear();
+      
+      logprobs[shard].reserve(index[shard].size() - counts[shard].offset);
+      logprobs[shard].resize(index[shard].size() - counts[shard].offset, ngram.logprob_min());
+      
+      backoffs[shard].reserve(index[shard].position_size() - counts[shard].offset);
+      backoffs[shard].resize(index[shard].position_size() - counts[shard].offset, 0.0);
     }
     
     {
