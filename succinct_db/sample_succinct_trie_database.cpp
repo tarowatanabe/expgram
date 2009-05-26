@@ -59,10 +59,17 @@ int main(int argc, char** argv)
       else {
 	
 	bool found = false;
-	for (succinct_db_type::const_cursor citer = succinct_db.cbegin(node_pos); citer != succinct_db.cend(); ++ citer) {
+	
+	succinct_db_type::const_iterator siter = succinct_db.begin(node_pos);
+	succinct_db_type::const_cursor csiter = siter.begin();
+
+	for (succinct_db_type::const_cursor citer = succinct_db.cbegin(node_pos); citer != succinct_db.cend(); ++ citer, ++ csiter) {
 	  
-	  if (succinct_db[citer.node()].size() == iter->second.size() && std::equal(iter->second.begin(), iter->second.end(), succinct_db[citer.node()].begin()))
+	  if ((*citer).size() == iter->second.size() && std::equal(iter->second.begin(), iter->second.end(), (*citer).begin()))
 	    found = true;
+
+	  if (citer.node() != csiter.node())
+	    std::cerr << "different cursor?" << std::endl;
 	}
 	if (! found)
 	  std::cerr << "no data?" << std::endl;

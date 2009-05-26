@@ -102,29 +102,66 @@ namespace expgram
     __path = path;
   }
   
+  template <typename Path, typename Shard>
+  struct TaskWriter
+  {
+    typedef boost::thread                                                  thread_type;
+    typedef boost::shared_ptr<thread_type>                                 thread_ptr_type;
+    typedef std::vector<thread_ptr_type, std::allocator<thread_ptr_type> > thread_ptr_set_type;
+
+    Path path;
+    const Shard& shard;
+    
+    TaskWriter(const Path& _path,
+	       const Shard& _shard)
+      : path(_path),
+	shard(_shard) {}
+
+    void operator()()
+    {
+      shard.write(path);
+    }
+  };
+
+  
   void NGramIndex::write(const path_type& file) const
   {
     typedef utils::repository repository_type;
+
+    typedef TaskWriter<path_type, shard_type> task_type;
+    typedef task_type::thread_type            thread_type;
+    typedef task_type::thread_ptr_set_type    thread_ptr_set_type;
     
     if (! path().empty() && path() == file) return;
     
-    repository_type rep(file, repository_type::write);
-    
-    __vocab.write(rep.path("vocab"));
-    
-    for (int shard = 0; shard < __shards.size(); ++ shard) {
+    {
+      repository_type rep(file, repository_type::write);
       std::ostringstream stream_shard;
-      stream_shard << "ngram-" << std::setfill('0') << std::setw(6) << shard;
-      
-      __shards[shard].write(rep.path(stream_shard.str()));
+      std::ostringstream stream_order;
+      stream_shard << __shards.size();
+      stream_order << __order;
+      rep["shard"] = stream_shard.str();
+      rep["order"] = stream_order.str();
     }
     
-    std::ostringstream stream_shard;
-    std::ostringstream stream_order;
-    stream_shard << __shards.size();
-    stream_order << __order;
-    rep["shard"] = stream_shard.str();
-    rep["order"] = stream_order.str();
+    thread_ptr_set_type threads(__shards.size());
+    
+    {
+      for (int shard = 0; shard < __shards.size(); ++ shard) {
+	std::ostringstream stream_shard;
+	stream_shard << "ngram-" << std::setfill('0') << std::setw(6) << shard;
+	
+	threads[shard].reset(new thread_type(task_type(file / stream_shard.str(), __shards[shard])));
+      }
+      
+      // main thread will simply dump vocab
+      __vocab.write(file / "vocab");
+      
+      for (int shard = 0; shard < __shards.size(); ++ shard)
+	threads[shard]->join();
+    }
+    
+    threads.clear();
   }
 
 

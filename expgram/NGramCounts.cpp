@@ -1270,24 +1270,66 @@ namespace expgram
     shards[shard].write(rep.path(stream_shard.str()));
   }
 
+  template <typename Path, typename Shard>
+  struct TaskWriter
+  {
+    typedef boost::thread                                                  thread_type;
+    typedef boost::shared_ptr<thread_type>                                 thread_ptr_type;
+    typedef std::vector<thread_ptr_type, std::allocator<thread_ptr_type> > thread_ptr_set_type;
+
+    Path path;
+    const Shard& shard;
+    
+    TaskWriter(const Path& _path,
+	       const Shard& _shard)
+      : path(_path),
+	shard(_shard) {}
+    
+    void operator()()
+    {
+      shard.write(path);
+    }
+  };
+
   template <typename Path, typename Shards>
   inline
   void write_shards(const Path& path, const Shards& shards)
   {
     typedef utils::repository repository_type;
     
-    repository_type rep(path, repository_type::write);
+    typedef TaskWriter<Path, typename Shards::value_type>    task_type;
+    typedef typename task_type::thread_type         thread_type;
+    typedef typename task_type::thread_ptr_set_type thread_ptr_set_type;
     
-    for (int shard = 0; shard < shards.size(); ++ shard) {
-      std::ostringstream stream_shard;
-      stream_shard << "ngram-" << std::setfill('0') << std::setw(6) << shard;
+    {
+      repository_type rep(path, repository_type::write);
       
-      shards[shard].write(rep.path(stream_shard.str()));
+      std::ostringstream stream_shard;
+      stream_shard << shards.size();
+      rep["shard"] = stream_shard.str();
     }
     
-    std::ostringstream stream_shard;
-    stream_shard << shards.size();
-    rep["shard"] = stream_shard.str();
+    thread_ptr_set_type threads(shards.size());
+    
+    {
+      for (int shard = 1; shard < shards.size(); ++ shard) {
+	std::ostringstream stream_shard;
+	stream_shard << "ngram-" << std::setfill('0') << std::setw(6) << shard;
+	
+	threads[shard].reset(new thread_type(task_type(path / stream_shard.str(), shards[shard])));
+      }
+      
+      // dump for root...
+      std::ostringstream stream_shard;
+      stream_shard << "ngram-" << std::setfill('0') << std::setw(6) << 0;
+      task_type(path / stream_shard.str(), shards[0])();
+      
+      // terminate...
+      for (int shard = 1; shard < shards.size(); ++ shard)
+	threads[shard]->join();
+    }
+    
+    threads.clear();
   }
   
   void NGramCounts::open(const path_type& path, const size_type shard_size, const bool unique)

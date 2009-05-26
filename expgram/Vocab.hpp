@@ -101,7 +101,7 @@ namespace expgram
       else {
 	__succinct_hash_mapped.reset(new succinct_hash_mapped_type(path));
 	
-	const size_type cache_size = std::max(size_type(utils::bithack::next_largest_power2(__succinct_hash_mapped->size() >> 4)),
+	const size_type cache_size = std::max(size_type(utils::bithack::next_largest_power2(__succinct_hash_mapped->size() >> 5)),
 					      size_type(1024 * 16));
 	
 	__cache_word.reserve(cache_size);

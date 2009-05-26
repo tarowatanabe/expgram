@@ -323,31 +323,77 @@ namespace succinctdb
     
   public:    
     // structures supported by read-mode
-    // TODO!
-    typedef typename succinct_trie_type::const_iterator         const_iterator;
-    typedef typename succinct_trie_type::iterator               iterator;
-    typedef typename succinct_trie_type::const_reverse_iterator const_reverse_iterator;
-    typedef typename succinct_trie_type::reverse_iterator       reverse_iterator;
-    typedef typename succinct_trie_type::const_cursor           const_cursor;
-    typedef typename succinct_trie_type::cursor                 cursor;
+    
+    struct cursor : public succinct_trie_type::cursor
+    {
+      typedef typename succinct_trie_type::cursor base_type;
+      typedef succinct_trie_database<Key,Data,Alloc> impl_type;
+      
+      cursor() : base_type(), __impl() {}
+      cursor(const base_type& x, const impl_type* impl) : base_type(x), __impl(impl) {}
+      
+      value_type data() const { return __impl->operator[](base_type::node()); }
+      value_type operator*() const { return data(); }
 
+      const impl_type* __impl;
+    };
+    typedef cursor const_cursor;
+    
+    struct iterator : public succinct_trie_type::iterator
+    {
+      typedef typename succinct_trie_type::iterator base_type;
+      typedef succinct_trie_database<Key,Data,Alloc> impl_type;
+     
+      iterator() : base_type(), __impl() {}
+      iterator(const base_type& x, const impl_type* impl) : base_type(x), __impl(impl) {}
+
+      cursor begin() const { return cursor(base_type::begin(), __impl); }
+      cursor end() const { return cursor(base_type::end(), __impl); }
+      
+      value_type data() const { return __impl->operator[](base_type::node()); }
+      value_type operator*() const { return data(); }
+      
+      const impl_type* __impl;
+    };
+    typedef iterator const_iterator;
+    
+    struct reverse_iterator : public succinct_trie_type::reverse_iterator
+    {
+      typedef typename succinct_trie_type::reverse_iterator base_type;
+      typedef succinct_trie_database<Key,Data,Alloc> impl_type;
+      
+      reverse_iterator() : base_type(), __impl() {}
+      reverse_iterator(const base_type& x, const impl_type* impl) : base_type(x), __impl(impl) {}
+      
+      cursor begin() const { return cursor(base_type::begin(), __impl); }
+      cursor end() const { return cursor(base_type::end(), __impl); }
+      
+      value_type data() const { return __impl->operator[](base_type::node()); }
+      value_type operator*() const { return data(); }
+
+      const impl_type* __impl;
+    };
+    typedef reverse_iterator const_reverse_iterator;
+    
+    
+    
   public:
     // operations supported by read-mode
     
-    const_iterator begin(size_type node_pos) const { return __succinct_trie->begin(node_pos); }
-    const_iterator end(size_type node_pos)   const { return __succinct_trie->end(node_pos); }
-    const_iterator begin() const { return __succinct_trie->begin(); }
-    const_iterator end()   const { return __succinct_trie->end(); }
+    const_iterator begin(size_type node_pos) const { return const_iterator(__succinct_trie->begin(node_pos), this); }
+    const_iterator end(size_type node_pos)   const { return const_iterator(__succinct_trie->end(node_pos), this); }
+    const_iterator begin() const { return const_iterator(__succinct_trie->begin(), this); }
+    const_iterator end()   const { return const_iterator(__succinct_trie->end(), this); }
     
-    const_reverse_iterator rbegin(size_type node_pos) const { return __succinct_trie->rbegin(node_pos); }
-    const_reverse_iterator rend(size_type node_pos)   const { return __succinct_trie->rend(node_pos); }
-    const_reverse_iterator rbegin() const { return __succinct_trie->rbegin(); }
-    const_reverse_iterator rend()   const { return __succinct_trie->rend(); }
-
-    const_cursor cbegin(size_type node_pos) const { return __succinct_trie->cbegin(node_pos); }
-    const_cursor cend(size_type node_pos)   const { return __succinct_trie->cend(node_pos); }
-    const_cursor cbegin() const { return __succinct_trie->cbegin(); }
-    const_cursor cend()   const { return __succinct_trie->cend(); }
+    const_reverse_iterator rbegin(size_type node_pos) const { return const_reverse_iterator(__succinct_trie->rbegin(node_pos), this); }
+    const_reverse_iterator rend(size_type node_pos)   const { return const_reverse_iterator(__succinct_trie->rend(node_pos), this); }
+    const_iterator rbegin() const { return const_iterator(__succinct_trie->rbegin(), this); }
+    const_iterator rend()   const { return const_iterator(__succinct_trie->rend(), this); }
+    
+    const_cursor cbegin(size_type node_pos) const { return const_cursor(__succinct_trie->cbegin(node_pos), this); }
+    const_cursor cend(size_type node_pos)   const { return const_cursor(__succinct_trie->cend(node_pos), this); }
+    const_cursor cbegin() const { return const_cursor(__succinct_trie->cbegin(), this); }
+    const_cursor cend()   const { return const_cursor(__succinct_trie->cend(), this); }
       
     size_type find(const key_type* key_buf, size_type key_size) const
     {
