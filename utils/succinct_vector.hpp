@@ -456,9 +456,9 @@ namespace utils
 	throw std::runtime_error("not a succinct vector...");
       
       // setup cache...
-      const size_type select0_size = std::max(size_type(utils::bithack::next_largest_power2((size() - __rank_high.back()) >> 13)),
+      const size_type select0_size = std::max(size_type(utils::bithack::next_largest_power2((size() - __rank_high.back()) >> 10)),
 					      size_type(1024 * 32));
-      const size_type select1_size = std::max(size_type(utils::bithack::next_largest_power2(__rank_high.back() >> 13)),
+      const size_type select1_size = std::max(size_type(utils::bithack::next_largest_power2(__rank_high.back() >> 10)),
 					      size_type(1024 * 32));
       
       __cache_select0.reserve(select0_size);

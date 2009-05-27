@@ -320,7 +320,7 @@ template <typename Tp, typename Alloc=std::allocator<Tp> >
       if (titer->second != "vertical-coded")
 	throw std::runtime_error("not a vertica-coded");
       
-      const size_type cache_size = std::max(size_type(utils::bithack::next_largest_power2(size() >> 10)),
+      const size_type cache_size = std::max(size_type(utils::bithack::next_largest_power2(size() >> 7)),
 					    size_type(1024 * 32));
       
       __cache.reserve(cache_size);
