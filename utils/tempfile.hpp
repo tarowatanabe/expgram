@@ -13,6 +13,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <cstdlib>
+#include <cstring>
 
 #include <string>
 #include <vector>
