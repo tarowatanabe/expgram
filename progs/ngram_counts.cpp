@@ -185,6 +185,9 @@ void accumulate_counts(const path_set_type& __paths,
     for (path_set_type::const_iterator piter = paths.begin(); piter != piter_end; ++ piter) {
       if (! boost::filesystem::exists(*piter))
 	throw std::runtime_error(std::string("no file? ") + piter->file_string());
+
+      if (debug)
+	std::cerr << "file: " << piter->file_string() << std::endl;
       
       utils::compress_istream is(*piter, 1024 * 1024);
       std::string line;
@@ -233,6 +236,10 @@ void accumulate_counts(const path_set_type& __paths,
     for (path_set_type::const_iterator piter = paths.begin(); piter != piter_end; ++ piter) {
       if (! boost::filesystem::exists(*piter))
 	throw std::runtime_error(std::string("no file? ") + piter->file_string());
+      
+      if (debug)
+	std::cerr << "file: " << piter->file_string() << std::endl;
+
       queue.push(*piter);
     }
     
@@ -283,6 +290,9 @@ void accumulate_corpus(const path_set_type& paths,
       if (! boost::filesystem::exists(*piter))
 	throw std::runtime_error(std::string("no file? ") + piter->file_string());
       
+      if (debug)
+	std::cerr << "file: " << piter->file_string() << std::endl;
+      
       utils::compress_istream is(*piter, 1024 * 1024);
       std::string line;
       while (std::getline(is, line))
@@ -330,6 +340,10 @@ void accumulate_corpus(const path_set_type& paths,
     for (path_set_type::const_iterator piter = paths.begin(); piter != piter_end; ++ piter) {
       if (! boost::filesystem::exists(*piter))
 	throw std::runtime_error(std::string("no file? ") + piter->file_string());
+
+      if (debug)
+	std::cerr << "file: " << piter->file_string() << std::endl;
+      
       queue.push(*piter);
     }
     

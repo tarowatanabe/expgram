@@ -47,6 +47,8 @@ path_type counts_list_file;
 
 path_type output_file;
 
+path_type prog_name;
+
 int max_order = 5;
 
 bool map_line = false;
@@ -200,10 +202,13 @@ void reduce_counts_root(path_map_type& paths_counts)
       
       std::string line;
       while (std::getline(is, line)) {
+	if (line.empty()) continue;
+
 	if (! boost::filesystem::exists(line))
 	  throw std::runtime_error(std::string("no counts file? ") + line);
 	
 	paths_counts[order - 1].push_back(line);
+	utils::tempfile::insert(line);
       }
     }
 }
@@ -219,17 +224,31 @@ void reduce_counts_others(const path_map_type& paths_counts)
   const int max_order = paths_counts.size();
   
   for (int order = 1; order <= max_order; ++ order) {
-    ostream_type os;
-    os.push(boost::iostreams::gzip_compressor());
-    os.push(odevice_type(0, path_tag, 4096));
+
+    {
+      ostream_type os;
+      os.push(boost::iostreams::gzip_compressor());
+      os.push(odevice_type(0, path_tag, 4096));
+      
+      path_set_type::const_iterator piter_end = paths_counts[order - 1].end();
+      for (path_set_type::const_iterator piter = paths_counts[order - 1].begin(); piter != piter_end; ++ piter) {
+	if (! boost::filesystem::exists(*piter))
+	  throw std::runtime_error(std::string("no count file? ") + piter->file_string());
+	
+	if (debug >= 2)
+	  std::cerr << "order: " << order << " rank: " << mpi_rank << " file: " << piter->file_string() << std::endl;
+	
+	os << piter->file_string() << '\n';
+      }
+      
+      os << '\n';
+    }
     
     path_set_type::const_iterator piter_end = paths_counts[order - 1].end();
-    for (path_set_type::const_iterator piter = paths_counts[order - 1].begin(); piter != piter_end; ++ piter) {
-      if (! boost::filesystem::exists(*piter))
-	throw std::runtime_error(std::string("no count file? ") + piter->file_string());
-      os << piter->file_string() << '\n';
-    }
+    for (path_set_type::const_iterator piter = paths_counts[order - 1].begin(); piter != piter_end; ++ piter)
+      utils::tempfile::erase(*piter);
   }
+  
   
 }
 
@@ -264,7 +283,8 @@ struct MapReduceLine
   void mapper_root(const path_set_type& paths,
 		   const path_type& output_path,
 		   path_map_type&   paths_counts,
-		   const double max_malloc)
+		   const double max_malloc,
+		   const int debug)
   {
     const int mpi_rank = MPI::COMM_WORLD.Get_rank();
     const int mpi_size = MPI::COMM_WORLD.Get_size();
@@ -290,6 +310,9 @@ struct MapReduceLine
     for (path_set_type::const_iterator piter = paths.begin(); piter != piter_end; ++ piter) {
       if (! boost::filesystem::exists(*piter))
 	throw std::runtime_error(std::string("no file? ") + piter->file_string());
+
+      if (debug)
+	std::cerr << "file: " << piter->file_string() << std::endl;
     
       utils::compress_istream is(*piter, 1024 * 1024);
     
@@ -416,7 +439,8 @@ struct MapReduceFile
   void mapper_root(const path_set_type& paths,
 		   const path_type& output_path,
 		   path_map_type&   paths_counts,
-		   const double max_malloc)
+		   const double max_malloc,
+		   const int debug)
   {
     const int mpi_rank = MPI::COMM_WORLD.Get_rank();
     const int mpi_size = MPI::COMM_WORLD.Get_size();
@@ -439,6 +463,9 @@ struct MapReduceFile
 	  if (! boost::filesystem::exists(*piter))
 	    throw std::runtime_error(std::string("no file? ") + piter->file_string());
 	  
+	  if (debug)
+	    std::cerr << "file: " << piter->file_string() << std::endl;
+	  
 	  stream[rank]->write(piter->file_string());
 	  ++ piter;
 	  found = true;
@@ -449,6 +476,10 @@ struct MapReduceFile
 	  throw std::runtime_error(std::string("no file? ") + piter->file_string());
 	
 	if (queue.push(*piter, true)) {
+	  
+	  if (debug)
+	    std::cerr << "file: " << piter->file_string() << std::endl;
+	  
 	  ++ piter;
 	  found = true;
 	}
@@ -501,8 +532,13 @@ struct MapReduceFile
     std::auto_ptr<thread_type> thread(new thread_type(task_type(queue, output_path, paths_counts, max_malloc)));
     
     std::string file;
-    while (stream.read(file))
+    while (stream.read(file)) {
+      
+      if (debug >= 2)
+	std::cerr << "rank: " << mpi_rank << " file: " << file << std::endl;
+
       queue.push(file);
+    }
     file.clear();
     queue.push(file);
     
@@ -524,13 +560,13 @@ void accumulate_corpus_root(const path_set_type& paths,
     typedef GoogleNGramCounts::TaskLine<GoogleNGramCounts::TaskCorpus> task_type;
     typedef MapReduceLine<task_type> map_reduce_type;
     
-    map_reduce_type::mapper_root(paths, output_path, paths_counts, max_malloc);
+    map_reduce_type::mapper_root(paths, output_path, paths_counts, max_malloc, debug);
     
   } else {
     typedef GoogleNGramCounts::TaskFile<GoogleNGramCounts::TaskCorpus> task_type;
     typedef MapReduceFile<task_type> map_reduce_type;
     
-    map_reduce_type::mapper_root(paths, output_path, paths_counts, max_malloc);
+    map_reduce_type::mapper_root(paths, output_path, paths_counts, max_malloc, debug);
   }
 }
 
@@ -546,13 +582,13 @@ void accumulate_counts_root(const path_set_type& paths,
     typedef GoogleNGramCounts::TaskLine<GoogleNGramCounts::TaskCounts> task_type;
     typedef MapReduceLine<task_type> map_reduce_type;
     
-    map_reduce_type::mapper_root(paths, output_path, paths_counts, max_malloc);
+    map_reduce_type::mapper_root(paths, output_path, paths_counts, max_malloc, debug);
     
   } else {
     typedef GoogleNGramCounts::TaskFile<GoogleNGramCounts::TaskCounts> task_type;
     typedef MapReduceFile<task_type> map_reduce_type;
     
-    map_reduce_type::mapper_root(paths, output_path, paths_counts, max_malloc);
+    map_reduce_type::mapper_root(paths, output_path, paths_counts, max_malloc, debug);
   }
 }
 
@@ -615,6 +651,8 @@ int getoptions(int argc, char** argv)
     ("counts-list",  po::value<path_type>(&counts_list_file),  "counts list file")
     
     ("output",       po::value<path_type>(&output_file), "output directory")
+
+    ("prog",   po::value<path_type>(&prog_name),   "this binary")
     
     ("order",      po::value<int>(&max_order),     "ngram order")
     ("map-line",   po::bool_switch(&map_line),     "map by lines, not by files")
@@ -627,8 +665,10 @@ int getoptions(int argc, char** argv)
   po::store(po::parse_command_line(argc, argv, desc), vm);
   po::notify(vm);
   
-  if (vm.count("help") && mpi_rank == 0) {
-    std::cout << argv[0] << " [options]" << '\n' << desc << '\n';
+  if (vm.count("help")) {
+
+    if (mpi_rank == 0)
+      std::cout << argv[0] << " [options]" << '\n' << desc << '\n';
     return 1;
   }
   

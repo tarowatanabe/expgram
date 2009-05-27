@@ -39,7 +39,7 @@ namespace utils
     size_t byte_size(Tp x)  { return __byte_size((uint16_t) x); }
     
     static const uint16_t mask1 = ~uint16_t(0x7f);
-    static const uint16_t mask2 = mask1 << 7;
+    static const uint16_t mask2 = uint16_t(mask1 << 7);
 
     static inline
     size_t __byte_size(uint16_t x)
