@@ -54,35 +54,34 @@ They performed similar to threaded version, but differ in that you have to expli
 API: Sample codes exists at sample directory, ngram.cc and ngram_counts.cc
 
 	NGram:
-		.operator()(first, last) : return backoff log-probabilities for ngram. Iterator must supports random-access concepts, such as
+		operator()(first, last) : return backoff log-probabilities for ngram. Iterator must supports random-access concepts, such as
 			     	  	vector's iterator.
 
-		.logprob(first, last) : synonym to operator()(first, last)
+		logprob(first, last) : synonym to operator()(first, last)
 		
-		.logbound(first, last) : Return upper-bound log-probability for ngram. Specifically, P_{bound}(w_n | w_i ... w_{n-1}) = max_{w_{i-1}} P(w_n | w_{i-1}, ... w_{n-1})
-				      	It is useful for a task, such as decoder, when we want to pre-compute heuristic score in advance.
+		logbound(first, last) : Return upper-bound log-probability for ngram. Specifically, P_{bound}(w_n | w_i ... w_{n-1}) = max_{w_{i-1}} P(w_n | w_{i-1}, ... w_{n-1})
+				      	It is useful for a task, such as decoding, when we want to pre-compute heuristic score in advance.
 		
-		.exists(first, last) : check whether a particular ngram exists or not.
+		exists(first, last) : check whether a particular ngram exists or not.
 
-		.index.order(): returns ngram's maximum order
+		index.order(): returns ngram's maximum order
 
 	NGramCounts:
-		.operator()(first, last) : return ngram count. if an ngram [first, last) does not exist, return zero.
+		operator()(first, last) : return ngram count. if an ngram [first, last) does not exist, return zero.
 
-		.count(first, last) : synonym to operator()(first, last)
+		count(first, last) : synonym to operator()(first, last)
 		
-		.exists(first, last) : check whether a particula ngram exists or not.
+		exists(first, last) : check whether a particula ngram exists or not.
 			    
-		.index.order(): returns ngram's maximum order
+		index.order(): returns ngram's maximum order
 	
 	Internally, words (assuming std::string) are autoamtically converted into word_type (expgram::Word), then word_id
-	(expgram::Word::id_type). If you want to avoid such conversion on-the-fly, you can pre convert them a word by
+	(expgram::Word::id_type). If you want to avoid such conversion on-the-fly, you can pre convert them by
 		
 		expgram::Word::id_type word_id = {ngram or ngram_counts}.index.vocab()[word];
 	
-	All the operations are thread-safe, meaning that concurrent program may call any API any time without locking!
+	All the operations are thread-safe, meaning that concurrent programs may call any API any time without locking!
 	(except for ngram loading...)
-
 
 
 Requirements:
