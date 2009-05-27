@@ -62,10 +62,13 @@ mpi_device.hpp \
 mpi_device_bcast.hpp \
 mpi_stream.hpp \
 mpi_traits.hpp \
-pfor_vector.hpp \
+packed_device.hpp \
 packed_vector.hpp \
+pfor_device.hpp \
+pfor_vector.hpp \
 regex_group.hpp \
 repository.hpp \
+resource.hpp \
 sgi_hash_map.hpp \
 sgi_hash_set.hpp \
 simple_vector.hpp \
