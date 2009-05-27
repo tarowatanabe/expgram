@@ -1925,6 +1925,7 @@ namespace expgram
 	context_count_queue_ptr_type context_queue(pqueue.top());
 	pqueue.pop();
 	
+	
 	context.clear();
 	ngram_context_type::const_iterator niter_end = context_queue->first.end();
 	for (ngram_context_type::const_iterator niter = context_queue->first.begin(); niter != niter_end; ++ niter) {
