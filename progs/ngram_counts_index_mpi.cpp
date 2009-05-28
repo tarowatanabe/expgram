@@ -47,6 +47,7 @@ path_type output_file;
 path_type prog_name;
 
 bool unique = false;
+
 int debug = 0;
 
 enum {
@@ -55,8 +56,6 @@ enum {
   size_tag,
   sync_tag,
 };
-
-
 
 void index_ngram_mapper_root(intercomm_type& reducer,
 			     const path_type& path,
@@ -224,7 +223,7 @@ void index_unigram(const path_type& path, const path_type& output, ngram_type& n
   
   const int mpi_rank = MPI::COMM_WORLD.Get_rank();
   const int mpi_size = MPI::COMM_WORLD.Get_size();
-
+  
   ngram.index.reserve(mpi_size);
   ngram.counts.reserve(mpi_size);
   
@@ -232,14 +231,7 @@ void index_unigram(const path_type& path, const path_type& output, ngram_type& n
   ngram.counts.resize(mpi_size);
   
   if (mpi_rank == 0) {
-    
     typedef std::vector<word_type, std::allocator<word_type> > word_set_type;
-    
-    // prepare directory structures...
-    ngram.write_prepare(output);
-    
-    repository_type repository(output, repository_type::read);
-    repository_type rep(repository.path("index"), repository_type::read);
     
     const path_type unigram_dir = path / "1gms";
     const path_type vocab_file = unigram_dir / "vocab.gz";
@@ -270,8 +262,11 @@ void index_unigram(const path_type& path, const path_type& output, ngram_type& n
       ++ word_id;
     }
     
+    const path_type path_vocab = utils::tempfile::directory_name(utils::tempfile::tmp_dir() / "expgram.vocab.XXXXXX");
+    utils::tempfile::insert(path_vocab);
+    
     vocab_type& vocab = ngram.index.vocab();
-    vocab.open(rep.path("vocab"), 1024 * 1024 * 16);
+    vocab.open(path_vocab, words.size() >> 1);
     
     word_set_type::const_iterator witer_end = words.end();
     for (word_set_type::const_iterator witer = words.begin(); witer != witer_end; ++ witer)
@@ -281,7 +276,11 @@ void index_unigram(const path_type& path, const path_type& output, ngram_type& n
     word_set_type(words).swap(words);
     
     vocab.close();
-    vocab.open(rep.path("vocab"));
+    vocab.open(path_vocab);
+    
+    // prepare directory structures...
+    // write-prepare will create directories, and dump vocabulary....
+    ngram.write_prepare(output);
     
     int unigram_size = word_id;
     MPI::COMM_WORLD.Bcast(&unigram_size, 1, MPI::INT, 0);
@@ -417,6 +416,8 @@ void index_ngram_mapper(intercomm_type& reducer, const PathSet& paths, ngram_typ
   std::string line;
   tokens_type tokens;
   
+  // any faster merging...?
+
   for (int i = 0; i < paths.size(); ++ i) {
     
     istreams.push_back(istream_ptr_type(new utils::compress_istream(paths[i], 1024 * 1024)));
@@ -482,12 +483,8 @@ void index_ngram_mapper(intercomm_type& reducer, const PathSet& paths, ngram_typ
       context_stream->first.insert(context_stream->first.end(), tokens.begin(), tokens.end() - 1);
       context_stream->second.first = atoll(tokens.back().c_str());
       
-      if (context_stream->first == context)
-	count += context_stream->second.first;
-      else {
-	pqueue.push(context_stream);
-	break;
-      }
+      pqueue.push(context_stream);
+      break;
     }
     
     if ((iteration & iteration_mask) == iteration_mask && mpi_flush_devices(stream, device))
@@ -537,6 +534,7 @@ void index_ngram_mapper_root(intercomm_type& reducer, const path_type& path, ngr
     const path_type index_file = ngram_dir / stream_index.str();
 
     path_set_type paths_ngram;
+    
     if (boost::filesystem::exists(ngram_dir) && boost::filesystem::exists(index_file)) {
       utils::compress_istream is_index(index_file);
       std::string line;
@@ -809,26 +807,30 @@ void index_ngram_reducer(intercomm_type& mapper, ngram_type& ngram, Stream& os_c
     }
   }
   
-  context_type        context;
+  ngram_context_type  context;
   context_count_type  context_count;
   
   context_count.first.clear();
   context_count.second = 0;
   
-  for (size_t iteration = 0; ! pqueue.empty(); ++ iteration) {
+  while (! pqueue.empty()) {
     context_count_stream_ptr_type context_stream(pqueue.top());
     pqueue.pop();
     
-    context.clear();
-    ngram_context_type::const_iterator niter_end = context_stream->first.end();
-    for (ngram_context_type::const_iterator niter = context_stream->first.begin(); niter != niter_end; ++ niter)
-      context.push_back(vocab_map[escape_word(*niter)]);
-    
-    if (context_count.first.size() != context.size() || ! std::equal(context_count.first.begin(), context_count.first.end(), context.begin())) {
-      if (context_count.second > 0)
-	queue.push_swap(context_count);
+    if (context.size() != context_stream->first.size() || ! std::equal(context.begin(), context.end(), context_stream->first.begin())) {
       
-      context_count.first.swap(context);
+      if (context_count.second > 0) {
+	context_count.first.clear();
+	ngram_context_type::const_iterator citer_end = context.end();
+	for (ngram_context_type::const_iterator citer = context.begin(); citer != citer_end; ++ citer)
+	  context_count.first.push_back(vocab_map[escape_word(*citer)]);
+	
+	queue.push_swap(context_count);
+      }
+      
+      context.clear();
+      context.insert(context.end(), context_stream->first.begin(), context_stream->first.end());
+      
       context_count.second = 0;
     }
     
@@ -841,7 +843,6 @@ void index_ngram_reducer(intercomm_type& mapper, ngram_type& ngram, Stream& os_c
       
       if (tokens.size() < 2) continue;
       
-      context_count_stream_ptr_type context_stream(new context_count_stream_type());
       context_stream->first.clear();
       context_stream->first.insert(context_stream->first.end(), tokens.begin(), tokens.end() - 1);
       context_stream->second.first = atoll(tokens.back().c_str());
@@ -851,6 +852,14 @@ void index_ngram_reducer(intercomm_type& mapper, ngram_type& ngram, Stream& os_c
     }
   }
   
+  if (context_count.second > 0) {
+    context_count.first.clear();
+    ngram_context_type::const_iterator citer_end = context.end();
+    for (ngram_context_type::const_iterator citer = context.begin(); citer != citer_end; ++ citer)
+      context_count.first.push_back(vocab_map[escape_word(*citer)]);
+    
+    queue.push_swap(context_count);
+  }
   
   queue.push(std::make_pair(context_type(), count_type(0)));
   thread->join();
@@ -964,7 +973,6 @@ void index_ngram_unique(const path_type& path, ngram_type& ngram, Stream& os_cou
 	  continue;
 	
 	// check if the rank of this ngram data is mpi_rank...
-	
 	if (order == 2) {
 	  context_count.first.clear();
 	  tokens_type::const_iterator titer_end = tokens.end() - 1;
@@ -1020,7 +1028,7 @@ int getoptions(int argc, char** argv)
 
     ("prog",   po::value<path_type>(&prog_name),   "this binary")
     
-    ("unique", po::bool_switch(&unique),           "unique counts (i.e. ngram counts from LDC/GSK)")
+    ("unique", po::bool_switch(&unique),                                             "unique counts (i.e. ngram counts from LDC/GSK)")
     
     ("debug", po::value<int>(&debug)->implicit_value(1), "debug level")
     ("help", "help message");

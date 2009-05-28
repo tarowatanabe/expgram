@@ -377,6 +377,10 @@ namespace utils
     bool empty() const { return __size == 0; }
     bool is_open() const { return __block.is_open(); }
     
+    uint64_t size_bytes() const { return __block.size_bytes() + __rank_high.size_bytes() + __rank_low.size_bytes(); }
+    uint64_t size_compressed() const { return __block.size_compressed() + __rank_high.size_compressed() + __rank_low.size_compressed(); }
+    uint64_t size_cache() const { return __cache_select0.size() * sizeof(cache_type) + __cache_select1.size() * sizeof(cache_type); }
+    
     void clear()
     {
       __size = 0;
@@ -575,6 +579,15 @@ namespace utils
     }
     size_type size() const { return __size; }
     bool empty() const { return __size == 0; }
+
+    uint64_t size_bytes() const
+    { 
+      return (__block.size() * sizeof(block_type)
+	      + __rank_high.size() * sizeof(rank_high_type)
+	      + __rank_low.size() * sizeof(rank_low_type));
+    }
+    uint64_t size_compressed() const { return size_bytes(); }
+    uint64_t size_cache() const { return 0; }
     
     void clear()
     {

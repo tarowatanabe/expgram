@@ -23,13 +23,15 @@ int main(int argc, char** argv)
   try {
     if (getoptions(argc, argv) != 0) 
       return 1;
+
+    if (output_file.empty())
+      throw std::runtime_error("no output file?");
     
     expgram::NGram ngram(ngram_file, shards, debug);
     
     ngram.quantize();
     
-    if (! output_file.empty())
-      ngram.write(output_file);
+    ngram.write(output_file);
   }
   catch (std::exception& err) {
     std::cerr << "error: " << err.what() << std::endl;

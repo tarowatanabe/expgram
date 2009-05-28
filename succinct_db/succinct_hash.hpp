@@ -207,6 +207,10 @@ namespace succinctdb
     }
     path_type path() const { return bins.path().parent_path(); }
     
+    uint64_t size_bytes() const { return bins.size_bytes() + nexts.size_bytes() + keys.size_bytes() + offs.size_bytes(); }
+    uint64_t size_compressed() const { return bins.size_compressed() + nexts.size_compressed() + keys.size_compressed() + offs.size_compressed(); }
+    uint64_t size_cache() const { return bins.size_cache() + nexts.size_cache() + keys.size_cache() + offs.size_cache(); }
+    
     pos_type find(const key_type* buf, size_type size, hash_value_type hash) const
     {
       const size_type hash_mask = bins.size() - 1;
@@ -492,6 +496,19 @@ namespace succinctdb
     size_type bucket_size() const
     {
       return bins.size();
+    }
+
+    uint64_t size_bytes() const
+    {
+      return bins.size() * sizeof(pos_type) + nexts.size() * sizeof(pos_type) + keys.size() * sizeof(key_type) + offs.size_bytes();
+    }
+    uint64_t size_compressed() const
+    {
+      return bins.size() * sizeof(pos_type) + nexts.size() * sizeof(pos_type) + keys.size() * sizeof(key_type) + offs.size_compressed();
+    }
+    uint64_t size_cache() const
+    {
+      return offs.size_cache();
     }
     
     pos_type insert(const key_type* buf, size_type size, hash_value_type hash)

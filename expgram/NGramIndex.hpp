@@ -18,6 +18,7 @@
 
 #include <expgram/Word.hpp>
 #include <expgram/Vocab.hpp>
+#include <expgram/Stat.hpp>
 
 #include <utils/packed_vector.hpp>
 #include <utils/succinct_vector.hpp>
@@ -40,6 +41,8 @@ namespace expgram
     
     typedef uint64_t                           hash_value_type;
     typedef utils::hashmurmur<hash_value_type> hasher_type;
+
+    typedef Stat stat_type;
     
   public:
     struct Shard
@@ -72,6 +75,16 @@ namespace expgram
       size_type size() const { return offsets.back(); }
       bool empty() const { return offsets.empty(); }
       path_type path() const { return ids.path().parent_path(); }
+
+      stat_type stat_index() const
+      {
+	return stat_type(ids.size_bytes(), ids.size_compressed(), ids.size_cache());
+      }
+      
+      stat_type stat_pointer() const
+      {
+	return stat_type(position_size() * sizeof(uint32_t), positions.size_compressed(), positions.size_cache());
+      }
       
       size_type parent(size_type pos) const
       {
@@ -257,10 +270,42 @@ namespace expgram
     inline const int& order() const { return __order; }
     inline       int& order()       { return __order; }
     
+    size_type ngram_size(int order) const
+    {
+      switch (order) {
+      case 0: return 0;
+      case 1: return __shards.front().offsets[1];
+      default:
+	size_type sum = 0;
+	for (int shard = 0; shard < __shards.size(); ++ shard)
+	  sum += __shards[shard].offsets[order] - __shards[shard].offsets[order - 1];
+	return sum;
+      }
+    }
+    
+    stat_type stat_index() const
+    {
+      stat_type stat;
+      for (int shard = 0; shard < __shards.size(); ++ shard)
+	stat += __shards[shard].stat_index();
+      return stat;
+    }
+    
+    stat_type stat_pointer() const
+    {
+      stat_type stat;
+      for (int shard = 0; shard < __shards.size(); ++ shard)
+	stat += __shards[shard].stat_pointer();
+      return stat;
+    }
+    
+    stat_type stat_vocab() const
+    {
+      return stat_type(__vocab.size_bytes(), __vocab.size_compressed(), __vocab.size_cache());
+    }
+  
   private:
     
-    
-
     template <typename Iterator, typename _Word>
     size_type __shard_index_dispatch(Iterator first, Iterator last, _Word) const
     {

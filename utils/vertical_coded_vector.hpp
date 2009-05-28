@@ -206,7 +206,7 @@ namespace utils
   };
 
 
-template <typename Tp, typename Alloc=std::allocator<Tp> >
+  template <typename Tp, typename Alloc=std::allocator<Tp> >
   class vertical_coded_vector_mapped : public __vertical_coded_vector_base
   {
   public:
@@ -255,6 +255,10 @@ template <typename Tp, typename Alloc=std::allocator<Tp> >
     size_type size() const { return empty() ? size_type(0) : size_type(off[1]); }
     path_type path() const { return compressed.path().parent_path(); }
     bool is_open() const { return compressed.is_open(); }
+    
+    uint64_t size_bytes() const { return size() * sizeof(Tp); }
+    uint64_t size_compressed() const { return compressed.size_compressed() + off.size_compressed(); }
+    uint64_t size_cache() const { return __cache.size() * sizeof(cache_type); }
     
     void close() { clear(); }
     void clear()
@@ -396,6 +400,10 @@ template <typename Tp, typename Alloc=std::allocator<Tp> >
 
     bool empty() const { return compressed.empty() && raw.empty(); }
     size_type size() const { return (off.empty() ? raw.size() : size_type(off[1])); }
+    
+    uint64_t size_bytes() const { return size() * sizeof(Tp); }
+    uint64_t size_compressed() const { return compressed.size() * sizeof(byte_type) + off.size() * sizeof(off_type); }
+    uint64_t size_cache() const { return 0; }
         
     void clear()
     {

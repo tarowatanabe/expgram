@@ -422,6 +422,10 @@ namespace utils
     bool empty() const { return __size == 0; }
     path_type path() const { return __index.path().parent_path(); }
     bool is_open() const { return __index.is_open(); }
+    
+    uint64_t size_bytes() const { return sizeof(Tp) * __size; }
+    uint64_t size_compressed() const { return __data.size_compressed() + __index.size_compressed(); }
+    uint64_t size_cache() const { return __data.size_cache() + __index.size_cache(); }
 
     void close() { clear(); }
     void clear()
@@ -529,6 +533,10 @@ namespace utils
     
     size_type size() const { return __size; }
     bool empty() const { return __size == 0; }
+
+    uint64_t size_bytes() const { return sizeof(Tp) * __size; }
+    uint64_t size_compressed() const { return __data.size() * sizeof(byte_type) + __index.size_compressed(); }
+    uint64_t size_cache() const { return __index.size_cache(); }
     
     void clear()
     {

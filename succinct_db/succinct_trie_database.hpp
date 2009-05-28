@@ -419,6 +419,10 @@ namespace succinctdb
       
       return value_type(first, last);
     }
+
+    uint64_t size_bytes() const { return __succinct_trie->size_bytes() + __mapped.size_bytes() + __offsets.size_bytes(); }
+    uint64_t size_compressed() const { return __succinct_trie->size_compressed() + __mapped.size_compressed() + __offsets.size_compressed(); }
+    uint64_t size_cache() const { return __succinct_trie->size_cache() + __mapped.size_cache() + __offsets.size_cache(); }
     
   public:
     boost::shared_ptr<succinct_trie_type>   __succinct_trie;

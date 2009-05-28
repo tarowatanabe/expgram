@@ -80,6 +80,22 @@ namespace succinctdb
       else
 	return true;
     }
+
+    uint64_t size_bytes() const
+    {
+      return ((__succinct_hash_mapped ? __succinct_hash_mapped->size_bytes() : uint64_t(0))
+	      + (__data_mapped ? __data_mapped->size_bytes() : uint64_t(0)));
+    }
+    uint64_t size_compressed() const
+    {
+      return ((__succinct_hash_mapped ? __succinct_hash_mapped->size_compressed() : uint64_t(0))
+	      + (__data_mapped ? __data_mapped->size_compressed() : uint64_t(0)));
+    }
+    uint64_t size_cache() const
+    {
+      return ((__succinct_hash_mapped ? __succinct_hash_mapped->size_cache() : uint64_t(0))
+	      + (__data_mapped ? __data_mapped->size_cache() : uint64_t(0)));
+    }
     
   public:
     void close() { clear(); }

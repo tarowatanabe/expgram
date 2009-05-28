@@ -1,7 +1,7 @@
 // -*- mode: c++ -*-
 
-#ifndef __NGRAM_COUNTS_IMPL__HPP__
-#define __NGRAM_COUNTS_IMPL__HPP__ 1
+#ifndef __NGRAM_COUNTS_EXTRACT_IMPL__HPP__
+#define __NGRAM_COUNTS_EXTRACT_IMPL__HPP__ 1
 
 #include <sstream>
 #include <iostream>
@@ -262,7 +262,7 @@ struct GoogleNGramCounts
     // recursive call....
     dump_counts(prefix,
 		counts, 
-		counts.begin(counts.root()), counts.end(counts.root()),
+		counts.begin(), counts.end(),
 		path,
 		paths.begin(),
 		ostreams.begin(),

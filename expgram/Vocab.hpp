@@ -76,6 +76,21 @@ namespace expgram
   public:
     Vocab(size_type size_hint=1024 * 1024 * 4) : __succinct_hash(new succinct_hash_type(size_hint)) {}
     Vocab(const path_type& path, size_type bin_size=0) : __succinct_hash_mapped() { open(path, bin_size); }
+
+    uint64_t size_bytes() const 
+    {
+      return (__succinct_hash_mapped ? __succinct_hash_mapped->size_bytes() : uint64_t(0));
+    }
+    uint64_t size_compressed() const
+    {
+      return (__succinct_hash_mapped ? __succinct_hash_mapped->size_compressed() : uint64_t(0));
+    }
+    uint64_t size_cache() const
+    {
+      return ((__succinct_hash_mapped ? __succinct_hash_mapped->size_cache() : uint64_t(0))
+	      + __cache_word.size() * sizeof(cache_type)
+	      + __cache_id.size() * sizeof(cache_type));
+    }
     
     void clear()
     {

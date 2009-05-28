@@ -9,6 +9,7 @@
 #include <expgram/Vocab.hpp>
 #include <expgram/NGramIndex.hpp>
 #include <expgram/NGram.hpp>
+#include <expgram/Stat.hpp>
 
 #include <boost/array.hpp>
 
@@ -36,6 +37,8 @@ namespace expgram
     typedef uint8_t            quantized_type;
     
     typedef boost::filesystem::path path_type;
+
+    typedef Stat stat_type;
 
   public:
     struct ShardData
@@ -66,6 +69,11 @@ namespace expgram
       
       bool is_modified() const { return modified.is_open(); }
       bool is_accumulated() const { return accumulated.is_open(); }
+
+      stat_type stat() const
+      {
+	return stat_type(__counts().size_bytes(), __counts().size_compressed(), __counts().size_cache());
+      }
       
     private:
       const count_set_type& __counts() const { return (accumulated.is_open() ? accumulated : (modified.is_open() ? modified : counts)); }
@@ -149,6 +157,17 @@ namespace expgram
       return true;
     }
     
+    stat_type stat_index() const { return index.stat_index(); }
+    stat_type stat_pointer() const { return index.stat_pointer(); }
+    stat_type stat_vocab() const { return index.stat_vocab(); }
+    
+    stat_type stat_count() const 
+    {
+      stat_type stat;
+      for (int shard = 0; shard < counts.size(); ++ shard)
+	stat += counts[shard].stat();
+      return stat;
+    }
   private:
     void open_binary(const path_type& path);
     void open_google(const path_type& path,

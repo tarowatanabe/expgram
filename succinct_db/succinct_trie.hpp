@@ -567,6 +567,19 @@ namespace succinctdb
     size_type index_size() const { return index.size(); }
     path_type path() const { return mapped.path().parent_path(); }
     
+    uint64_t size_bytes() const
+    { 
+      return positions.size_bytes() + index_map.size_bytes() + index.size_bytes() + mapped.size_bytes();
+    }
+    uint64_t size_compressed() const
+    {
+      return positions.size_compressed() + index_map.size_compressed() + index.size_compressed() + mapped.size_compressed();
+    }
+    uint64_t size_cache() const
+    {
+      return positions.size_cache() + index_map.size_cache() + index.size_cache() + mapped.size_cache();
+    }
+    
     void close() { clear(); }
     void clear()
     {
@@ -687,6 +700,19 @@ namespace succinctdb
     bool empty() const { return mapped.empty(); }
     size_type size() const { return mapped.size(); }
     size_type index_size() const { return index.size(); }
+    
+    uint64_t size_bytes() const
+    { 
+      return positions.size_bytes() + index_map.size_bytes() + index.size() * sizeof(key_type) + mapped.size() * sizeof(data_type);
+    }
+    uint64_t size_compressed() const
+    {
+      return positions.size_compressed() + index_map.size_compressed() + index.size() * sizeof(key_type) + mapped.size() * sizeof(data_type);
+    }
+    uint64_t size_cache() const
+    {
+      return positions.size_cache() + index_map.size_cache();
+    }
 
     void close() { clear(); }
     void clear()

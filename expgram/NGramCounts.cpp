@@ -1809,12 +1809,8 @@ namespace expgram
 	    context_stream->first.insert(context_stream->first.end(), tokens.begin(), tokens.end() - 1);
 	    context_stream->second.first  = atoll(tokens.back().c_str());
 	    
-	    if (context_stream->first == context)
-	      count += context_stream->second.first;
-	    else {
-	      pqueue.push(context_stream);
-	      break;
-	    }
+	    pqueue.push(context_stream);
+	    break;
 	  }
 	}
       
@@ -1899,7 +1895,7 @@ namespace expgram
       typedef std::priority_queue<context_count_queue_ptr_type, pqueue_base_type, greater_pfirst_size_value<context_count_queue_type> > pqueue_type;
 
       indexer_type indexer;
-
+      
       pqueue_type pqueue;
       
       ngram_context_count_type context_count;
@@ -1917,41 +1913,35 @@ namespace expgram
 	}
       }
       
+
+      ngram_context_type  prefix;
       context_type        context;
-      context_type        prefix;
       word_count_set_type words;
       
       while (! pqueue.empty()) {
 	context_count_queue_ptr_type context_queue(pqueue.top());
 	pqueue.pop();
-	
-	
-	context.clear();
-	ngram_context_type::const_iterator niter_end = context_queue->first.end();
-	for (ngram_context_type::const_iterator niter = context_queue->first.begin(); niter != niter_end; ++ niter) {
-	  const id_type id = escape_word(*niter).id();
-	  
-	  if (id >= vocab_map.size() || vocab_map[id] == id_type(-1)) {
-	    std::ostringstream stream;
-	    stream << "id: " << id << " map: " << vocab_map[id] << " map size: " << vocab_map.size();
-	    throw std::runtime_error(std::string("invalid vocabulary: ") + *niter + " " + stream.str());
-	  }
-	  
-	  context.push_back(vocab_map[id]);
-	}
-	
-	if (prefix.size() + 1 != context.size() || ! std::equal(prefix.begin(), prefix.end(), context.begin())) {
+
+	if (prefix.size() + 1 != context_queue->first.size() || ! std::equal(prefix.begin(), prefix.end(), context_queue->first.begin())) {
 	  if (! words.empty()) {
-	    indexer(shard, ngram, prefix, words);
+	    
+	    context.clear();
+	    ngram_context_type::const_iterator piter_end = prefix.end();
+	    for (ngram_context_type::const_iterator piter = prefix.begin(); piter != piter_end; ++ piter)
+	      context.push_back(vocab_map[escape_word(*piter).id()]);
+	    
+	    indexer(shard, ngram, context, words);
 	    words.clear();
 	  }
 	  
 	  prefix.clear();
-	  prefix.insert(prefix.end(), context.begin(), context.end() - 1);
+	  prefix.insert(prefix.end(), context_queue->first.begin(), context_queue->first.end() - 1);
 	}
 	
-	if (words.empty() || words.back().first != context.back())
-	  words.push_back(std::make_pair(context.back(), context_queue->second.first));
+	const id_type id = vocab_map[escape_word(context_queue->first.back()).id()];
+	
+	if (words.empty() || words.back().first != id)
+	  words.push_back(std::make_pair(id, context_queue->second.first));
 	else
 	  words.back().second += context_queue->second.first;
 	
@@ -1965,7 +1955,14 @@ namespace expgram
       }
       
       if (! words.empty()) {
-	indexer(shard, ngram, prefix, words);
+	context.clear();
+	ngram_context_type::const_iterator piter_end = prefix.end();
+	for (ngram_context_type::const_iterator piter = prefix.begin(); piter != piter_end; ++ piter)
+	  context.push_back(vocab_map[escape_word(*piter).id()]);
+	
+	indexer(shard, ngram, context, words);
+	words.clear();
+
 	indexer(shard, ngram, os_count, debug);
       } 
     }

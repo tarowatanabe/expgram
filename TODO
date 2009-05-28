@@ -1,0 +1,17 @@
+
+* Test for MPI implementation!
+
+* Implement ngram_counts_filter/ngram_counts_filter_mpi
+    - perform ngram-counts filtering by its freqency
+
+* Implement ngram_perplexity (easy...)
+
+* Implement mini-expgram, which supports only loading.
+
+* Implement count thresholding during ngram counts indexing... How?
+    -  via option? --min-unigram / --min-ngram
+
+* Better compact_trie
+    - Use unordered_map at the root-level. Others still relies on sparse_hashtable
+
+

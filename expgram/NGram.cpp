@@ -400,11 +400,14 @@ namespace expgram
     
     ngram_type& ngram;
     int         shard;
+    int         debug;
     
     NGramQuantizeReducer(ngram_type& _ngram,
-			 const int   _shard)
+			 const int   _shard,
+			 const int   _debug)
       : ngram(_ngram),
-	shard(_shard)
+	shard(_shard),
+	debug(_debug)
     {}
 
     template <typename OStream, typename LogProbs, typename Counts, typename Codemap, typename Codebook>
@@ -440,6 +443,9 @@ namespace expgram
 
       if (! ngram.logprobs[shard].quantized.is_open() && ngram.logprobs[shard].logprobs.is_open()) {
 	
+	if (debug)
+	  std::cerr << "shard: " << shard << " quantize logprob" << std::endl;
+
 	const path_type path = utils::tempfile::directory_name(tmp_dir / "expgram.logprob.quantized.XXXXXX");
 	utils::tempfile::insert(path);
 	
@@ -470,6 +476,10 @@ namespace expgram
       }
       
       if (! ngram.backoffs[shard].quantized.is_open() && ngram.backoffs[shard].logprobs.is_open()) {
+	
+	if (debug)
+	  std::cerr << "shard: " << shard << " quantize backoff" << std::endl;
+
 	const path_type path = utils::tempfile::directory_name(tmp_dir / "expgram.backoff.quantized.XXXXXX");
 	utils::tempfile::insert(path);
 	
@@ -500,6 +510,10 @@ namespace expgram
       }
       
       if (! ngram.logbounds[shard].quantized.is_open() && ngram.logbounds[shard].logprobs.is_open()) {
+	
+	if (debug)
+	  std::cerr << "shard: " << shard << " quantize logbound" << std::endl;
+	
 	const path_type path = utils::tempfile::directory_name(tmp_dir / "expgram.logbound.quantized.XXXXXX");
 	utils::tempfile::insert(path);
 	
@@ -542,7 +556,7 @@ namespace expgram
     
     thread_ptr_set_type threads(index.size());
     for (int shard = 0; shard < index.size(); ++ shard)
-      threads[shard].reset(new thread_type(reducer_type(*this, shard)));
+      threads[shard].reset(new thread_type(reducer_type(*this, shard, debug)));
     for (int shard = 0; shard < index.size(); ++ shard)
       threads[shard]->join();
     threads.clear();

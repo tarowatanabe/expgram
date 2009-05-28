@@ -23,13 +23,15 @@ int main(int argc, char** argv)
   try {
     if (getoptions(argc, argv) != 0) 
       return 1;
+
+    if (output_file.empty())
+      throw std::runtime_error("no output file?");
     
     expgram::NGram ngram(ngram_file, shards, debug);
     
     ngram.bounds();
     
-    if (! output_file.empty())
-      ngram.write(output_file);
+    ngram.write(output_file);
   }
   catch (std::exception& err) {
     std::cerr << "error: " << err.what() << std::endl;
@@ -44,8 +46,8 @@ int getoptions(int argc, char** argv)
   
   po::options_description desc("options");
   desc.add_options()
-    ("ngram",  po::value<path_type>(&ngram_file)->default_value(ngram_file),   "ngram in ARPA or binary format")
-    ("output", po::value<path_type>(&output_file)->default_value(output_file), "output in binary format")
+    ("ngram",  po::value<path_type>(&ngram_file)->default_value(ngram_file),   "ngram in ARPA or expgram format")
+    ("output", po::value<path_type>(&output_file)->default_value(output_file), "output in expgram format with ngram bound estimation")
     
     ("shard",  po::value<int>(&shards)->default_value(shards),                 "# of shards (or # of threads)")
     

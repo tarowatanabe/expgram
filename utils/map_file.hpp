@@ -3,6 +3,7 @@
 #ifndef __UTILS__MAP_FILE__HPP__
 #define __UTILS__MAP_FILE__HPP__ 1
 
+#include <stdint.h>
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/mman.h>
@@ -145,6 +146,10 @@ namespace utils
     bool empty() const { return ! is_open() || size() == 0; }
     size_type size() const { return static_cast<size_type>(pimpl->size() / sizeof(value_type)); }
     off_type file_size() const { return pimpl->size(); }
+
+    uint64_t size_bytes() const { return file_size(); }
+    uint64_t size_compressed() const { return file_size(); }
+    uint64_t size_cache() const { return 0; }
     
     path_type path() const { return pimpl->path(); }
     

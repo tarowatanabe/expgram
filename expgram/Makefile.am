@@ -13,6 +13,7 @@ NGram.hpp \
 NGramCounts.hpp \
 NGramIndex.hpp \
 Sentence.hpp \
+Stat.hpp \
 Stemmer.hpp \
 Vocab.hpp \
 Word.hpp

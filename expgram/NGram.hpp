@@ -8,6 +8,7 @@
 #include <expgram/Word.hpp>
 #include <expgram/Vocab.hpp>
 #include <expgram/NGramIndex.hpp>
+#include <expgram/Stat.hpp>
 
 #include <boost/array.hpp>
 
@@ -35,6 +36,8 @@ namespace expgram
     typedef uint8_t            quantized_type;
     
     typedef boost::filesystem::path path_type;
+
+    typedef Stat stat_type;
     
   public:
     struct ShardData
@@ -74,6 +77,14 @@ namespace expgram
       }
 
       bool is_quantized() const { return quantized.is_open(); }
+      
+      stat_type stat() const
+      {
+	return (quantized.is_open()
+		? stat_type(quantized.size_bytes(), quantized.size_compressed(), quantized.size_cache())
+		: stat_type(logprobs.size_bytes(), logprobs.size_compressed(), logprobs.size_cache()));
+      }
+
       
       logprob_set_type     logprobs;
       quantized_set_type   quantized;
@@ -218,6 +229,32 @@ namespace expgram
     bool is_open() const { return index.is_open(); }
     bool has_bounds() const { return ! logbounds.empty(); }
     
+    stat_type stat_index() const { return index.stat_index(); }
+    stat_type stat_pointer() const { return index.stat_pointer(); }
+    stat_type stat_vocab() const { return index.stat_vocab(); }
+
+  private:
+    template <typename Iterator>
+    stat_type __stat_aux(Iterator first, Iterator last) const
+    {
+      stat_type stat;
+      for (/**/; first != last; ++ first)
+	stat += first->stat();
+      return stat;
+    }
+  public:
+    stat_type stat_logprob() const
+    {
+      return __stat_aux(logprobs.begin(), logprobs.end());
+    }
+    stat_type stat_backoff() const
+    {
+      return __stat_aux(backoffs.begin(), backoffs.end());
+    }
+    stat_type stat_logbound() const
+    {
+      return __stat_aux(logbounds.begin(), logbounds.end());
+    }
     
   private:
     void open_binary(const path_type& path);
