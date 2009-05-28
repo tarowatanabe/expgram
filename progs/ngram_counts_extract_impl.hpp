@@ -47,6 +47,7 @@ struct GoogleNGramCounts
   typedef utils::compact_trie<word_type, count_type, boost::hash<word_type>, std::equal_to<word_type>,
 			      std::allocator<std::pair<const word_type, count_type> > > ngram_count_set_type;
 
+
   template <typename Task>
   struct TaskLine
   {
@@ -77,29 +78,33 @@ struct GoogleNGramCounts
     
     void operator()()
     {
+      typedef std::vector<const std::string*, std::allocator<const std::string*> > vocab_map_type;
+      
       task_type __task;
       ngram_count_set_type counts;
       line_set_type lines;
+
+      vocab_map_type vocab_map;
       
       while (1) {
 	queue.pop_swap(lines);
 	if (lines.empty()) break;
 	
-	__task(lines.begin(), lines.end(), counts, path, paths, max_malloc);
+	__task(lines.begin(), lines.end(), counts, path, paths, vocab_map, max_malloc);
 	
 	if (! counts.empty()) {
 	  size_t num_allocated = 0;
 	  MallocExtension::instance()->GetNumericProperty("generic.current_allocated_bytes", &num_allocated);
 	  
 	  if (num_allocated > size_t(max_malloc * 1024 * 1024 * 1024)) {
-	    GoogleNGramCounts::dump_counts(counts, path, paths);
+	    GoogleNGramCounts::dump_counts(counts, path, paths, vocab_map);
 	    counts.clear();
 	  }
 	}
       }
       
       if (! counts.empty()) {
-	GoogleNGramCounts::dump_counts(counts, path, paths);
+	GoogleNGramCounts::dump_counts(counts, path, paths, vocab_map);
 	counts.clear();
       }
     }  
@@ -132,9 +137,13 @@ struct GoogleNGramCounts
     
     void operator()()
     {
+      typedef std::vector<const std::string*, std::allocator<const std::string*> > vocab_map_type;
+
       task_type __task;
       ngram_count_set_type counts;
       path_type file;
+
+      vocab_map_type vocab_map;
       
       while (1) {
 	queue.pop(file);
@@ -145,21 +154,21 @@ struct GoogleNGramCounts
 	
 	utils::compress_istream is(file, 1024 * 1024);
 	
-	__task(utils::istream_line_iterator(is), utils::istream_line_iterator(), counts, path, paths, max_malloc);
+	__task(utils::istream_line_iterator(is), utils::istream_line_iterator(), counts, path, paths, vocab_map, max_malloc);
 	
 	if (! counts.empty()) {
 	  size_t num_allocated = 0;
 	  MallocExtension::instance()->GetNumericProperty("generic.current_allocated_bytes", &num_allocated);
 	  
 	  if (num_allocated > size_t(max_malloc * 1024 * 1024 * 1024)) {
-	    GoogleNGramCounts::dump_counts(counts, path, paths);
+	    GoogleNGramCounts::dump_counts(counts, path, paths, vocab_map);
 	    counts.clear();
 	  }
 	}
       }
       
       if (! counts.empty()) {
-	GoogleNGramCounts::dump_counts(counts, path, paths);
+	GoogleNGramCounts::dump_counts(counts, path, paths, vocab_map);
 	counts.clear();
       }
     }
@@ -243,21 +252,20 @@ struct GoogleNGramCounts
     }
   }
   
-  template <typename Counts, typename Path, typename Paths>
+  template <typename Counts, typename Path, typename Paths, typename VocabMap>
   static inline
-  void dump_counts(const Counts& counts, const Path& path, Paths& paths)
+  void dump_counts(const Counts& counts, const Path& path, Paths& paths, VocabMap& vocab_map)
   {
     typedef boost::shared_ptr<utils::compress_ostream> ostream_ptr_type;
     typedef std::vector<ostream_ptr_type, std::allocator<ostream_ptr_type> > ostream_ptr_set_type;
     
-    typedef std::vector<const std::string*, std::allocator<const std::string*> > vocab_map_type;
+    
     typedef ngram_type prefix_type;
     
     const int max_order = paths.size();
     
     ostream_ptr_set_type ostreams(max_order);
-    vocab_map_type vocab_map;
-    prefix_type prefix;
+    prefix_type    prefix;
     
     // recursive call....
     dump_counts(prefix,
@@ -516,14 +524,14 @@ struct GoogleNGramCounts
   
   struct TaskCorpus
   {
-    template <typename Iterator, typename Counts, typename Path, typename Paths>
+    template <typename Iterator, typename Counts, typename Path, typename Paths, typename VocabMap>
     inline
-    void operator()(Iterator first, Iterator last, Counts& counts, const Path& path, Paths& paths, const double max_malloc)
+    void operator()(Iterator first, Iterator last, Counts& counts, const Path& path, Paths& paths, VocabMap& vocab_map, const double max_malloc)
     {
       typedef boost::tokenizer<utils::space_separator> tokenizer_type;
       
       ngram_type sentence;
-
+      
       const int max_order = paths.size();
       
       // every 4096 iterations, we will check for memory boundary
@@ -554,7 +562,7 @@ struct GoogleNGramCounts
 	  MallocExtension::instance()->GetNumericProperty("generic.current_allocated_bytes", &num_allocated);
 	  
 	  if (num_allocated > size_t(max_malloc * 1024 * 1024 * 1024)) {
-	    GoogleNGramCounts::dump_counts(counts, path, paths);
+	    GoogleNGramCounts::dump_counts(counts, path, paths, vocab_map);
 	    counts.clear();
 	  }
 	}
@@ -564,14 +572,14 @@ struct GoogleNGramCounts
   
   struct TaskCounts
   {
-    template <typename Iterator, typename Counts, typename Path, typename Paths>
+    template <typename Iterator, typename Counts, typename Path, typename Paths, typename VocabMap>
     inline
-    void operator()(Iterator first, Iterator last, Counts& counts, const Path& path, Paths& paths, const double max_malloc)
+    void operator()(Iterator first, Iterator last, Counts& counts, const Path& path, Paths& paths, VocabMap& vocab_map, const double max_malloc)
     {
       typedef std::vector<std::string, std::allocator<std::string> > tokens_type;
       typedef boost::tokenizer<utils::space_separator>               tokenizer_type;
       
-      tokens_type tokens;
+      tokens_type    tokens;
       
       const int max_order = paths.size();
       
@@ -594,7 +602,7 @@ struct GoogleNGramCounts
 	  MallocExtension::instance()->GetNumericProperty("generic.current_allocated_bytes", &num_allocated);
 	  
 	  if (num_allocated > size_t(max_malloc * 1024 * 1024 * 1024)) {
-	    GoogleNGramCounts::dump_counts(counts, path, paths);
+	    GoogleNGramCounts::dump_counts(counts, path, paths, vocab_map);
 	    counts.clear();
 	  }
 	}

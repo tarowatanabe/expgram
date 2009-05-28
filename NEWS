@@ -1,6 +1,8 @@
 
 2009-6-1
 	* Renamed ngram_counts/ngram_counts_mpi to ngram_counts_extract/ngram_counts_extract_mpi, respectively.
+	
+	* Faster ngram_counts_extract/ngram_counts_extract_mpi by using non-compact hash-table at root level.
 
 2009-5-25
 	* Initial release.

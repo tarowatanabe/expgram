@@ -11,7 +11,3 @@
 * Implement count thresholding during ngram counts indexing... How?
     -  via option? --min-unigram / --min-ngram
 
-* Better compact_trie
-    - Use unordered_map at the root-level. Others still relies on sparse_hashtable
-
-
