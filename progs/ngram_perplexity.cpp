@@ -31,8 +31,11 @@ int main(int argc, char** argv)
       return 1;
 
     typedef expgram::NGram    ngram_type;
+    typedef expgram::Word     word_type;
     typedef expgram::Vocab    vocab_type;
     typedef expgram::Sentence sentence_type;
+
+    typedef std::vector<word_type::id_type, std::allocator<word_type::id_type> > id_set_type;
     
     ngram_type ngram(ngram_file, shards, debug);
     
@@ -42,23 +45,34 @@ int main(int argc, char** argv)
     size_t num_sentence = 0;
     
     sentence_type sentence;
+    id_set_type ids;
+    
     utils::compress_istream is(input_file);
 
     order = (order <= 0 ? ngram.index.order() : order);
+
+    const word_type::id_type bos_id = ngram.index.vocab()[vocab_type::BOS];
+    const word_type::id_type eos_id = ngram.index.vocab()[vocab_type::EOS];
+    const word_type::id_type unk_id = ngram.index.vocab()[vocab_type::UNK];
+    const word_type::id_type none_id = word_type::id_type(-1);
     
     while (is >> sentence) {
       // add BOS and EOS
       
       if (sentence.empty()) continue;
-      
-      sentence.insert(sentence.begin(), vocab_type::BOS);
-      sentence.insert(sentence.end(), vocab_type::EOS);
-      
-      sentence_type::const_iterator siter_begin = sentence.begin();
+
+      ids.clear();
+      ids.push_back(bos_id);
       sentence_type::const_iterator siter_end = sentence.end();
-      for (sentence_type::const_iterator siter = siter_begin + 1; siter != siter_end; ++ siter) {
-	const double logprob = ngram(std::max(siter_begin, siter + 1 - order), siter + 1);
-	const bool is_oov = ! ngram.index.vocab().exists(*siter);
+      for (sentence_type::const_iterator siter = sentence.begin(); siter != siter_end; ++ siter)
+	ids.push_back(ngram.index.vocab()[*siter]);
+      ids.push_back(eos_id);
+
+      id_set_type::const_iterator iter_begin = ids.begin();
+      id_set_type::const_iterator iter_end   = ids.end();
+      for (id_set_type::const_iterator iter = iter_begin + 1; iter != iter_end; ++ iter) {
+	const double logprob = ngram(std::max(iter_begin, iter + 1 - order), iter + 1);
+	const bool is_oov = (*iter == unk_id) || (*iter == none_id);
 	
 	if (include_oov || (! is_oov))
 	  logprob_total += logprob;
@@ -66,7 +80,7 @@ int main(int argc, char** argv)
 	num_oov += is_oov;
       }
       
-      num_word += sentence.size() - 2; // - 2 to exclud BOS/BOS
+      num_word += sentence.size();
       ++ num_sentence;
     }
     
