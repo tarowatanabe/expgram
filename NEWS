@@ -2,7 +2,15 @@
 2009-6-1
 	* Renamed ngram_counts/ngram_counts_mpi to ngram_counts_extract/ngram_counts_extract_mpi, respectively.
 	
-	* Faster ngram_counts_extract/ngram_counts_extract_mpi by using non-compact hash-table at root level.
+	* Faster ngram_counts_extract/ngram_counts_extract_mpi
+	     - Use non-compact hash-table at root level.
+	     - Vocab-mapping tweaking when dumping ngram-counts.
 
+	* Implemented "mpish", a tool to perform mapping of set of shell-command.
+	  For instance, you can run:
+	      for ((i=0;i<1024;++i)) do; echo "uname -a" done | mpirun --host <list-of-host-delimited-by-,> --np <#-of-processes> mpish 
+	  This will run exact 1024 "uname -a" split on machines (indicated by --host), with  --np processees. The tasks are not evently split, but
+	  perform simple scheduling.
+	  
 2009-5-25
 	* Initial release.

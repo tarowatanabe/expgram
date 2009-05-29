@@ -35,7 +35,9 @@ bin_PROGRAMS = \
 	\
 	expgram_clean \
 	\
-	tokenize_en
+	tokenize_en \
+	\
+	mpish
 
 noinst_HEADERS = \
 	ngram_counts_extract_impl.hpp
@@ -103,3 +105,7 @@ tokenize_en_LDADD   = $(LIBUTILS) $(ICU_LDFLAGS) $(boost_LDADD) $(perftools_LDAD
 ### utilities
 expgram_clean_SOURCES = expgram_clean.cpp
 expgram_clean_LDADD   = $(LIBUTILS) $(ICU_LDFLAGS) $(boost_LDADD) $(perftools_LDADD)
+
+mpish_SOURCES = mpish.cpp
+mpish_CPPFLAGS = $(MPI_CPPFLAGS) $(AM_CPPFLAGS)
+mpish_LDADD   = $(MPI_LDFLAGS) $(LIBUTILS) $(boost_LDADD) $(perftools_LDADD)

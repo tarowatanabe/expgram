@@ -2,12 +2,13 @@
 * Test for MPI implementation!
 
 * Implement ngram_counts_filter/ngram_counts_filter_mpi
-    - perform ngram-counts filtering by its freqency
+    - perform ngram-counts filtering by its "unigram" freqency
+    - Less-frequent words are mapped into <unk>, thus ngram-counts recomputation will be required.
+
+* Implement --min-ngram to perform filtering duing indexing (for bigrams and upward)
 
 * Implement ngram_perplexity (easy...)
 
 * Implement mini-expgram, which supports only loading.
 
-* Implement count thresholding during ngram counts indexing... How?
-    -  via option? --min-unigram / --min-ngram
-
+* Add internal filtering duing ngram_counts_extract/ngram_counts_extract_mpi
