@@ -22,6 +22,7 @@ bin_PROGRAMS = \
 	ngram_bound \
 	ngram_bound_mpi \
 	ngram_stat \
+	ngram_perplexity \
 	\
 	ngram_counts_extract \
 	ngram_counts_extract_mpi \
@@ -66,6 +67,9 @@ ngram_bound_mpi_LDADD   = $(MPI_LDFLAGS) $(LIBEXPGRAM) $(LIBUTILS) $(boost_LDADD
 
 ngram_stat_SOURCES = ngram_stat.cpp
 ngram_stat_LDADD   = $(LIBEXPGRAM) $(LIBUTILS) $(boost_LDADD) $(perftools_LDADD)
+
+ngram_perplexity_SOURCES = ngram_perplexity.cpp
+ngram_perplexity_LDADD   = $(LIBEXPGRAM) $(LIBUTILS) $(boost_LDADD) $(perftools_LDADD)
 
 ### ngram counts
 ngram_counts_extract_SOURCES = ngram_counts_extract.cpp
