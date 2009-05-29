@@ -100,6 +100,7 @@ sample_packed_vector \
 sample_pfor_vector \
 sample_simple_vector \
 sample_static_allocator \
+sample_subprocess \
 sample_succinct_vector \
 sample_tempfile \
 sample_vector2 \
@@ -183,6 +184,10 @@ sample_simple_vector_LDADD = $(BOOST_THREAD_LIBS)
 sample_static_allocator_SOURCES = sample_static_allocator.cpp
 sample_static_allocator_LDFLAGS = $(BOOST_THREAD_LDFLAGS)
 sample_static_allocator_LDADD = $(BOOST_THREAD_LIBS)
+
+sample_subprocess_SOURCES = sample_subprocess.cpp
+sample_succinct_vector_LDFLAGS = $(BOOST_IOSTREAMS_LDFLAGS)
+sample_subprocess_LDADD = $(BOOST_IOSTREAMS_LIBS) $(BOOST_SYSTEM_LIBS)
 
 sample_succinct_vector_SOURCES = sample_succinct_vector.cpp
 sample_succinct_vector_LDFLAGS = $(BOOST_FILESYSTEM_LDFLAGS) $(BOOST_THREAD_LDFLAGS)

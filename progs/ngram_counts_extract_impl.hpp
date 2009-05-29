@@ -238,11 +238,15 @@ struct GoogleNGramCounts
     typename value_set_type::const_iterator iter_end = values.end();
     for (typename value_set_type::const_iterator iter = values.begin(); iter != iter_end; ++ iter) {
       
-      typename Prefix::const_iterator piter_end = prefix.end();
-      for (typename Prefix::const_iterator piter = prefix.begin(); piter != piter_end ; ++ piter)
-	*(*stream_iter) << *vocab_map[piter->id()] << ' ';
+      const count_type count = counts[(*iter)->second];
       
-      *(*stream_iter) << *(vocab_map[(*iter)->first.id()]) << '\t' << counts[(*iter)->second] << '\n';
+      if (count > 0) {
+	typename Prefix::const_iterator piter_end = prefix.end();
+	for (typename Prefix::const_iterator piter = prefix.begin(); piter != piter_end ; ++ piter)
+	  *(*stream_iter) << *vocab_map[piter->id()] << ' ';
+	
+	*(*stream_iter) << *(vocab_map[(*iter)->first.id()]) << '\t' << count << '\n';
+      }
       
       // recursive call...
       if (! counts.empty((*iter)->second)) {
@@ -426,21 +430,29 @@ struct GoogleNGramCounts
 	
 	utils::compress_istream is(*piter);
 	
-	if (! std::getline(is, line)) continue;
-	
-	tokenizer_type tokenizer(line);
-	
 	tokens.clear();
-	tokens.insert(tokens.end(), tokenizer.begin(), tokenizer.end());
+	while (std::getline(is, line)) {
+	  tokenizer_type tokenizer(line);
+	  
+	  tokens.clear();
+	  tokens.insert(tokens.end(), tokenizer.begin(), tokenizer.end());
+	  
+	  if (tokens.empty()) continue;
+	  
+	  if (tokens.size() != order + 1)
+	    throw std::runtime_error("invalid google's ngram structure...");
+	  
+	  break;
+	}
+
+	if (! tokens.empty()) {
+	  os << piter->leaf() << '\t';
+	  std::copy(tokens.begin(), tokens.end() - 2, std::ostream_iterator<std::string>(os, " "));
+	  os << *(tokens.end() - 2) << '\n';
+	  
+	  utils::tempfile::erase(*piter);
+	}
 	
-	if (tokens.size() != order + 1)
-	  throw std::runtime_error("invalid google's ngram structure...");
-	
-	os << piter->leaf() << '\t';
-	std::copy(tokens.begin(), tokens.end() - 2, std::ostream_iterator<std::string>(os, " "));
-	os << *(tokens.end() - 2) << '\n';
-	
-	utils::tempfile::erase(*piter);
       }
       
       utils::tempfile::erase(ngram_dir);

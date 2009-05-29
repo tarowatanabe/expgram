@@ -88,6 +88,7 @@ int main(int argc, char** argv)
     os << "# of sentences: " << num_sentence
        << " # of words: " << num_word
        << " # of OOV: " << num_oov
+       << " order: " << order
        << std::endl;
     
     os << "ppl  = " << utils::mathop::exp(- logprob_total / (num_word - num_oov + num_sentence)) << std::endl;

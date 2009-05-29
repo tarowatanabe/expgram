@@ -7,8 +7,6 @@
 
 * Implement --min-ngram to perform filtering duing indexing (for bigrams and upward)
 
-* Implement ngram_perplexity (easy...)
-
 * Implement mini-expgram, which supports only loading.
 
 * Add internal filtering duing ngram_counts_extract/ngram_counts_extract_mpi
