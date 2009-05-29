@@ -12,3 +12,4 @@
 * Implement mini-expgram, which supports only loading.
 
 * Add internal filtering duing ngram_counts_extract/ngram_counts_extract_mpi
+    - We need to prepare pipes, fork, and spawn-threads....

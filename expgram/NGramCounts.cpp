@@ -1252,6 +1252,9 @@ namespace expgram
     repository_type::const_iterator siter = rep.find("shard");
     if (siter == rep.end())
       throw std::runtime_error("no shard size...");
+    
+    shards.clear();
+    shards.reserve(atoi(siter->second.c_str()));
     shards.resize(atoi(siter->second.c_str()));
 
     if (shard >= shards.size())
@@ -1274,6 +1277,9 @@ namespace expgram
     repository_type::const_iterator siter = rep.find("shard");
     if (siter == rep.end())
       throw std::runtime_error("no shard size...");
+
+    shards.clear();
+    shards.reserve(atoi(siter->second.c_str()));
     shards.resize(atoi(siter->second.c_str()));
     
     for (int shard = 0; shard < shards.size(); ++ shard) {

@@ -104,6 +104,9 @@ namespace expgram
     repository_type::const_iterator siter = rep.find("shard");
     if (siter == rep.end())
       throw std::runtime_error("no shard size...");
+    
+    shards.clear();
+    shards.reserve(atoi(siter->second.c_str()));
     shards.resize(atoi(siter->second.c_str()));
     
     if (shard >= shards.size())
@@ -126,6 +129,9 @@ namespace expgram
     repository_type::const_iterator siter = rep.find("shard");
     if (siter == rep.end())
       throw std::runtime_error("no shard size...");
+
+    shards.clear();
+    shards.reserve(atoi(siter->second.c_str()));
     shards.resize(atoi(siter->second.c_str()));
     
     for (int shard = 0; shard < shards.size(); ++ shard) {
@@ -422,7 +428,7 @@ namespace expgram
       for (size_type pos = pos_first; pos < pos_last; ++ pos)
 	++ counts[logprobs(pos, order)];
       
-      Quantizer::quantize(counts, ngram.logprob_min(), codebook, codemap);
+      Quantizer::quantize(counts, ngram.logprob_min(), codebook, codemap, debug >= 2);
       
       for (size_type pos = pos_first; pos < pos_last; ++ pos) {
 	codemap_type::const_iterator citer = codemap.find(logprobs(pos, order));

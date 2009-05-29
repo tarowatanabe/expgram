@@ -127,9 +127,9 @@ namespace expgram
 	std::pair<Iterator, size_type> result = index.traverse(shard_index, first, last);
 
 	if (result.first == last) {
-	  const logprob_type __logbound = (! performed_backoff && result.second < logbounds[shard_index].size()
-					  ? logbounds[shard_index](result.second, order)
-					  : logprobs[shard_index](result.second, order));
+	  const logprob_type __logbound = ((! performed_backoff) && result.second < logbounds[shard_index].size()
+					   ? logbounds[shard_index](result.second, order)
+					   : logprobs[shard_index](result.second, order));
 	  if(__logbound != logprob_min())
 	    return logbackoff + __logbound;
 	  else {
@@ -148,7 +148,7 @@ namespace expgram
       std::pair<Iterator, size_type> result = index.traverse(shard_index, first, last);
       
       if (result.first == last) {
-	const logprob_type __logbound = (! performed_backoff && result.second < logbounds[shard_index].size()
+	const logprob_type __logbound = ((! performed_backoff) && result.second < logbounds[shard_index].size()
 					 ? logbounds[shard_index](result.second, order)
 					 : logprobs[shard_index](result.second, order));
 	return logbackoff + (__logbound != logprob_min() ? __logbound : smooth);
@@ -193,7 +193,7 @@ namespace expgram
       std::pair<Iterator, size_type> result = index.traverse(shard_index, first, last);
       
       return logbackoff + (result.first == last && logprobs[shard_index](result.second, order) != logprob_min()
-			   ? logprobs[shard_index](result.second, 1)
+			   ? logprobs[shard_index](result.second, order)
 			   : smooth);
     }
     
