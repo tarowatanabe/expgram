@@ -47,6 +47,8 @@ path_type counts_list_file;
 
 path_type output_file;
 
+path_type filter_file;
+
 path_type prog_name;
 
 int max_order = 5;
@@ -57,20 +59,24 @@ double max_malloc = 1.0; // 1G bytes
 int debug = 0;
 
 void accumulate_counts_root(const path_set_type& paths,
+			    const path_type& path_filter,
 			    const path_type& output_path,
 			    path_map_type&   paths_counts,
 			    const bool map_line,
 			    const double max_malloc);
-void accumulate_counts_others(const path_type& output_path,
+void accumulate_counts_others(const path_type& path_filter,
+			      const path_type& output_path,
 			      path_map_type&   paths_counts,
 			      const bool map_line,
 			      const double max_malloc);
 void accumulate_corpus_root(const path_set_type& paths,
+			    const path_type& path_filter,
 			    const path_type& output_path,
 			    path_map_type&   paths_counts,
 			    const bool map_line,
 			    const double max_malloc);
-void accumulate_corpus_others(const path_type& output_path,
+void accumulate_corpus_others(const path_type& path_filter,
+			      const path_type& output_path,
 			      path_map_type&   paths_counts,
 			      const bool map_line,
 			      const double max_malloc);
@@ -144,12 +150,12 @@ int main(int argc, char** argv)
       int counts_files_size = counts_files.size();
       MPI::COMM_WORLD.Bcast(&counts_files_size, 1, MPI::INT, 0);
       if (! counts_files.empty())
-	accumulate_counts_root(counts_files, output_file, paths_counts, map_line, max_malloc);
+	accumulate_counts_root(counts_files, filter_file, output_file, paths_counts, map_line, max_malloc);
       
       int corpus_files_size = corpus_files.size();
       MPI::COMM_WORLD.Bcast(&corpus_files_size, 1, MPI::INT, 0);
       if (! corpus_files.empty())
-	accumulate_corpus_root(corpus_files, output_file, paths_counts, map_line, max_malloc);
+	accumulate_corpus_root(corpus_files, filter_file, output_file, paths_counts, map_line, max_malloc);
       
       reduce_counts_root(paths_counts);
       
@@ -161,12 +167,12 @@ int main(int argc, char** argv)
       int counts_files_size = 0;
       MPI::COMM_WORLD.Bcast(&counts_files_size, 1, MPI::INT, 0);
       if (counts_files_size > 0)
-	accumulate_counts_others(output_file, paths_counts, map_line, max_malloc);
+	accumulate_counts_others(filter_file, output_file, paths_counts, map_line, max_malloc);
       
       int corpus_files_size = 0;
       MPI::COMM_WORLD.Bcast(&corpus_files_size, 1, MPI::INT, 0);
       if (corpus_files_size > 0)
-	accumulate_corpus_others(output_file, paths_counts, map_line, max_malloc);
+	accumulate_corpus_others(filter_file, output_file, paths_counts, map_line, max_malloc);
       
       reduce_counts_others(paths_counts);
     }
@@ -275,12 +281,15 @@ struct MapReduceLine
   typedef typename task_type::thread_type         thread_type;
   typedef typename task_type::thread_ptr_set_type thread_ptr_set_type;
 
+  typedef typename task_type::subprocess_type     subprocess_type;
+
   typedef size_t size_type;
   
   static const size_type max_lines = 1024 * 8;
   
   static inline
   void mapper_root(const path_set_type& paths,
+		   const path_type& path_filter,
 		   const path_type& output_path,
 		   path_map_type&   paths_counts,
 		   const double max_malloc,
@@ -288,6 +297,8 @@ struct MapReduceLine
   {
     const int mpi_rank = MPI::COMM_WORLD.Get_rank();
     const int mpi_size = MPI::COMM_WORLD.Get_size();
+    
+    std::auto_ptr<subprocess_type> subprocess(path_filter.empty() ? 0 : new subprocess_type(path_filter));
     
     std::vector<ostream_ptr_type, std::allocator<ostream_ptr_type> > stream(mpi_size);
     std::vector<odevice_ptr_type, std::allocator<odevice_ptr_type> > device(mpi_size);
@@ -301,7 +312,9 @@ struct MapReduceLine
     }
     
     queue_type queue(1);
-    std::auto_ptr<thread_type> thread(new thread_type(task_type(queue, output_path, paths_counts, max_malloc)));
+    std::auto_ptr<thread_type> thread(subprocess.get()
+				      ? new thread_type(task_type(queue, *subprocess, output_path, paths_counts, max_malloc))
+				      : new thread_type(task_type(queue, output_path, paths_counts, max_malloc)));
   
     std::string line;
     line_set_type lines;
@@ -382,19 +395,24 @@ struct MapReduceLine
   }
   
   static inline
-  void mapper_others(const path_type& output_path,
+  void mapper_others(const path_type& path_filter,
+		     const path_type& output_path,
 		     path_map_type&   paths_counts,
 		     const double     max_malloc)
   {
     const int mpi_rank = MPI::COMM_WORLD.Get_rank();
     const int mpi_size = MPI::COMM_WORLD.Get_size();
     
+    std::auto_ptr<subprocess_type> subprocess(path_filter.empty() ? 0 : new subprocess_type(path_filter));
+    
     istream_type stream;
     stream.push(boost::iostreams::gzip_decompressor());
     stream.push(idevice_type(0, line_tag, 1024 * 1024));
     
     queue_type queue(1);
-    std::auto_ptr<thread_type> thread(new thread_type(task_type(queue, output_path, paths_counts, max_malloc)));
+    std::auto_ptr<thread_type> thread(subprocess.get()
+				      ? new thread_type(task_type(queue, *subprocess, output_path, paths_counts, max_malloc))
+				      : new thread_type(task_type(queue, output_path, paths_counts, max_malloc)));
     
     std::string line;
     line_set_type lines;
@@ -435,8 +453,11 @@ struct MapReduceFile
   typedef typename task_type::thread_type         thread_type;
   typedef typename task_type::thread_ptr_set_type thread_ptr_set_type;
   
+  typedef typename task_type::subprocess_type     subprocess_type;
+  
   static inline
   void mapper_root(const path_set_type& paths,
+		   const path_type& path_filter,
 		   const path_type& output_path,
 		   path_map_type&   paths_counts,
 		   const double max_malloc,
@@ -445,13 +466,17 @@ struct MapReduceFile
     const int mpi_rank = MPI::COMM_WORLD.Get_rank();
     const int mpi_size = MPI::COMM_WORLD.Get_size();
     
+    std::auto_ptr<subprocess_type> subprocess(path_filter.empty() ? 0 : new subprocess_type(path_filter));
+    
     std::vector<ostream_ptr_type, std::allocator<ostream_ptr_type> > stream(mpi_size);
     
     for (int rank = 1; rank < mpi_size; ++ rank)
       stream[rank].reset(new ostream_type(rank, file_tag, 4096));
     
     queue_type queue(1);
-    std::auto_ptr<thread_type> thread(new thread_type(task_type(queue, output_path, paths_counts, max_malloc)));
+    std::auto_ptr<thread_type> thread(subprocess.get()
+				      ? new thread_type(task_type(queue, *subprocess, output_path, paths_counts, max_malloc))
+				      : new thread_type(task_type(queue, output_path, paths_counts, max_malloc)));
     
     path_set_type::const_iterator piter_end = paths.end();
     path_set_type::const_iterator piter = paths.begin();
@@ -519,17 +544,22 @@ struct MapReduceFile
   }
   
   static inline
-  void mapper_others(const path_type& output_path,
+  void mapper_others(const path_type& path_filter,
+		     const path_type& output_path,
 		     path_map_type&   paths_counts,
 		     const double     max_malloc)
   {
     const int mpi_rank = MPI::COMM_WORLD.Get_rank();
     const int mpi_size = MPI::COMM_WORLD.Get_size();
     
+    std::auto_ptr<subprocess_type> subprocess(path_filter.empty() ? 0 : new subprocess_type(path_filter));
+    
     istream_type stream(0, file_tag, 4096);
     
     queue_type queue(1);
-    std::auto_ptr<thread_type> thread(new thread_type(task_type(queue, output_path, paths_counts, max_malloc)));
+    std::auto_ptr<thread_type> thread(subprocess.get()
+				      ? new thread_type(task_type(queue, *subprocess, output_path, paths_counts, max_malloc))
+				      : new thread_type(task_type(queue, output_path, paths_counts, max_malloc)));
     
     std::string file;
     while (stream.read(file)) {
@@ -549,6 +579,7 @@ struct MapReduceFile
 
 
 void accumulate_corpus_root(const path_set_type& paths,
+			    const path_type& path_filter,
 			    const path_type& output_path,
 			    path_map_type&   paths_counts,
 			    const bool map_line,
@@ -560,17 +591,18 @@ void accumulate_corpus_root(const path_set_type& paths,
     typedef GoogleNGramCounts::TaskLine<GoogleNGramCounts::TaskCorpus> task_type;
     typedef MapReduceLine<task_type> map_reduce_type;
     
-    map_reduce_type::mapper_root(paths, output_path, paths_counts, max_malloc, debug);
+    map_reduce_type::mapper_root(paths, path_filter, output_path, paths_counts, max_malloc, debug);
     
   } else {
     typedef GoogleNGramCounts::TaskFile<GoogleNGramCounts::TaskCorpus> task_type;
     typedef MapReduceFile<task_type> map_reduce_type;
     
-    map_reduce_type::mapper_root(paths, output_path, paths_counts, max_malloc, debug);
+    map_reduce_type::mapper_root(paths, path_filter, output_path, paths_counts, max_malloc, debug);
   }
 }
 
 void accumulate_counts_root(const path_set_type& paths,
+			    const path_type& path_filter,
 			    const path_type& output_path,
 			    path_map_type&   paths_counts,
 			    const bool map_line,
@@ -582,17 +614,18 @@ void accumulate_counts_root(const path_set_type& paths,
     typedef GoogleNGramCounts::TaskLine<GoogleNGramCounts::TaskCounts> task_type;
     typedef MapReduceLine<task_type> map_reduce_type;
     
-    map_reduce_type::mapper_root(paths, output_path, paths_counts, max_malloc, debug);
+    map_reduce_type::mapper_root(paths, path_filter, output_path, paths_counts, max_malloc, debug);
     
   } else {
     typedef GoogleNGramCounts::TaskFile<GoogleNGramCounts::TaskCounts> task_type;
     typedef MapReduceFile<task_type> map_reduce_type;
     
-    map_reduce_type::mapper_root(paths, output_path, paths_counts, max_malloc, debug);
+    map_reduce_type::mapper_root(paths, path_filter, output_path, paths_counts, max_malloc, debug);
   }
 }
 
-void accumulate_corpus_others(const path_type& output_path,
+void accumulate_corpus_others(const path_type& path_filter,
+			      const path_type& output_path,
 			      path_map_type&   paths_counts,
 			      const bool map_line,
 			      const double max_malloc)
@@ -603,17 +636,18 @@ void accumulate_corpus_others(const path_type& output_path,
     typedef GoogleNGramCounts::TaskLine<GoogleNGramCounts::TaskCorpus> task_type;
     typedef MapReduceLine<task_type> map_reduce_type;
     
-    map_reduce_type::mapper_others(output_path, paths_counts, max_malloc);
+    map_reduce_type::mapper_others(path_filter, output_path, paths_counts, max_malloc);
     
   } else {
     typedef GoogleNGramCounts::TaskFile<GoogleNGramCounts::TaskCorpus> task_type;
     typedef MapReduceFile<task_type> map_reduce_type;
     
-    map_reduce_type::mapper_others(output_path, paths_counts, max_malloc);
+    map_reduce_type::mapper_others(path_filter, output_path, paths_counts, max_malloc);
   }
 }
 
-void accumulate_counts_others(const path_type& output_path,
+void accumulate_counts_others(const path_type& path_filter,
+			      const path_type& output_path,
 			      path_map_type&   paths_counts,
 			      const bool map_line,
 			      const double max_malloc)
@@ -624,13 +658,13 @@ void accumulate_counts_others(const path_type& output_path,
     typedef GoogleNGramCounts::TaskLine<GoogleNGramCounts::TaskCounts> task_type;
     typedef MapReduceLine<task_type> map_reduce_type;
     
-    map_reduce_type::mapper_others(output_path, paths_counts, max_malloc);
+    map_reduce_type::mapper_others(path_filter, output_path, paths_counts, max_malloc);
     
   } else {
     typedef GoogleNGramCounts::TaskFile<GoogleNGramCounts::TaskCounts> task_type;
     typedef MapReduceFile<task_type> map_reduce_type;
     
-    map_reduce_type::mapper_others(output_path, paths_counts, max_malloc);
+    map_reduce_type::mapper_others(path_filter, output_path, paths_counts, max_malloc);
   }
 }
 
@@ -651,6 +685,8 @@ int getoptions(int argc, char** argv)
     ("counts-list",  po::value<path_type>(&counts_list_file),  "counts list file")
     
     ("output",       po::value<path_type>(&output_file), "output directory")
+    
+    ("filter", po::value<path_type>(&filter_file), "filtering script")
 
     ("prog",   po::value<path_type>(&prog_name),   "this binary")
     

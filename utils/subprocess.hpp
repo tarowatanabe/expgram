@@ -6,12 +6,15 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <signal.h>
 
 #include <cerrno>
 #include <cstring>
 
 #include <string>
 #include <stdexcept>
+
+#include <boost/filesystem.hpp>
 
 namespace utils
 {
@@ -20,6 +23,8 @@ namespace utils
   {
     
   public:
+    subprocess(const boost::filesystem::path& command)
+      : __pid(-1), __pread(-1), __pwrite(-1) { open(command.file_string()); }
     subprocess(const std::string& command)
       : __pid(-1), __pread(-1), __pwrite(-1) { open(command); }
     ~subprocess() { close(); }
@@ -30,69 +35,18 @@ namespace utils
   public:
     int desc_read() const { return __pread; }
     int desc_write() const { return __pwrite; }
+    int& desc_read() { return __pread; }
+    int& desc_write() { return __pwrite; }
     
 
-    void open(const std::string& command)
+    void terminate()
     {
-      int pipe_exec[2] = {-1, -1};
-      
-      if (::pipe(pipe_exec) < 0)
-	throw std::runtime_error(std::string("pipe(): ") + strerror(errno));
-      
-      try {
-	__close_on_exec(pipe_exec[0]);
-	__close_on_exec(pipe_exec[1]);
-      }
-      catch (const std::exception& err) {
-	::close(pipe_exec[0]);
-	::close(pipe_exec[1]);
-	throw err;
-      }
-      
-      if (fork() == 0) {
-	// child process
-	
-	// execlp
-	::execlp(command.c_str(), command.c_str(), 0);
-	
-	// we will reach here if execlp failed...
-	int error = errno;
-	::write(pipe_exec[1], &error, sizeof(error));
-	
-	::close(pipe_exec[1]);
-	::close(pipe_exec[0]);
-	
-	pipe_exec[0] = -1;
-	pipe_exec[1] = -1;
-	
-	::_exit(error);  // not exit(error)!
-      } else {
-	// parent process
-	::close(pipe_exec[1]);
-	pipe_exec[1] = -1;
-	
-	int error = 0;
-	switch (::read(pipe_exec[0], &error, sizeof(error))) {
-	case  0: break; // success!
-	case -1:
-	  ::close(pipe_exec[0]);
-	  pipe_exec[0] = -1;
-	  throw std::runtime_error(std::string("read(): ") + strerror(errno));
-	  break;
-	default:
-	  ::close(pipe_exec[0]);
-	  pipe_exec[0] = -1;
-	  throw std::runtime_error(std::string("read(): ") + strerror(error));
-	  break; // error in child...
-	}
-	
-	::close(pipe_exec[0]);
-	pipe_exec[0] = -1;
-      }
+      if (__pid >= 0)
+	::kill(__pid, SIGTERM);
     }
-    
-    pid_t fork()
-    {
+
+    void open(const std::string& command)
+    {     
       int pin[2] = {-1, -1};
       int pout[2] = {-1, -1};
     
@@ -103,7 +57,7 @@ namespace utils
 	::close(pin[1]);
 	throw std::runtime_error(std::string("pipe(): ") + strerror(errno));
       }
-    
+      
       const pid_t pid = ::fork();
       if (pid < 0) {
 	::close(pin[0]);
@@ -124,6 +78,10 @@ namespace utils
 	::close(pout[0]);
 	::dup2(pout[1], STDOUT_FILENO);
 	::close(pout[1]);
+	
+	::execlp(command.c_str(), command.c_str(), 0);
+	
+	::_exit(errno);  // not exit(errno)!
       } else {
 	// parent process...
 	::close(pin[0]);
@@ -155,7 +113,7 @@ namespace utils
     
     void __close_on_exec(int fd)
     {
-      int flags = ::fcntl(fd, F_GETFD);
+      int flags = ::fcntl(fd, F_GETFD, 0);
       if (flags == -1)
 	throw std::runtime_error(std::string("fcntl(): ") + strerror(errno));
       flags |= FD_CLOEXEC;

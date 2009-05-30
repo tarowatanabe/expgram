@@ -3,6 +3,12 @@
 #ifndef __NGRAM_COUNTS_EXTRACT_IMPL__HPP__
 #define __NGRAM_COUNTS_EXTRACT_IMPL__HPP__ 1
 
+#include <fcntl.h>
+
+#include <cstring>
+#include <cerrno>
+
+#include <memory>
 #include <sstream>
 #include <iostream>
 #include <vector>
@@ -17,6 +23,8 @@
 #include <boost/filesystem.hpp>
 #include <boost/tokenizer.hpp>
 #include <boost/functional/hash.hpp>
+#include <boost/iostreams/filtering_stream.hpp>
+#include <boost/iostreams/device/file_descriptor.hpp>
 
 #include <utils/space_separator.hpp>
 #include <utils/compress_stream.hpp>
@@ -26,6 +34,8 @@
 #include <utils/lockfree_list_queue.hpp>
 #include <utils/istream_line_iterator.hpp>
 #include <utils/tempfile.hpp>
+#include <utils/subprocess.hpp>
+#include <utils/async_device.hpp>
 
 #include <expgram/Word.hpp>
 #include <expgram/Vocab.hpp>
@@ -47,6 +57,8 @@ struct GoogleNGramCounts
   typedef utils::compact_trie<word_type, count_type, boost::hash<word_type>, std::equal_to<word_type>,
 			      std::allocator<std::pair<const word_type, count_type> > > ngram_count_set_type;
 
+  typedef utils::subprocess subprocess_type;
+
 
   template <typename Task>
   struct TaskLine
@@ -60,21 +72,63 @@ struct GoogleNGramCounts
     typedef boost::shared_ptr<thread_type>                                 thread_ptr_type;
     typedef std::vector<thread_ptr_type, std::allocator<thread_ptr_type> > thread_ptr_set_type;
     
+    typedef utils::subprocess subprocess_type;
+    
     typedef Task task_type;
     
-    queue_type&    queue;
-    path_type      path;
-    path_map_type& paths;
-    double         max_malloc;
+    queue_type&      queue;
+    subprocess_type* subprocess;
+    path_type        path;
+    path_map_type&   paths;
+    double           max_malloc;
     
+    TaskLine(queue_type&      _queue,
+	     subprocess_type& _subprocess,
+	     const path_type& _path,
+	     path_map_type&   _paths,
+	     const double     _max_malloc)
+      : queue(_queue),
+	subprocess(&_subprocess),
+	path(_path),
+	paths(_paths),
+	max_malloc(_max_malloc) {}
+
     TaskLine(queue_type&      _queue,
 	     const path_type& _path,
 	     path_map_type&   _paths,
 	     const double     _max_malloc)
       : queue(_queue),
+	subprocess(0),
 	path(_path),
 	paths(_paths),
 	max_malloc(_max_malloc) {}
+
+    struct SubTask
+    {
+      utils::subprocess& subprocess;
+      queue_type& queue;
+      
+      SubTask(utils::subprocess& _subprocess,
+	      queue_type& _queue)
+	: subprocess(_subprocess), queue(_queue) {}
+      
+      void operator()()
+      {
+	line_set_type lines;
+
+	boost::iostreams::filtering_ostream os;
+	os.push(boost::iostreams::file_descriptor_sink(subprocess.desc_write(), true));
+	
+	while (1) {
+	  queue.pop_swap(lines);
+	  if (lines.empty()) break;
+	  
+	  std::copy(lines.begin(), lines.end(), std::ostream_iterator<std::string>(os, "\n"));
+	}
+	
+	os.pop();
+      }
+    };
     
     void operator()()
     {
@@ -83,22 +137,32 @@ struct GoogleNGramCounts
       task_type __task;
       ngram_count_set_type counts;
       line_set_type lines;
-
       vocab_map_type vocab_map;
       
-      while (1) {
-	queue.pop_swap(lines);
-	if (lines.empty()) break;
+      if (subprocess) {
+	thread_type thread(SubTask(*subprocess, queue));
 	
-	__task(lines.begin(), lines.end(), counts, path, paths, vocab_map, max_malloc);
+	boost::iostreams::filtering_istream is;
+	is.push(boost::iostreams::file_descriptor_source(subprocess->desc_read(), true));
 	
-	if (! counts.empty()) {
-	  size_t num_allocated = 0;
-	  MallocExtension::instance()->GetNumericProperty("generic.current_allocated_bytes", &num_allocated);
+	__task(utils::istream_line_iterator(is), utils::istream_line_iterator(), counts, path, paths, vocab_map, max_malloc);
+	
+	thread.join();
+      } else {
+	while (1) {
+	  queue.pop_swap(lines);
+	  if (lines.empty()) break;
 	  
-	  if (num_allocated > size_t(max_malloc * 1024 * 1024 * 1024)) {
-	    GoogleNGramCounts::dump_counts(counts, path, paths, vocab_map);
-	    counts.clear();
+	  __task(lines.begin(), lines.end(), counts, path, paths, vocab_map, max_malloc);
+	  
+	  if (! counts.empty()) {
+	    size_t num_allocated = 0;
+	    MallocExtension::instance()->GetNumericProperty("generic.current_allocated_bytes", &num_allocated);
+	    
+	    if (num_allocated > size_t(max_malloc * 1024 * 1024 * 1024)) {
+	      GoogleNGramCounts::dump_counts(counts, path, paths, vocab_map);
+	      counts.clear();
+	    }
 	  }
 	}
       }
@@ -118,51 +182,113 @@ struct GoogleNGramCounts
     typedef boost::thread                                                  thread_type;
     typedef boost::shared_ptr<thread_type>                                 thread_ptr_type;
     typedef std::vector<thread_ptr_type, std::allocator<thread_ptr_type> > thread_ptr_set_type;
+
+    typedef utils::subprocess subprocess_type;
     
     typedef Task task_type;
     
-    queue_type&    queue;
-    path_type      path;
-    path_map_type& paths;
-    double         max_malloc;
+    queue_type&      queue;
+    subprocess_type* subprocess;
+    path_type        path;
+    path_map_type&   paths;
+    double           max_malloc;
     
+    TaskFile(queue_type&      _queue,
+	     subprocess_type& _subprocess,
+	     const path_type& _path,
+	     path_map_type&   _paths,
+	     const double     _max_malloc)
+      : queue(_queue),
+	subprocess(&_subprocess),
+	path(_path),
+	paths(_paths),
+	max_malloc(_max_malloc) {}
+
     TaskFile(queue_type&      _queue,
 	     const path_type& _path,
 	     path_map_type&   _paths,
 	     const double     _max_malloc)
       : queue(_queue),
+	subprocess(0),
 	path(_path),
 	paths(_paths),
 	max_malloc(_max_malloc) {}
+
+    struct SubTask
+    {
+      utils::subprocess& subprocess;
+      queue_type& queue;
+      
+      SubTask(utils::subprocess& _subprocess,
+	      queue_type& _queue)
+	: subprocess(_subprocess), queue(_queue) {}
+      
+      void operator()()
+      {
+	path_type file;
+	
+	boost::iostreams::filtering_ostream os;
+	os.push(boost::iostreams::file_descriptor_sink(subprocess.desc_write(), true));
+	
+	while (1) {
+	  queue.pop(file);
+	  if (file.empty()) break;
+	  
+	  if (! boost::filesystem::exists(file))
+	    throw std::runtime_error(std::string("no file? ") + file.file_string());
+	  
+	  char buffer[4096];
+	  utils::compress_istream is(file, 1024 * 1024);
+	  
+	  do {
+	    is.read(buffer, 4096);
+	    if (is.gcount() > 0)
+	      os.write(buffer, is.gcount());
+	  } while(is);
+	}
+	
+	os.pop();
+      }
+    };
     
     void operator()()
     {
       typedef std::vector<const std::string*, std::allocator<const std::string*> > vocab_map_type;
-
+      
       task_type __task;
       ngram_count_set_type counts;
-      path_type file;
-
       vocab_map_type vocab_map;
+      path_type file;
       
-      while (1) {
-	queue.pop(file);
-	if (file.empty()) break;
+      if (subprocess) {
+	thread_type thread(SubTask(*subprocess, queue));
 	
-	if (! boost::filesystem::exists(file))
-	  throw std::runtime_error(std::string("no file? ") + file.file_string());
-	
-	utils::compress_istream is(file, 1024 * 1024);
+	boost::iostreams::filtering_istream is;
+	is.push(boost::iostreams::file_descriptor_source(subprocess->desc_read(), true));
 	
 	__task(utils::istream_line_iterator(is), utils::istream_line_iterator(), counts, path, paths, vocab_map, max_malloc);
 	
-	if (! counts.empty()) {
-	  size_t num_allocated = 0;
-	  MallocExtension::instance()->GetNumericProperty("generic.current_allocated_bytes", &num_allocated);
+	thread.join();
+      } else {
+	while (1) {
+	  queue.pop(file);
+	  if (file.empty()) break;
 	  
-	  if (num_allocated > size_t(max_malloc * 1024 * 1024 * 1024)) {
-	    GoogleNGramCounts::dump_counts(counts, path, paths, vocab_map);
-	    counts.clear();
+	  if (! boost::filesystem::exists(file))
+	    throw std::runtime_error(std::string("no file? ") + file.file_string());
+	  
+	  utils::compress_istream is(file, 1024 * 1024);
+	  
+	  __task(utils::istream_line_iterator(is), utils::istream_line_iterator(), counts, path, paths, vocab_map, max_malloc);
+	  
+	  if (! counts.empty()) {
+	    size_t num_allocated = 0;
+	    MallocExtension::instance()->GetNumericProperty("generic.current_allocated_bytes", &num_allocated);
+	    
+	    if (num_allocated > size_t(max_malloc * 1024 * 1024 * 1024)) {
+	      GoogleNGramCounts::dump_counts(counts, path, paths, vocab_map);
+	      counts.clear();
+	    }
 	  }
 	}
       }

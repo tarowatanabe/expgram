@@ -21,6 +21,9 @@ namespace utils
     typedef std::string& reference;
     typedef std::string* pointer;
 
+    typedef size_t    size_type;
+    typedef ptrdiff_t difference_type;
+
   public:
     istream_line_iterator() : __line(), __stream() {}
     istream_line_iterator(stream_type& stream) : __line() , __stream(&stream) { __read(); }
