@@ -585,8 +585,6 @@ void accumulate_corpus_root(const path_set_type& paths,
 			    const bool map_line,
 			    const double max_malloc)
 {
-  const int max_order = paths_counts.size();
-  
   if (map_line) {
     typedef GoogleNGramCounts::TaskLine<GoogleNGramCounts::TaskCorpus> task_type;
     typedef MapReduceLine<task_type> map_reduce_type;
@@ -608,8 +606,6 @@ void accumulate_counts_root(const path_set_type& paths,
 			    const bool map_line,
 			    const double max_malloc)
 {
-  const int max_order = paths_counts.size();
-  
   if (map_line) {
     typedef GoogleNGramCounts::TaskLine<GoogleNGramCounts::TaskCounts> task_type;
     typedef MapReduceLine<task_type> map_reduce_type;
@@ -630,8 +626,6 @@ void accumulate_corpus_others(const path_type& path_filter,
 			      const bool map_line,
 			      const double max_malloc)
 {
-  const int max_order = paths_counts.size();
-  
   if (map_line) {
     typedef GoogleNGramCounts::TaskLine<GoogleNGramCounts::TaskCorpus> task_type;
     typedef MapReduceLine<task_type> map_reduce_type;
@@ -652,8 +646,6 @@ void accumulate_counts_others(const path_type& path_filter,
 			      const bool map_line,
 			      const double max_malloc)
 {
-  const int max_order = paths_counts.size();
-  
   if (map_line) {
     typedef GoogleNGramCounts::TaskLine<GoogleNGramCounts::TaskCounts> task_type;
     typedef MapReduceLine<task_type> map_reduce_type;

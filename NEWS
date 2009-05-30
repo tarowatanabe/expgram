@@ -6,10 +6,12 @@
 	     - Use non-compact hash-table at root level.
 	     - Vocab-mapping tweaking when dumping ngram-counts.
 
+	* Added --filter to ngram_counts_extract/ngram_counts_extract_mpi in order to perform text filtering, such as tokenization.
+
 	* Added ngram_stat/ngram_counts_stat to show some statiscs on indexed size.
 
 	* Added ngram_perplexiy
-
+	
 	* Implemented "mpish", a tool to perform mapping of set of shell-command.
 	  For instance, you can run:
 	      for ((i=0;i<1024;++i)) do; echo "uname -a" done | mpirun --host <list-of-host-delimited-by-,> --np <#-of-processes> mpish 

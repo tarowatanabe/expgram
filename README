@@ -34,15 +34,12 @@ Brief descriptions:
 	dump statistics on storage size
 
      The set of tools provided here extensively use temporary disk space specified either by TMPDIR or TMPDIR_SPEC.
-     
      TMPDIR is usually set by default, and usually specified /tmp or /var/tmp
-
      Alternatively, you can specify via TMPDIR_SPEC: 
      
      export TMPDIR_SPEC=/export/%host/users/${USER}
      
-     THe %host key word is simply replaced by the host of running machine (so that each binary may abuse only local-storage).
-          	 
+     The %host key word is simply replaced by the host of running machine (so that each binary may abuse only local-storage).
 
 For larger data, it is recommended to use mpi-version for scalability. (Currently, experimental, and NOT TESTED.)
 

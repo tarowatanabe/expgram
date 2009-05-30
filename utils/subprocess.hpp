@@ -24,8 +24,6 @@ namespace utils
     
   public:
     subprocess(const boost::filesystem::path& command)
-      : __pid(-1), __pread(-1), __pwrite(-1) { open(command.file_string()); }
-    subprocess(const std::string& command)
       : __pid(-1), __pread(-1), __pwrite(-1) { open(command); }
     ~subprocess() { close(); }
   private:
@@ -45,7 +43,7 @@ namespace utils
 	::kill(__pid, SIGTERM);
     }
 
-    void open(const std::string& command)
+    void open(const boost::filesystem::path& command)
     {     
       int pin[2] = {-1, -1};
       int pout[2] = {-1, -1};
@@ -79,7 +77,7 @@ namespace utils
 	::dup2(pout[1], STDOUT_FILENO);
 	::close(pout[1]);
 	
-	::execlp(command.c_str(), command.c_str(), 0);
+	::execlp(command.file_string().c_str(), command.file_string().c_str(), 0);
 	
 	::_exit(errno);  // not exit(errno)!
       } else {
