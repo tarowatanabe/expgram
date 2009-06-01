@@ -463,6 +463,9 @@ struct GoogleNGramCounts
       throw std::runtime_error("no counts?");
     
     const int max_order = paths_counts.size();
+
+    // if no unigram counts, return...
+    if (paths_counts.front().empty()) return;
     
     // process unigrams...
     {
