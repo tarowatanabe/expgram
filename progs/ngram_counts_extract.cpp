@@ -135,12 +135,6 @@ int main(int argc, char** argv)
   return 0;
 }
 
-
-
-
-
-
-
 void accumulate_counts(const path_set_type& __paths,
 		       const path_type& path_filter,
 		       const path_type& output_path,
