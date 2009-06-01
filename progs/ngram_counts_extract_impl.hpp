@@ -276,7 +276,7 @@ struct GoogleNGramCounts
 	  
 	  if (! boost::filesystem::exists(file))
 	    throw std::runtime_error(std::string("no file? ") + file.file_string());
-	  
+
 	  utils::compress_istream is(file, 1024 * 1024);
 	  
 	  __task(utils::istream_line_iterator(is), utils::istream_line_iterator(), counts, path, paths, vocab_map, max_malloc);
@@ -676,7 +676,7 @@ struct GoogleNGramCounts
       const size_t iteration_mask = (1 << 13) - 1;
       for (size_t iteration = 0; first != last; ++ first, ++ iteration) {
 	tokenizer_type tokenizer(*first);
-	
+
 	sentence.clear();
 	sentence.push_back(vocab_type::BOS);
 	sentence.insert(sentence.end(), tokenizer.begin(), tokenizer.end());

@@ -120,11 +120,17 @@ int main(int argc, char** argv)
     
     path_map_type paths_counts(max_order);
     
-    if (! counts_files.empty())
+    if (! counts_files.empty()) {
+      if (debug)
+	std::cerr << "collect counts from counts" << std::endl;
       accumulate_counts(counts_files, filter_file, output_file, paths_counts, map_line, max_malloc, threads);
+    }
     
-    if (! corpus_files.empty())
+    if (! corpus_files.empty()) {
+      if (debug)
+	std::cerr << "collect counts from corpus" << std::endl;
       accumulate_corpus(corpus_files, filter_file, output_file, paths_counts, map_line, max_malloc, threads);
+    }
     
     GoogleNGramCounts::postprocess(output_file, paths_counts);
   }
@@ -349,7 +355,7 @@ void accumulate_corpus(const path_set_type& paths,
       paths_shard.clear();
     }
   } else {
-    typedef GoogleNGramCounts::TaskFile<GoogleNGramCounts::TaskCounts> task_type;
+    typedef GoogleNGramCounts::TaskFile<GoogleNGramCounts::TaskCorpus> task_type;
     
     typedef task_type::queue_type          queue_type;
     typedef task_type::thread_type         thread_type;
