@@ -4,6 +4,7 @@
 #define __UTILS__SUBPROCESS__HPP__ 1
 
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <signal.h>
