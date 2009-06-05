@@ -707,9 +707,9 @@ namespace expgram
     typedef map_reduce_type::context_type         context_type;
     typedef map_reduce_type::word_set_type        word_set_type;
     typedef map_reduce_type::context_logprob_type context_logprob_type;
-    
-    typedef std::vector<const char*, std::allocator<const char*> > vocab_map_type;
 
+    typedef std::vector<const char*, std::allocator<const char*> > vocab_map_type;
+    
     typedef std::pair<word_set_type, queue_type*>       words_queue_type;
     typedef std::pair<context_type, words_queue_type>   context_words_queue_type;
     typedef boost::shared_ptr<context_words_queue_type> context_words_queue_ptr_type;

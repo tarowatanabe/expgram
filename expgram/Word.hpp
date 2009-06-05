@@ -6,10 +6,12 @@
 #include <stdint.h>
 
 #include <iostream>
-#include <string>
 #include <iterator>
+#include <string>
+#include <vector>
 
 #include <boost/filesystem.hpp>
+#include <boost/thread.hpp>
 
 #include <utils/indexed_set.hpp>
 #include <utils/hashmurmur.hpp>
@@ -51,8 +53,21 @@ namespace expgram
     void swap(Word& x) { std::swap(__id, x.__id); }
     
     const id_type   id() const { return __id; }
-    const word_type& word() const { lock_type lock(__mutex); return __words()[__id]; }
     operator const word_type&() const { return word(); }
+    
+    const word_type& word() const
+    {
+      word_map_type& maps = __word_maps();
+      
+      if (__id >= maps.size())
+	maps.resize(__id + 1, 0);
+      if (! maps[__id]) {
+	lock_type lock(__mutex);
+	maps[__id] = &(__words()[__id]);
+      }
+      
+      return *maps[__id];
+    }
     
     const_iterator begin() const { return word().begin(); }
     const_iterator end() const { return word().end(); }
@@ -100,6 +115,8 @@ namespace expgram
       utils::hashmurmur<size_t> __hasher;
     };
     typedef utils::indexed_set<word_type, hasher, std::equal_to<word_type>, std::allocator<word_type> > word_set_type;
+
+    typedef std::vector<const word_type*, std::allocator<const word_type*> > word_map_type;
     
   public:
     static bool exists(const word_type& x)
@@ -116,6 +133,19 @@ namespace expgram
     
   private:
     static mutex_type    __mutex;
+    
+    static word_map_type& __word_maps()
+    {
+      static boost::thread_specific_ptr<word_map_type> __maps;
+      
+      if (! __maps.get()) {
+	__maps.reset(new word_map_type());
+	__maps->reserve(allocated());
+      }
+      
+      return *__maps;
+    }
+    
     static word_set_type& __words()
     {
       static word_set_type words;

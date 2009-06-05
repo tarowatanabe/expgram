@@ -4,6 +4,7 @@
 
 #include <vector>
 #include <queue>
+#include <deque>
 
 #include <expgram/NGramCounts.hpp>
 #include <expgram/NGramCountsIndexer.hpp>
@@ -339,17 +340,18 @@ struct VocabMap
   cache_type  cache;
 };
 
+
 template <typename Tp>
-struct greater_pfirst
+struct greater_ngram
 {
   bool operator()(const Tp* x, const Tp* y) const
   {
-    return x->first > y->first;
+    return x->first.front().first > y->first.front().first;
   }
       
   bool operator()(const boost::shared_ptr<Tp>& x, const boost::shared_ptr<Tp>& y) const
   {
-    return x->first > y->first;
+    return x->first.front().first > y->first.front().first;
   }
 };
 
@@ -383,14 +385,17 @@ void index_ngram_mapper(intercomm_type& reducer, const PathSet& paths, ngram_typ
   
   typedef std::vector<idevice_ptr_type, std::allocator<idevice_ptr_type> > idevice_ptr_set_type;
   typedef std::vector<odevice_ptr_type, std::allocator<odevice_ptr_type> > odevice_ptr_set_type;
-  
-  typedef std::pair<count_type, istream_type*>                   count_stream_type;
+
   typedef std::vector<std::string, std::allocator<std::string> > ngram_context_type;
-  typedef std::pair<ngram_context_type, count_stream_type>       context_count_stream_type;
-  typedef boost::shared_ptr<context_count_stream_type>           context_count_stream_ptr_type;
+  
+  typedef std::pair<ngram_context_type, count_type>                           context_count_type;
+  typedef std::deque<context_count_type, std::allocator<context_count_type> > context_count_set_type;
+  
+  typedef std::pair<context_count_set_type, istream_type*> context_count_stream_type;
+  typedef boost::shared_ptr<context_count_stream_type>     context_count_stream_ptr_type;
   
   typedef std::vector<context_count_stream_ptr_type, std::allocator<context_count_stream_ptr_type> > pqueue_base_type;
-  typedef std::priority_queue<context_count_stream_ptr_type, pqueue_base_type, greater_pfirst<context_count_stream_type> > pqueue_type;
+  typedef std::priority_queue<context_count_stream_ptr_type, pqueue_base_type, greater_ngram<context_count_stream_type> > pqueue_type;
 
   typedef std::vector<std::string, std::allocator<std::string> > tokens_type;
   typedef boost::tokenizer<utils::space_separator>               tokenizer_type;
@@ -421,23 +426,23 @@ void index_ngram_mapper(intercomm_type& reducer, const PathSet& paths, ngram_typ
   for (int i = 0; i < paths.size(); ++ i) {
     
     istreams.push_back(istream_ptr_type(new utils::compress_istream(paths[i], 1024 * 1024)));
+
+    context_count_stream_ptr_type context_stream(new context_count_stream_type());
+    context_stream->second = &(*istreams.back());
     
-    while (std::getline(*istreams.back(), line)) {
+    while (context_stream->first.size() < 256 && std::getline(*istreams.back(), line)) {
       tokenizer_type tokenizer(line);
       tokens.clear();
       tokens.insert(tokens.end(), tokenizer.begin(), tokenizer.end());
       
       if (tokens.size() < 2) continue;
       
-      context_count_stream_ptr_type context_stream(new context_count_stream_type());
-      context_stream->first.clear();
-      context_stream->first.insert(context_stream->first.end(), tokens.begin(), tokens.end() - 1);
-      context_stream->second.first = atoll(tokens.back().c_str());
-      context_stream->second.second = &(*istreams.back());
-      
-      pqueue.push(context_stream);
-      break;
+      context_stream->first.push_back(std::make_pair(ngram_context_type(tokens.begin(), tokens.end() - 1),
+						     atoll(tokens.back().c_str())));
     }
+    
+    if (! context_stream->first.empty())
+      pqueue.push(context_stream);
   }
   
   ngram_context_type context;
@@ -451,7 +456,7 @@ void index_ngram_mapper(intercomm_type& reducer, const PathSet& paths, ngram_typ
     context_count_stream_ptr_type context_stream(pqueue.top());
     pqueue.pop();
     
-    if (context != context_stream->first) {
+    if (context != context_stream->first.front().first) {
       if (count > 0) {
 	if (context.size() == 2)
 	  ngram_shard = shard_index(ngram, vocab_map, context);
@@ -466,26 +471,27 @@ void index_ngram_mapper(intercomm_type& reducer, const PathSet& paths, ngram_typ
 	*stream[ngram_shard] << count << '\n';
       }
       
-      context.swap(context_stream->first);
+      context.swap(context_stream->first.front().first);
       count = 0;
     }
     
-    count += context_stream->second.first;
+    count += context_stream->first.front().second;
+    context_stream->first.pop_front();
     
-    while (std::getline(*(context_stream->second.second), line)) {
-      tokenizer_type tokenizer(line);
-      tokens.clear();
-      tokens.insert(tokens.end(), tokenizer.begin(), tokenizer.end());
-      
-      if (tokens.size() < 2) continue;
-      
-      context_stream->first.clear();
-      context_stream->first.insert(context_stream->first.end(), tokens.begin(), tokens.end() - 1);
-      context_stream->second.first = atoll(tokens.back().c_str());
-      
+    if (context_stream->first.empty())
+      while (context_stream->first.size() < 256 && std::getline(*(context_stream->second), line)) {
+	tokenizer_type tokenizer(line);
+	tokens.clear();
+	tokens.insert(tokens.end(), tokenizer.begin(), tokenizer.end());
+	
+	if (tokens.size() < 2) continue;
+	
+	context_stream->first.push_back(std::make_pair(ngram_context_type(tokens.begin(), tokens.end() - 1),
+						       atoll(tokens.back().c_str())));
+      }
+    
+    if (! context_stream->first.empty())
       pqueue.push(context_stream);
-      break;
-    }
     
     if ((iteration & iteration_mask) == iteration_mask && mpi_flush_devices(stream, device))
       boost::thread::yield();
@@ -748,13 +754,16 @@ void index_ngram_reducer(intercomm_type& mapper, ngram_type& ngram, Stream& os_c
   typedef std::vector<istream_ptr_type, std::allocator<istream_ptr_type> > istream_ptr_set_type;
   typedef std::vector<idevice_ptr_type, std::allocator<idevice_ptr_type> > idevice_ptr_set_type;
   
-  typedef std::pair<count_type, istream_type*> count_stream_type;
   typedef std::vector<std::string, std::allocator<std::string> > ngram_context_type;
-  typedef std::pair<ngram_context_type, count_stream_type>       context_count_stream_type;
-  typedef boost::shared_ptr<context_count_stream_type>           context_count_stream_ptr_type;
+  
+  typedef std::pair<ngram_context_type, count_type>                                       ngram_context_count_type;
+  typedef std::deque<ngram_context_count_type, std::allocator<ngram_context_count_type> > context_count_set_type;
+  
+  typedef std::pair<context_count_set_type, istream_type*> context_count_stream_type;
+  typedef boost::shared_ptr<context_count_stream_type>     context_count_stream_ptr_type;
   
   typedef std::vector<context_count_stream_ptr_type, std::allocator<context_count_stream_ptr_type> > pqueue_base_type;
-  typedef std::priority_queue<context_count_stream_ptr_type, pqueue_base_type, greater_pfirst<context_count_stream_type> > pqueue_type;
+  typedef std::priority_queue<context_count_stream_ptr_type, pqueue_base_type, greater_ngram<context_count_stream_type> > pqueue_type;
   
   typedef std::vector<std::string, std::allocator<std::string> > tokens_type;
   typedef boost::tokenizer<utils::space_separator>               tokenizer_type;
@@ -789,22 +798,22 @@ void index_ngram_reducer(intercomm_type& mapper, ngram_type& ngram, Stream& os_c
     stream[rank]->push(boost::iostreams::gzip_decompressor());
     stream[rank]->push(*device[rank]);
     
-    while (std::getline(*stream[rank], line)) {
+    context_count_stream_ptr_type context_stream(new context_count_stream_type());
+    context_stream->second = &(*stream[rank]);
+    
+    while (context_stream->first.size() < 256 && std::getline(*stream[rank], line)) {
       tokenizer_type tokenizer(line);
       tokens.clear();
       tokens.insert(tokens.end(), tokenizer.begin(), tokenizer.end());
       
       if (tokens.size() < 2) continue;
       
-      context_count_stream_ptr_type context_stream(new context_count_stream_type());
-      context_stream->first.clear();
-      context_stream->first.insert(context_stream->first.end(), tokens.begin(), tokens.end() - 1);
-      context_stream->second.first = atoll(tokens.back().c_str());
-      context_stream->second.second = &(*stream[rank]);
-      
-      pqueue.push(context_stream);
-      break;
+      context_stream->first.push_back(std::make_pair(ngram_context_type(tokens.begin(), tokens.end() - 1),
+						     atoll(tokens.back().c_str())));
     }
+    
+    if (! context_stream->first.empty())
+      pqueue.push(context_stream);
   }
   
   ngram_context_type  context;
@@ -816,8 +825,8 @@ void index_ngram_reducer(intercomm_type& mapper, ngram_type& ngram, Stream& os_c
   while (! pqueue.empty()) {
     context_count_stream_ptr_type context_stream(pqueue.top());
     pqueue.pop();
-    
-    if (context.size() != context_stream->first.size() || ! std::equal(context.begin(), context.end(), context_stream->first.begin())) {
+
+    if (context != context_stream->first.front().first) {
       
       if (context_count.second > 0) {
 	context_count.first.clear();
@@ -828,28 +837,27 @@ void index_ngram_reducer(intercomm_type& mapper, ngram_type& ngram, Stream& os_c
 	queue.push_swap(context_count);
       }
       
-      context.clear();
-      context.insert(context.end(), context_stream->first.begin(), context_stream->first.end());
-      
+      context.swap(context_stream->first.front().first);
       context_count.second = 0;
     }
     
-    context_count.second += context_stream->second.first;
+    context_count.second += context_stream->first.front().second;
+    context_stream->first.pop_front();
     
-    while (std::getline(*(context_stream->second.second), line)) {
-      tokenizer_type tokenizer(line);
-      tokens.clear();
-      tokens.insert(tokens.end(), tokenizer.begin(), tokenizer.end());
+    if (context_stream->first.empty())
+      while (context_stream->first.size() < 256 && std::getline(*(context_stream->second), line)) {
+	tokenizer_type tokenizer(line);
+	tokens.clear();
+	tokens.insert(tokens.end(), tokenizer.begin(), tokenizer.end());
       
-      if (tokens.size() < 2) continue;
+	if (tokens.size() < 2) continue;
       
-      context_stream->first.clear();
-      context_stream->first.insert(context_stream->first.end(), tokens.begin(), tokens.end() - 1);
-      context_stream->second.first = atoll(tokens.back().c_str());
-      
+	context_stream->first.push_back(std::make_pair(ngram_context_type(tokens.begin(), tokens.end() - 1),
+						       atoll(tokens.back().c_str())));
+      }
+    
+    if (! context_stream->first.empty())
       pqueue.push(context_stream);
-      break;
-    }
   }
   
   if (context_count.second > 0) {

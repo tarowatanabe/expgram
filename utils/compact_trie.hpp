@@ -84,6 +84,12 @@ namespace utils
     bool empty(id_type __id) const { return __nodes[__id].__map.empty(); }
     
     bool is_root(id_type __id) const { return __id == npos; }
+
+    void swap(compact_trie& x)
+    {
+      __root.swap(x.__root);
+      __nodes.swap(x.__nodes);
+    }
     
     id_type root() const { return npos; }
     
@@ -184,6 +190,17 @@ namespace utils
     id_map_root_type __root;
     node_set_type    __nodes;
   };
+};
+
+namespace std
+{
+  template <typename Key, typename Data, typename Hash, typename Equal, typename Alloc>
+  inline
+  void swap(utils::compact_trie<Key,Data,Hash,Equal,Alloc>& x,
+	    utils::compact_trie<Key,Data,Hash,Equal,Alloc>& y)
+  {
+    x.swap(y);
+  }
 };
 
 #endif
