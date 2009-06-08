@@ -143,7 +143,9 @@ namespace utils
     
     size_type __aligned_size(size_type size) const
     {
-      return (size + 16 - 1) & (size_type(-16));
+      static const int alignment_size = 16 / sizeof(value_type);
+
+      return (size + alignment_size - 1) & (size_type(-alignment_size));
     }
     
   private:
