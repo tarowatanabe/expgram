@@ -27,34 +27,34 @@ namespace utils
   public:
     vector3()
       : __base(), __size1(), __size2(), __size3() {}
-    vector3(size_type _size1, size_type _size2, size_type _size3)
-      : __base(_size1 * _size2 * _size3), __size1(_size1), __size2(_size2), __size3(_size3) {}
-    vector3(size_type _size1, size_type _size2, size_type _size3, const value_type& value)
-      : __base(_size1 * _size2 * _size3, value), __size1(_size1), __size2(_size2), __size3(_size3) {}
+    vector3(size_type __s1, size_type __s2, size_type __s3)
+      : __base(__s1 * __s2 * __s3), __size1(__s1), __size2(__s2), __size3(__s3) {}
+    vector3(size_type __s1, size_type __s2, size_type __s3, const value_type& value)
+      : __base(__s1 * __s2 * __s3, value), __size1(__s1), __size2(__s2), __size3(__s3) {}
     
     bool empty() const { return __base.empty(); }
     size_type size1() const { return __size1; }
     size_type size2() const { return __size2; }
     size_type size3() const { return __size3; }
     
-    void reserve(size_type pos1, size_type pos2, size_type pos3)
+    void reserve(size_type __s1, size_type __s2, size_type __s3)
     {
-      __base.reserve(pos1 * pos2 * pos3);
+      __base.reserve(__s1 * __s2 * __s3);
     }
     
-    void resize(size_type pos1, size_type pos2, size_type pos3)
+    void resize(size_type __s1, size_type __s2, size_type __s3)
     {
-      __size1 = pos1;
-      __size2 = pos2;
-      __size3 = pos3;
-      __base.resize(pos1 * pos2 * pos3);
+      __size1 = __s1;
+      __size2 = __s2;
+      __size3 = __s3;
+      __base.resize(__s1 * __s2 * __s3);
     }
-    void resize(size_type pos1, size_type pos2, size_type pos3, const value_type& value)
+    void resize(size_type __s1, size_type __s2, size_type __s3, const value_type& value)
     {
-      __size1 = pos1;
-      __size2 = pos2;
-      __size3 = pos3;
-      __base.resize(pos1 * pos2 * pos3, value);
+      __size1 = __s1;
+      __size2 = __s2;
+      __size3 = __s3;
+      __base.resize(__s1 * __s2 * __s3, value);
     }
     void clear()
     {

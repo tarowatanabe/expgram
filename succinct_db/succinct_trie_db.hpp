@@ -312,7 +312,7 @@ namespace succinctdb
     
     bool exists(size_type node_pos) const { return __succinct_trie->exists(node_pos); }
     bool is_valid(size_type node_pos) const { return node_pos != succinct_trie_type::out_of_range(); }
-    const data_type& operator[](size_type node_pos) const { return __succinct_trie->data(node_pos); }
+    data_type operator[](size_type node_pos) const { return __succinct_trie->data(node_pos); }
 
     uint64_t size_bytes() const { return (__succinct_trie ? __succinct_trie->size_bytes() : uint64_t(0)); }
     uint64_t size_compressed() const { return (__succinct_trie ? __succinct_trie->size_compressed() : uint64_t(0)); }

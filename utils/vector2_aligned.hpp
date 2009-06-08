@@ -1,7 +1,7 @@
 // -*- mode: c++ -*-
 
-#ifndef __UTILS__VECTOR2__HPP__
-#define __UTILS__VECTOR2__HPP__ 1
+#ifndef __UTILS__VECTOR2_ALIGNED__HPP__
+#define __UTILS__VECTOR2_ALIGNED__HPP__ 1
 
 #include <vector>
 
@@ -9,7 +9,7 @@ namespace utils
 {
   
   template <typename Iterator, typename Reference>
-  struct __vector2_view
+  struct __vector2_aligned_view
   {
     typedef size_t    size_type;
     typedef ptrdiff_t difference_type;
@@ -17,9 +17,9 @@ namespace utils
     typedef Iterator  iterator;
     typedef Reference reference;
 
-    typedef __vector2_view self_type;
+    typedef __vector2_aligned_view self_type;
     
-    __vector2_view(iterator __iter, size_type __size) : iter(__iter), size(__size) {}
+    __vector2_aligned_view(iterator __iter, size_type __size) : iter(__iter), size(__size) {}
     
     reference operator*() const { return *iter; }
     iterator  operator->() const { return iter; }
@@ -40,7 +40,7 @@ namespace utils
   };
 
   template <typename _Tp, typename _Alloc=std::allocator<_Tp> >
-  class vector2
+  class vector2_aligned
   {
   private:
     typedef std::vector<_Tp, _Alloc> base_type;
@@ -55,16 +55,20 @@ namespace utils
     typedef typename base_type::const_reference const_reference;
     typedef typename base_type::reference       reference;
     
-    typedef __vector2_view<const_iterator, const_reference> const_view_type;
-    typedef __vector2_view<iterator, reference>             view_type;
+    typedef __vector2_aligned_view<const_iterator, const_reference> const_view_type;
+    typedef __vector2_aligned_view<iterator, reference>             view_type;
     
   public:
-    vector2()
-      : __base(), __size1(), __size2() {}
-    vector2(size_type __s1, size_type __s2)
-      : __base(__s1 * __s2), __size1(__s1), __size2(__s2) {}
-    vector2(size_type __s1, size_type __s2, const value_type& value)
-      : __base(__s1 * __s2, value), __size1(__s1), __size2(__s2) {}
+    vector2_aligned()
+      : __base(), __size1(0), __size2(0), __size1_aligned(0), __size2_aligned(0) {}
+    vector2_aligned(size_type __s1, size_type __s2)
+      : __base(__vector_size(__s1, __s2)),
+	__size1(__s1), __size2(__s2),
+	__size1_aligned(__s1), __size2_aligned(__aligned_size(__s2)) {}
+    vector2_aligned(size_type __s1, size_type __s2, const value_type& value)
+      : __base(__vector_size(__s1, __s2), value),
+	__size1(__s1), __size2(__s2),
+	__size1_aligned(__s1), __size2_aligned(__aligned_size(__s2)) {}
     
     bool empty() const { return __base.empty(); }
     size_type size1() const { return __size1; }
@@ -72,40 +76,52 @@ namespace utils
     
     void reserve(size_type __s1, size_type __s2)
     {
-      __base.reserve(__s1 * __s2);
+      __base.reserve(__vector_size(__s1, __s2));
     }
     
     void resize(size_type __s1, size_type __s2)
     {
       __size1 = __s1;
       __size2 = __s2;
-      __base.resize(__s1 * __s2);
+      
+      __size1_aligned = __size1;
+      __size2_aligned = __aligned_size(__size2);
+      
+      __base.resize(__size1_aligned * __size2_aligned);
     }
     void resize(size_type __s1, size_type __s2, const value_type& value)
     {
       __size1 = __s1;
       __size2 = __s2;
-      __base.resize(__s1 * __s2, value);
+      
+      __size1_aligned = __size1;
+      __size2_aligned = __aligned_size(__size2);
+      
+      __base.resize(__size1_aligned * __size2_aligned, value);
     }
     void clear()
     {
       __base.clear();
       __size1 = 0;
       __size2 = 0;
+      __size1_aligned = 0;
+      __size2_aligned = 0;
     }
-    void swap(vector2& x)
+    void swap(vector2_aligned& x)
     {
       using namespace std;
       __base.swap(x.__base);
       swap(__size1, x.__size1);
       swap(__size2, x.__size2);
+      swap(__size1_aligned, x.__size1_aligned);
+      swap(__size2_aligned, x.__size2_aligned);
     }
+
+    inline const_view_type operator[](size_type pos1) const { return const_view_type(begin(pos1), __size2_aligned); }
+    inline       view_type operator[](size_type pos1)       { return view_type(begin(pos1), __size2_aligned); }
     
-    inline const_view_type operator[](size_type pos1) const { return const_view_type(begin(pos1), __size2); }
-    inline       view_type operator[](size_type pos1)       { return view_type(begin(pos1), __size2); }
-    
-    inline const_reference operator()(size_type pos1, size_type pos2) const { return __base[pos1 * __size2 + pos2]; }
-    inline       reference operator()(size_type pos1, size_type pos2)       { return __base[pos1 * __size2 + pos2]; }
+    inline const_reference operator()(size_type pos1, size_type pos2) const { return __base[pos1 * __size2_aligned + pos2]; }
+    inline       reference operator()(size_type pos1, size_type pos2)       { return __base[pos1 * __size2_aligned + pos2]; }
     
     inline const_iterator begin() const { return __base.begin(); }
     inline       iterator begin()       { return __base.begin(); }
@@ -113,25 +129,39 @@ namespace utils
     inline const_iterator end() const { return __base.end(); }
     inline       iterator end()       { return __base.end(); }
     
-    inline const_iterator begin(size_type pos) const { return __base.begin() + pos * __size2; }
-    inline       iterator begin(size_type pos)       { return __base.begin() + pos * __size2; }
+    inline const_iterator begin(size_type pos) const { return __base.begin() + pos * __size2_aligned; }
+    inline       iterator begin(size_type pos)       { return __base.begin() + pos * __size2_aligned; }
     
-    inline const_iterator end(size_type pos) const { return __base.begin() + (pos + 1) * __size2; }
-    inline       iterator end(size_type pos)       { return __base.begin() + (pos + 1) * __size2; }
+    inline const_iterator end(size_type pos) const { return __base.begin() + (pos + 1) * __size2_aligned; }
+    inline       iterator end(size_type pos)       { return __base.begin() + (pos + 1) * __size2_aligned; }
+    
+  private:
+    size_type __vector_size(size_type __s1, size_type __s2) const
+    {
+      return __s1 * __aligned_size(__s2);
+    }
+    
+    size_type __aligned_size(size_type size) const
+    {
+      return (size + 16 - 1) & (size_type(-16));
+    }
     
   private:
     base_type __base;
+    
     size_type __size1;
     size_type __size2;
+    
+    size_type __size1_aligned; // this will be the same as the size1
+    size_type __size2_aligned; // this will be the 16-byte alignment adjusted size2
   };
-  
 };
 
 namespace std
 {
   template <typename Tp, typename Alloc>
   inline
-  void swap(utils::vector2<Tp, Alloc>& x, utils::vector2<Tp, Alloc>& y)
+  void swap(utils::vector2_aligned<Tp, Alloc>& x, utils::vector2_aligned<Tp, Alloc>& y)
   {
     x.swap(x);
   }

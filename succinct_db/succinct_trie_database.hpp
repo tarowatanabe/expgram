@@ -394,7 +394,13 @@ namespace succinctdb
     const_cursor cend(size_type node_pos)   const { return const_cursor(__succinct_trie->cend(node_pos), this); }
     const_cursor cbegin() const { return const_cursor(__succinct_trie->cbegin(), this); }
     const_cursor cend()   const { return const_cursor(__succinct_trie->cend(), this); }
-      
+     
+    size_type find(const key_type* key_buf, size_type key_size, size_type node_pos) const
+    {
+      size_type key_pos = 0;
+      return traverse(key_buf, node_pos, key_pos, key_size);
+    }
+ 
     size_type find(const key_type* key_buf, size_type key_size) const
     {
       size_type node_pos = 0;

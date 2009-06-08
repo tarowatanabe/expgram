@@ -14,6 +14,7 @@ AC_CONFIG_HEADER(utils/config.h)
 # Checks for programs.
 AC_PROG_LIBTOOL
 AC_PROG_CXX
+AC_PROG_RANLIB
 
 AC_LANG_CPLUSPLUS
 
@@ -35,7 +36,9 @@ AC_SUBST(SPARSEHASH_CPPFLAGS)
 AC_MSG_CHECKING(for sparsehash)
 save_CXXFLAGS="$CXXFLAGS"
 CXXFLAGS="$CXXFLAGS $SPARSEHASH_CPPFLAGS"
-AC_TRY_LINK([#include <google/sparse_hash_map>], [], [ac_have_libsparsehash=yes], [ac_have_libsparsehash=no])
+AC_TRY_LINK([#include <string>
+             #include <google/sparse_hash_map>],
+	[], [ac_have_libsparsehash=yes], [ac_have_libsparsehash=no])
 CXXFLAGS="$save_CXXFLAGS"
 AC_MSG_RESULT($ac_have_libsparsehash)
 if test "x$ac_have_libsparsehash" = "xno"; then
@@ -235,7 +238,7 @@ AC_LINK_IFELSE([AC_LANG_PROGRAM([#if defined(__GNUC__) && (defined(__i386__) || 
 # Checks for header files.
 AC_HEADER_DIRENT
 AC_HEADER_STDC
-AC_CHECK_HEADERS([fcntl.h stdint.h stdlib.h string.h sys/time.h unistd.h])
+AC_CHECK_HEADERS([fcntl.h stdint.h stdlib.h string.h sys/time.h unistd.h limits.h malloc.h])
 
 # hasn_{map,set}
 AC_CHECK_HEADERS([tr1/unordered_map tr1/unordered_set ext/hash_map ext/hash_set hash_map hash_set])
@@ -256,6 +259,7 @@ AC_TYPE_UINT16_T
 AC_TYPE_UINT32_T
 AC_TYPE_UINT64_T
 AC_TYPE_UINT8_T
+AC_TYPE_PID_T
 AC_C_VOLATILE
 AC_CHECK_TYPES([ptrdiff_t])
 
@@ -266,7 +270,12 @@ AC_FUNC_LSTAT_FOLLOWS_SLASHED_SYMLINK
 AC_FUNC_MMAP
 AC_FUNC_SELECT_ARGTYPES
 AC_FUNC_STAT
+AC_FUNC_FORK
+AC_FUNC_MALLOC
+AC_FUNC_REALLOC
 AC_CHECK_FUNCS([getpagesize gettimeofday memset munmap pow select sqrt strcasecmp strerror])
+AC_CHECK_FUNCS([dup2 gethostname gettimeofday select sqrt])
+AC_CHECK_FUNCS([posix_memalign memalign])
 
 AC_CONFIG_FILES([Makefile
 		 codec/Makefile
