@@ -647,12 +647,12 @@ namespace utils
 	__rank_high.push_back(sum);
     }
 
-    void write(const path_type& path)
+    void write(const path_type& path) const
     {
       typedef utils::repository repository_type;
       
       if (__rank_high.empty())
-	build();
+	const_cast<succinct_vector&>(*this).build();
 
       repository_type repository(path, repository_type::write);
       dump_file(repository.path("bits"), __block);
@@ -668,7 +668,7 @@ namespace utils
   private:
     template <typename _Path, typename _Data>
     inline
-    void dump_file(const _Path& file, const _Data& data)
+    void dump_file(const _Path& file, const _Data& data) const
     {
       boost::iostreams::filtering_ostream os;
       os.push(boost::iostreams::file_sink(file.native_file_string(), std::ios_base::out | std::ios_base::trunc), 1024 * 1024);

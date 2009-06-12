@@ -14,13 +14,13 @@ namespace utils
   // construct object
 
   template <typename Tp>
-  inline void __construct_object(Tp* pointer, const Tp& value, const boost::true_type&)
+  inline void __construct_object(Tp* pointer, const Tp& value, boost::true_type)
   {
     *pointer = value;
   }
   
   template <typename Tp>
-  inline void __construct_object(Tp* pointer, const Tp& value, const boost::false_type&)
+  inline void __construct_object(Tp* pointer, const Tp& value, boost::false_type)
   {
     ::new(static_cast<void*>(pointer)) Tp(value);
   }
@@ -40,13 +40,13 @@ namespace utils
   // destroy object
 
   template <typename Tp>
-  inline void __destroy_object(Tp* pointer, const boost::true_type&)
+  inline void __destroy_object(Tp* pointer, boost::true_type)
   {
     
   }
 
   template <typename Tp>
-  inline void __destroy_object(Tp* pointer, const boost::false_type&)
+  inline void __destroy_object(Tp* pointer, boost::false_type)
   {
     pointer->~Tp();
   }
@@ -62,14 +62,14 @@ namespace utils
 
   template <typename Iterator>
   inline
-  void __destroy_range(Iterator first, Iterator last, const boost::true_type&)
+  void __destroy_range(Iterator first, Iterator last, boost::true_type)
   {
     
   }
   
   template <typename Iterator>
   inline
-  void __destroy_range(Iterator first, Iterator last, const boost::false_type&)
+  void __destroy_range(Iterator first, Iterator last, boost::false_type)
   {
     typedef typename std::iterator_traits<Iterator>::value_type value_type;
     

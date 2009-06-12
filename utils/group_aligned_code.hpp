@@ -43,6 +43,8 @@ namespace utils
     static inline
     size_t decode(Tp& x, const char* buf, size_t pos)
     {
+      pos &= 0x03;
+      
       const size_t first = 1 + offsets()[uint8_t(*buf) * 5 + pos];
       const size_t last  = 1 + offsets()[uint8_t(*buf) * 5 + pos + 1];
 
@@ -58,12 +60,14 @@ namespace utils
 		   | ((Tp(buf[first + 2]) & 0xff) << 8)
 		   | ((Tp(buf[first + 3]) & 0xff))); break;
       }
-      return last;
+      return last & (- size_t(pos == 0x03));
     }
     
     static inline
     size_t encode(const Tp& x, char* buf, size_t pos)
     {
+      pos &= 0x03;
+      
       const size_t __size = byte_size(x);
       
       const size_t first = 1 + offsets()[uint8_t(*buf) * 5 + pos];
@@ -80,7 +84,7 @@ namespace utils
       case 3: buf[first] = (x >> 16); buf[first + 1] = (x >>  8); buf[first + 2] = x; break;
       case 4: buf[first] = (x >> 24); buf[first + 1] = (x >> 16); buf[first + 2] = (x >> 8); buf[first + 3] = x; break;
       }
-      return last;
+      return last & (- size_t(pos == 0x03));
     }
   };
 

@@ -51,6 +51,8 @@ namespace succinctdb
     __succinct_trie_database_writer(const path_type& path) 
       : path_output(), path_key_data(), path_size(), __offset(0), __size(0) { open(path); }
     ~__succinct_trie_database_writer() { close(); }
+
+    path_type path() const { return path_output; }
     
     size_type insert(const key_type* buf, size_type buf_size, const data_type* data, size_type data_size)
     {
@@ -76,6 +78,7 @@ namespace succinctdb
       close();
       
       repository_type rep(path, repository_type::write);
+      rep["type"] = "succinct-trie-database";
 
       const path_type tmp_dir = utils::tempfile::tmp_dir();
 
@@ -251,8 +254,8 @@ namespace succinctdb
   {
   public:
     typedef enum {
-      read,
-      write,
+      READ,
+      WRITE,
     } mode_type;
       
     typedef size_t    size_type;
@@ -283,16 +286,26 @@ namespace succinctdb
       
   public:
     succinct_trie_database() {}
-    succinct_trie_database(const path_type& path, const mode_type mode=read) { open(path, mode); }
+    succinct_trie_database(const path_type& path, const mode_type mode=READ) { open(path, mode); }
     ~succinct_trie_database() { close(); }
       
   public:
+    path_type path() const
+    {
+      if (__succinct_trie)
+	return __succinct_trie->path().parent_path();
+      else if (__succinct_writer)
+	return __succinct_writer->path();
+      else
+	return path_type();
+    }
+
     // methods supported by both read/write mode
-    void open(const path_type& path, const mode_type mode=read)
+    void open(const path_type& path, const mode_type mode=READ)
     {
       clear();
 	
-      if (mode == read) {
+      if (mode == READ) {
 	typedef utils::repository repository_type;
 	  
 	repository_type rep(path, repository_type::read);
@@ -303,6 +316,22 @@ namespace succinctdb
 	  
       } else
 	__succinct_writer.reset(new succinct_writer_type(path));
+    }
+
+    void write(const path_type& file) const
+    {
+      if (file == path()) return;
+      
+      if (__succinct_trie) {
+	typedef utils::repository repository_type;
+	
+	repository_type rep(file, repository_type::write);
+	rep["type"] = "succinct-trie-database";
+	
+	__succinct_trie->write(rep.path("index"));
+	__mapped.write(rep.path("mapped"));
+	__offsets.write(rep.path("offset"));
+      }
     }
     
     void close() { __succinct_trie.reset(); __succinct_writer.reset(); __mapped.clear(); __offsets.clear(); }

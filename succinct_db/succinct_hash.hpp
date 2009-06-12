@@ -176,7 +176,7 @@ namespace succinctdb
     typedef __succinct_hash_iterator<Key,typename key_set_type::const_iterator, typename off_set_type::const_iterator> const_iterator;
     
   public:
-    succinct_hash_mapped(size_type __bucket_size)
+    succinct_hash_mapped(size_type __bucket_size=0)
       : bins(), nexts(), keys(), offs() {}
     succinct_hash_mapped(const path_type& path)
       : bins(), nexts(), keys(), offs() { open(path); }
@@ -396,7 +396,7 @@ namespace succinctdb
   private:
     template <typename _Path, typename _Data>
     inline
-    void dump_file(const _Path& file, const _Data& data, const bool packed=false)
+    void dump_file(const _Path& file, const _Data& data, const bool packed=false) const
     {
       typedef typename _Data::value_type value_type;
       typedef typename Alloc::template rebind<value_type>::other value_alloc_type;
@@ -539,7 +539,7 @@ namespace succinctdb
       return i - 1;
     }
   
-    void write(const path_type& path)
+    void write(const path_type& path) const
     {
       typedef utils::repository repository_type;
       
@@ -554,7 +554,7 @@ namespace succinctdb
   private:
     template <typename _Path, typename _Data>
     inline
-    void dump_file(const _Path& file, const _Data& data, const bool packed=false)
+    void dump_file(const _Path& file, const _Data& data, const bool packed=false) const
     {
       typedef typename _Data::value_type value_type;
       typedef typename Alloc::template rebind<value_type>::other value_alloc_type;

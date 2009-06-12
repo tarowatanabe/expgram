@@ -16,7 +16,7 @@ int main(int argc, char** argv)
 
   {
     // empty...
-    succinct_db_type succinct_db("tmptmp.database", succinct_db_type::write);
+    succinct_db_type succinct_db("tmptmp.database", succinct_db_type::WRITE);
     succinct_db.close();
     succinct_db.open("tmptmp.database");
     
@@ -25,7 +25,7 @@ int main(int argc, char** argv)
   
   for (int iter = 0; iter < 4; ++ iter) {
     
-    succinct_db_type succinct_db("tmptmp.database", succinct_db_type::write);
+    succinct_db_type succinct_db("tmptmp.database", succinct_db_type::WRITE);
     map_db_type      map_db;
     
     for (int i = 0; i < 1024 * 16; ++ i) {
@@ -43,7 +43,7 @@ int main(int argc, char** argv)
       map_db.insert(std::make_pair(str_key, str_data));
     }
     succinct_db.close();
-    succinct_db.open("tmptmp.database", succinct_db_type::read);
+    succinct_db.open("tmptmp.database", succinct_db_type::READ);
 
     std::cerr << "db size: " << succinct_db.size() << std::endl;
     

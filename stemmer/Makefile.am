@@ -4,7 +4,7 @@ lib_LTLIBRARIES = libstemmer.la
 
 INCLUDES =-I$(top_builddir)/stemmer/include
 
-libstemmerincludedir = $(pkgincludedir)/libstemmer
+libstemmerincludedir = $(pkgincludedir)/stemmer
 
 libstemmerinclude_HEADERS = include/libstemmer.h
 noinst_HEADERS = $(snowball_headers)

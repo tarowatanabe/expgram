@@ -835,7 +835,7 @@ namespace succinctdb
     
     void clear() { __mapped.clear(); }
     
-    void write(const path_type& path) 
+    void write(const path_type& path)  const
     {
       boost::iostreams::filtering_ostream os;
       os.push(boost::iostreams::file_sink(path.file_string()), 1024 * 1024);
@@ -875,7 +875,7 @@ namespace succinctdb
     
     void clear() { __mapped.clear(); }
     
-    void write(const path_type& path) { __mapped.write(path); }
+    void write(const path_type& path) const { __mapped.write(path); }
     
     void push_back(const Data& x) { __mapped.push_back(x); }
     void build() { __mapped.build(); }
@@ -909,7 +909,7 @@ namespace succinctdb
     uint64_t size_compressed() const { return __impl.size_compressed(); }
     uint64_t size_cache() const { return __impl.size_cache(); }
     
-    void write(const path_type& path) { __impl.write(path); }
+    void write(const path_type& path) const { __impl.write(path); }
     
     impl_type __impl;
   };
@@ -1055,7 +1055,7 @@ namespace succinctdb
       return base_type::__traverse(index, positions, key_buf, node_pos, key_pos, key_len);
     }
     
-    void write(const path_type& path)
+    void write(const path_type& path) const
     {
       typedef utils::repository repository_type;
       
@@ -1072,7 +1072,7 @@ namespace succinctdb
   private:
     template <typename _Path, typename _Data>
     inline
-    void dump_file(const _Path& file, const _Data& data)
+    void dump_file(const _Path& file, const _Data& data) const
     {
       boost::iostreams::filtering_ostream os;
       os.push(boost::iostreams::file_sink(file.native_file_string(), std::ios_base::out | std::ios_base::trunc), 1024 * 1024);

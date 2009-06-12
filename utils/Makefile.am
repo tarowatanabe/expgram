@@ -66,6 +66,7 @@ packed_device.hpp \
 packed_vector.hpp \
 pfor_device.hpp \
 pfor_vector.hpp \
+program_options.hpp \
 regex_group.hpp \
 repository.hpp \
 resource.hpp \

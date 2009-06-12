@@ -54,6 +54,8 @@ namespace succinctdb
     __succinct_trie_db_writer(const path_type& path)
       : path_output(), path_key_data(), path_size(), __os_key_data(), __os_size(), __size(0) { open(path); }
     ~__succinct_trie_db_writer() { close(); }
+
+    path_type path() const { return path_output; }
     
     size_type insert(const key_type* buf, size_type buf_size, const data_type* data)
     {
@@ -216,8 +218,8 @@ namespace succinctdb
   {
   public:
     typedef enum {
-      read,
-      write,
+      READ,
+      WRITE,
     } mode_type;
     
     typedef size_t    size_type;
@@ -235,18 +237,36 @@ namespace succinctdb
     
   public:
     succinct_trie_db() {}
-    succinct_trie_db(const path_type& path, const mode_type mode=read) { open(path, mode); }
+    succinct_trie_db(const path_type& path, const mode_type mode=READ) { open(path, mode); }
     ~succinct_trie_db() { close(); }
     
   public:
     // methods supported by both read/write mode
-    void open(const path_type& path, const mode_type mode=read)
+    void open(const path_type& path, const mode_type mode=READ)
     {
       clear();
-      if (mode == read)
+      if (mode == READ)
 	__succinct_trie.reset(new succinct_trie_type(path));
       else
 	__succinct_writer.reset(new succinct_writer_type(path));
+    }
+
+    void write(const path_type& file) const
+    {
+      if (file == path()) return;
+      
+      if (__succinct_trie)
+	__succinct_trie->write(file);
+    }
+
+    path_type path() const 
+    {
+      if (__succinct_trie)
+	return __succinct_trie->path();
+      else if (__succinct_writer)
+	return __succinct_writer->path();
+      else
+	return path_type();
     }
     
     void close() { __succinct_trie.reset(); __succinct_writer.reset(); }

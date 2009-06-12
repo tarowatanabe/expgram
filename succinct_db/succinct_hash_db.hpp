@@ -57,6 +57,16 @@ namespace succinctdb
     succinct_hash_db(const path_type& path, size_type bin_size=0) { open(path, bin_size); }
 
   public:
+    path_type path() const
+    {
+      if (__succinct_hash_mapped)
+	return __succinct_hash_mapped->path().parent_path();
+      else if (__succinct_hash_stream)
+	return __succinct_hash_stream->path().parent_path();
+      else
+	return path_type();
+    }
+
     size_type size() const 
     {
       if (__succinct_hash)
@@ -142,17 +152,22 @@ namespace succinctdb
       }
     }
     
-    void write(const path_type& path)
+    void write(const path_type& file) const
     {
       typedef utils::repository repository_type;
       
       if (__succinct_hash) {
-	repository_type rep(path, repository_type::write);
+	repository_type rep(file, repository_type::write);
 	rep["type"] = "succinct-hash-db";
 	
 	__succinct_hash->write(rep.path("index"));
 	dump_file(rep.path("data"), *__data);
+      } else if (__succinct_hash_mapped) {
+
+	
       }
+      
+      
     }
     
     pos_type insert(const key_type* buf, size_type buf_size, const data_type& data)
@@ -198,7 +213,7 @@ namespace succinctdb
   private:
     template <typename _Path, typename _Data>
     inline
-    void dump_file(const _Path& file, const _Data& data)
+    void dump_file(const _Path& file, const _Data& data) const
     {
       boost::iostreams::filtering_ostream os;
       os.push(boost::iostreams::file_sink(file.native_file_string(), std::ios_base::out | std::ios_base::trunc), 1024 * 1024);

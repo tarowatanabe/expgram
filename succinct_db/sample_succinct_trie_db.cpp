@@ -17,7 +17,7 @@ int main(int argc, char** argv)
 
   {
     // empty...
-    succinct_db_type succinct_db("tmptmp.db.fixed", succinct_db_type::write);
+    succinct_db_type succinct_db("tmptmp.db.fixed", succinct_db_type::WRITE);
     succinct_db.close();
     succinct_db.open("tmptmp.db.fixed");
     
@@ -26,7 +26,7 @@ int main(int argc, char** argv)
   
   for (int iter = 0; iter < 4; ++ iter) {
     
-    succinct_db_type succinct_db("tmptmp.db.fixed", succinct_db_type::write);
+    succinct_db_type succinct_db("tmptmp.db.fixed", succinct_db_type::WRITE);
     map_db_type      map_db;
     
     for (int i = 0; i < 1024 * 16; ++ i) {
@@ -45,7 +45,7 @@ int main(int argc, char** argv)
       }
     }
     succinct_db.close();
-    succinct_db.open("tmptmp.db.fixed", succinct_db_type::read);
+    succinct_db.open("tmptmp.db.fixed", succinct_db_type::READ);
 
     std::cerr << "db size: " << succinct_db.size() << std::endl;
     
@@ -79,7 +79,7 @@ int main(int argc, char** argv)
     
     for (int iter = 0; iter < 4; ++ iter) {
     
-      succinct_db_type succinct_db("tmptmp.db.fixed", succinct_db_type::write);
+      succinct_db_type succinct_db("tmptmp.db.fixed", succinct_db_type::WRITE);
       map_db_type      map_db;
 
       char code[16];
@@ -115,7 +115,7 @@ int main(int argc, char** argv)
       }
       
       succinct_db.close();
-      succinct_db.open("tmptmp.db.fixed", succinct_db_type::read);
+      succinct_db.open("tmptmp.db.fixed", succinct_db_type::READ);
       
       std::cerr << "db size: " << succinct_db.size() << std::endl;
     
