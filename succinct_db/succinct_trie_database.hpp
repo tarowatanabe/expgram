@@ -419,8 +419,12 @@ namespace succinctdb
     const_iterator rbegin() const { return const_iterator(__succinct_trie->rbegin(), this); }
     const_iterator rend()   const { return const_iterator(__succinct_trie->rend(), this); }
     
-    const_cursor cbegin(size_type node_pos) const { return const_cursor(__succinct_trie->cbegin(node_pos), this); }
-    const_cursor cend(size_type node_pos)   const { return const_cursor(__succinct_trie->cend(node_pos), this); }
+    const_cursor cbegin(size_type node_pos) const { return (is_valid(node_pos) && exists(node_pos)
+							    ? const_cursor(__succinct_trie->cbegin(node_pos), this)
+							    : const_cursor(__succinct_trie->cend(), this)); }
+    const_cursor cend(size_type node_pos)   const { return (is_valid(node_pos) && exists(node_pos)
+							    ? const_cursor(__succinct_trie->cend(node_pos), this)
+							    : const_cursor(__succinct_trie->cend(), this)); }
     const_cursor cbegin() const { return const_cursor(__succinct_trie->cbegin(), this); }
     const_cursor cend()   const { return const_cursor(__succinct_trie->cend(), this); }
      

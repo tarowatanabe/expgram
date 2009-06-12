@@ -163,11 +163,14 @@ namespace succinctdb
 	__succinct_hash->write(rep.path("index"));
 	dump_file(rep.path("data"), *__data);
       } else if (__succinct_hash_mapped) {
-
-	
+	if (path() != file) {
+	  repository_type rep(file, repository_type::write);
+	  rep["type"] = "succinct-hash-db";
+	  
+	  __succinct_hash_mapped->write(rep.path("index"));
+	  __data_mapped->write(rep.path("data"));
+	}
       }
-      
-      
     }
     
     pos_type insert(const key_type* buf, size_type buf_size, const data_type& data)
