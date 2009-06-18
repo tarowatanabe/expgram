@@ -11,6 +11,13 @@ namespace utils
   {
     
     template <typename Tp>
+    Tp abs(Tp x)
+    {
+      const Tp mask = x >> (sizeof(Tp) * 8 - 1);
+      return (x ^ mask) - mask;
+    }
+
+    template <typename Tp>
     Tp max(Tp x, Tp y)
     {
       // integral only max..

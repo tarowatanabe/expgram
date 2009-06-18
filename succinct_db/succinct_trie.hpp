@@ -512,104 +512,6 @@ namespace succinctdb
     impl_type __impl;
   };
   
-  template <typename Impl, size_t KeySize>
-  struct __succinct_trie_mapped_cache
-  {
-    typedef Impl impl_type;
-
-    typedef typename impl_type::size_type       size_type;
-    typedef typename impl_type::difference_type difference_type;
-    typedef typename impl_type::key_type        key_type;
-    typedef typename impl_type::allocator_type  allocator_type;
-    
-    __succinct_trie_mapped_cache() {}
-    
-    size_type traverse(const impl_type& impl,
-		       const key_type* key_buf,
-		       size_type& node_pos,
-		       size_type& key_pos,
-		       size_type key_len) const
-    {
-      return impl.__traverse(key_buf, node_pos, key_pos, key_len);
-    }
-    
-    uint64_t cache_size() const { return 0; }
-    void clear() {}
-  };
-  
-  //
-  // we do caching when the key-size is one...
-  //
-  template <typename Impl>
-  struct __succinct_trie_mapped_cache<Impl, 1>
-  {
-    typedef Impl impl_type;
-    
-    typedef typename impl_type::size_type       size_type;
-    typedef typename impl_type::difference_type difference_type;
-    typedef typename impl_type::key_type        key_type;
-    typedef typename impl_type::allocator_type  allocator_type;
-    
-  private:
-
-    typedef uint32_t value_type;
-    typedef uint64_t cache_type;
-    typedef typename allocator_type::template rebind<cache_type>::other  cache_alloc_type;
-    typedef utils::array_power2<cache_type, 1024 * 16, cache_alloc_type> cache_set_type;
-    
-  public:
-    
-    __succinct_trie_mapped_cache() {}
-    
-    size_type traverse(const impl_type& impl,
-		       const key_type* key_buf,
-		       size_type& node_pos,
-		       size_type& key_pos,
-		       size_type key_len) const
-    {
-      if (node_pos != 0 || key_len - key_pos < 4)
-	return impl.__traverse(key_buf, node_pos, key_pos, key_len);
-      else {
-	node_pos = traverse(impl, key_buf, key_pos);
-	key_pos += 4;
-	return (node_pos == impl_type::out_of_range() || key_pos == key_len
-		? node_pos
-		: impl.__traverse(key_buf, node_pos, key_pos, key_len));
-      }
-    }
-    
-    size_type traverse(const impl_type& impl,
-		       const key_type* key_buf,
-		       size_type key_pos) const
-    {
-      const value_type id = *((const value_type*) (key_buf + key_pos));
-      const size_type pos = hasher(id, 0) & (cache.size() - 1);
-      
-      const cache_type cache_value = utils::atomicop::fetch_and_add(const_cast<cache_set_type&>(cache)[pos], cache_type(0));
-      
-      const value_type cache_id = (cache_value >> 32) & 0xffffffff;
-      const value_type cache_node = cache_value & 0xffffffff;
-      
-      if (cache_id == id && cache_node > 0)
-	return (cache_node == value_type(-1) ? size_type(-1) : size_type(cache_node));
-      
-      size_type node_pos = 0;
-      node_pos = impl.__traverse(key_buf, node_pos, key_pos, key_pos + 4);
-      
-      const cache_type cache_value_new = (cache_type(id) << 32) | (cache_type(node_pos) & 0xffffffff);
-      
-      utils::atomicop::compare_and_swap(const_cast<cache_set_type&>(cache)[pos], cache_value, cache_value_new);
-      
-      return node_pos;
-    }
-
-    uint64_t cache_size() const { return cache.size() * sizeof(cache_type); }
-    void clear() { cache.clear(); }
-    
-  private:
-    cache_set_type cache;
-    utils::hashmurmur<size_type> hasher;
-  };
   
   template <typename Key, typename Data, typename Alloc=std::allocator<std::pair<Key, Data> > >
   class succinct_trie_mapped : public __succinct_trie_base<Key,Data,Alloc>
@@ -628,7 +530,6 @@ namespace succinctdb
   private:
     typedef succinct_trie_mapped<Key,Data,Alloc> self_type;
     typedef __succinct_trie_base<Key,Data,Alloc> base_type;
-    typedef __succinct_trie_mapped_cache<self_type, sizeof(key_type)> index_cache_type;
 
   public:
     typedef __succinct_trie_cursor<Key,Data,self_type,Alloc> cursor;
@@ -725,7 +626,7 @@ namespace succinctdb
     }
     uint64_t size_cache() const
     {
-      return positions.size_cache() + index_map.size_cache() + index.size_cache() + mapped.size_cache() + index_cache.size_cache();
+      return positions.size_cache() + index_map.size_cache() + index.size_cache() + mapped.size_cache();
     }
     
     void close() { clear(); }
@@ -735,8 +636,6 @@ namespace succinctdb
       index_map.clear();
       index.clear();
       mapped.clear();
-
-      index_cache.clear();
     }
     
     
@@ -793,11 +692,6 @@ namespace succinctdb
     
     size_type traverse(const key_type* key_buf, size_type& node_pos, size_type& key_pos, size_type key_len) const
     {
-      return index_cache.traverse(*this, key_buf, node_pos, key_pos, key_len);
-    }
-
-    size_type __traverse(const key_type* key_buf, size_type& node_pos, size_type& key_pos, size_type key_len) const
-    {
       return base_type::__traverse(index, positions, key_buf, node_pos, key_pos, key_len);
     }
     
@@ -806,8 +700,6 @@ namespace succinctdb
     index_map_type    index_map;
     index_set_type    index;
     mapped_set_type   mapped;
-    
-    index_cache_type  index_cache;
   };
 
   

@@ -135,10 +135,10 @@ namespace expgram
 	  else {
 	    const size_type parent = index[shard_index].parent(result.second);
 	    if (parent != size_type(-1))
-	      logbackoff += backoffs[shard_index](parent, order - 1);
+	      logbackoff += backoffs[order == 2 ? 0 : shard_index](parent, order - 1);
 	  }
 	} else if (result.first == last - 1)
-	  logbackoff += backoffs[shard_index](result.second, order - 1);
+	  logbackoff += backoffs[order == 2 ? 0 : shard_index](result.second, order - 1);
 	
 	performed_backoff = true;
       }
@@ -182,10 +182,10 @@ namespace expgram
 	  else {
 	    const size_type parent = index[shard_index].parent(result.second);
 	    if (parent != size_type(-1))
-	      logbackoff += backoffs[shard_index](parent, order - 1);
+	      logbackoff += backoffs[order == 2 ? 0 : shard_index](parent, order - 1);
 	  }
 	} else if (result.first == last - 1)
-	  logbackoff += backoffs[shard_index](result.second, order - 1);
+	  logbackoff += backoffs[order == 2 ? 0 : shard_index](result.second, order - 1);
       }
       
       const int order = last - first;
