@@ -4,6 +4,7 @@
 #include <boost/program_options.hpp>
 
 #include <utils/compress_stream.hpp>
+#include <utils/program_options.hpp>
 #include <utils/mathop.hpp>
 
 #include <expgram/NGram.hpp>
@@ -20,6 +21,7 @@ int order = 0;
 bool include_oov = false;
 
 int shards = 4;
+bool smooth_smallest = false;
 int debug = 0;
 
 int getoptions(int argc, char** argv);
@@ -37,7 +39,7 @@ int main(int argc, char** argv)
 
     typedef std::vector<word_type::id_type, std::allocator<word_type::id_type> > id_set_type;
     
-    ngram_type ngram(ngram_file, shards, debug);
+    ngram_type ngram(ngram_file, shards, smooth_smallest, debug);
     
     double logprob_total = 0.0;
     size_t num_word = 0;
@@ -116,6 +118,7 @@ int getoptions(int argc, char** argv)
     ("include-oov", po::bool_switch(&include_oov)->default_value(include_oov), "include OOV for perpelxity computation")
     
     ("shard",  po::value<int>(&shards)->default_value(shards),                 "# of shards (or # of threads)")
+    ("smooth-smallest", utils::true_false_switch(&smooth_smallest),            "use of smallest value for UNK...")
     
     ("debug", po::value<int>(&debug)->implicit_value(1), "debug level")
     ("help", "help message");

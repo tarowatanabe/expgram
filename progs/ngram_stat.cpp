@@ -7,6 +7,7 @@
 
 #include <utils/resource.hpp>
 #include <utils/compress_stream.hpp>
+#include <utils/program_options.hpp>
 
 #include <expgram/NGram.hpp>
 
@@ -49,6 +50,8 @@ path_type ngram_file = "-";
 path_type output_file = "-";
 
 int shards = 4;
+bool smooth_smallest = false;
+
 int debug = 0;
 
 int getoptions(int argc, char** argv);
@@ -59,7 +62,7 @@ int main(int argc, char** argv)
     if (getoptions(argc, argv) != 0) 
       return 1;
     
-    expgram::NGram ngram(ngram_file, shards, debug);
+    expgram::NGram ngram(ngram_file, shards, smooth_smallest, debug);
     
     utils::compress_ostream os(output_file);
     os << "ngram order: " << ngram.index.order() << '\n';
@@ -90,6 +93,7 @@ int getoptions(int argc, char** argv)
     ("output", po::value<path_type>(&output_file)->default_value(output_file), "output in binary format")
     
     ("shard",  po::value<int>(&shards)->default_value(shards),                 "# of shards (or # of threads)")
+    ("smooth-smallest", utils::true_false_switch(&smooth_smallest),            "use of smallest value for UNK...")
     
     ("debug", po::value<int>(&debug)->implicit_value(1), "debug level")
     ("help", "help message");

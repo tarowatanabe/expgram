@@ -10,6 +10,7 @@
 #include <boost/tokenizer.hpp>
 
 #include <utils/space_separator.hpp>
+#include <utils/program_options.hpp>
 
 #include <expgram/NGram.hpp>
 #include <expgram/Word.hpp>
@@ -29,6 +30,7 @@ path_type ngram_file = "-";
 
 bool quantize = false;
 int shards = 4;
+bool smooth_smallest = false;
 
 int debug = 0;
 
@@ -40,7 +42,7 @@ int main(int argc, char** argv)
     if (getoptions(argc, argv) != 0) 
       return 1;
     
-    expgram::NGram ngram(ngram_file, shards, debug);
+    expgram::NGram ngram(ngram_file, shards, smooth_smallest, debug);
     if (quantize)
       ngram.quantize();
     
@@ -110,6 +112,7 @@ int getoptions(int argc, char** argv)
     ("quantize", po::bool_switch(&quantize), "perform quantization")
     
     ("shard",  po::value<int>(&shards)->default_value(shards),                 "# of shards (or # of threads)")
+    ("smooth-smallest", utils::true_false_switch(&smooth_smallest),            "use of smallest value for UNK...")
     
     ("debug", po::value<int>(&debug)->implicit_value(1), "debug level")
     ("help", "help message");

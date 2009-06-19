@@ -98,7 +98,11 @@ namespace expgram
     
   public:
     NGram(const int _debug=0) : debug(_debug) { clear(); }
-    NGram(const path_type& path, const size_type shard_size=16, const int _debug=0) : debug(_debug) { open(path, shard_size); }
+    NGram(const path_type& path,
+	  const size_type shard_size=16,
+	  const bool smooth_smallest=false,
+	  const int _debug=0)
+      : debug(_debug) { open(path, shard_size, smooth_smallest); }
     
   public:
     static const logprob_type logprob_min() { return boost::numeric::bounds<logprob_type>::lowest(); }
@@ -135,10 +139,10 @@ namespace expgram
 	  else {
 	    const size_type parent = index[shard_index].parent(result.second);
 	    if (parent != size_type(-1))
-	      logbackoff += backoffs[order == 2 ? 0 : shard_index](parent, order - 1);
+	      logbackoff += backoffs[size_type((order == 2) - 1) & shard_index](parent, order - 1);
 	  }
 	} else if (result.first == last - 1)
-	  logbackoff += backoffs[order == 2 ? 0 : shard_index](result.second, order - 1);
+	  logbackoff += backoffs[size_type((order == 2) - 1) & shard_index](result.second, order - 1);
 	
 	performed_backoff = true;
       }
@@ -151,9 +155,13 @@ namespace expgram
 	const logprob_type __logbound = ((! performed_backoff) && result.second < logbounds[shard_index].size()
 					 ? logbounds[shard_index](result.second, order)
 					 : logprobs[shard_index](result.second, order));
-	return logbackoff + (__logbound != logprob_min() ? __logbound : smooth);
+	return (__logbound != logprob_min()
+		? logbackoff + __logbound
+		: (smooth_smallest
+		   ? logprob_min()
+		   : logbackoff + smooth));
       } else
-	return logbackoff + smooth;
+	return (smooth_smallest ? logprob_min() : logbackoff + smooth);
     }
     
     template <typename Iterator>
@@ -182,19 +190,21 @@ namespace expgram
 	  else {
 	    const size_type parent = index[shard_index].parent(result.second);
 	    if (parent != size_type(-1))
-	      logbackoff += backoffs[order == 2 ? 0 : shard_index](parent, order - 1);
+	      logbackoff += backoffs[size_type((order == 2) - 1) & shard_index](parent, order - 1);
 	  }
 	} else if (result.first == last - 1)
-	  logbackoff += backoffs[order == 2 ? 0 : shard_index](result.second, order - 1);
+	  logbackoff += backoffs[size_type((order == 2) - 1) & shard_index](result.second, order - 1);
       }
       
       const int order = last - first;
       const size_type shard_index = index.shard_index(first, last);
       std::pair<Iterator, size_type> result = index.traverse(shard_index, first, last);
       
-      return logbackoff + (result.first == last && logprobs[shard_index](result.second, order) != logprob_min()
-			   ? logprobs[shard_index](result.second, order)
-			   : smooth);
+      return (result.first == last && logprobs[shard_index](result.second, order) != logprob_min()
+	      ? logbackoff + logprobs[shard_index](result.second, order)
+	      : (smooth_smallest
+		 ? logprob_min()
+		 : logbackoff + smooth));
     }
     
     
@@ -204,7 +214,8 @@ namespace expgram
     bool empty() const { return index.empty(); }
     
     void open(const path_type& path,
-	      const size_type shard_size=16);
+	      const size_type shard_size=16,
+	      const bool _smooth_smallest=false);
     void write(const path_type& path) const;
     void dump(const path_type& path) const;
     
@@ -220,6 +231,7 @@ namespace expgram
       backoffs.clear();
       logbounds.clear();
       smooth = utils::mathop::log(1e-7);
+      smooth_smallest = false;
     }
     
     
@@ -268,6 +280,7 @@ namespace expgram
     shard_data_set_type logbounds;
     
     logprob_type   smooth;
+    bool           smooth_smallest;
     int debug;
   };
   
