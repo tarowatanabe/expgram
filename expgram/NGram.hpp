@@ -100,9 +100,8 @@ namespace expgram
     NGram(const int _debug=0) : debug(_debug) { clear(); }
     NGram(const path_type& path,
 	  const size_type shard_size=16,
-	  const bool smooth_smallest=false,
 	  const int _debug=0)
-      : debug(_debug) { open(path, shard_size, smooth_smallest); }
+      : debug(_debug) { open(path, shard_size); }
     
   public:
     static const logprob_type logprob_min() { return boost::numeric::bounds<logprob_type>::lowest(); }
@@ -117,7 +116,7 @@ namespace expgram
     }
     
     template <typename Iterator>
-    logprob_type logbound(Iterator first, Iterator last) const
+    logprob_type logbound(Iterator first, Iterator last, bool smooth_smallest=false) const
     {
       if (first == last) return 0.0;
       
@@ -165,13 +164,13 @@ namespace expgram
     }
     
     template <typename Iterator>
-    logprob_type operator()(Iterator first, Iterator last) const
+    logprob_type operator()(Iterator first, Iterator last, bool smooth_smallest=false) const
     {
-      return logprob(first, last);
+      return logprob(first, last, smooth_smallest);
     }
     
     template <typename Iterator>
-    logprob_type logprob(Iterator first, Iterator last) const
+    logprob_type logprob(Iterator first, Iterator last, bool smooth_smallest=false) const
     {
       if (first == last) return 0.0;
       
@@ -214,8 +213,7 @@ namespace expgram
     bool empty() const { return index.empty(); }
     
     void open(const path_type& path,
-	      const size_type shard_size=16,
-	      const bool _smooth_smallest=false);
+	      const size_type shard_size=16);
     void write(const path_type& path) const;
     void dump(const path_type& path) const;
     
@@ -231,7 +229,6 @@ namespace expgram
       backoffs.clear();
       logbounds.clear();
       smooth = utils::mathop::log(1e-7);
-      smooth_smallest = false;
     }
     
     
@@ -280,7 +277,6 @@ namespace expgram
     shard_data_set_type logbounds;
     
     logprob_type   smooth;
-    bool           smooth_smallest;
     int debug;
   };
   

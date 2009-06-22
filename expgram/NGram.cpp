@@ -268,7 +268,6 @@ namespace expgram
     stream_smooth.precision(20);
     stream_smooth << smooth;
     rep["smooth"] = stream_smooth.str();
-    rep["smooth-smallest"] = (smooth_smallest ? "true" : "false");
   }
 
   void NGram::write_shard(const path_type& file, int shard) const
@@ -312,14 +311,11 @@ namespace expgram
     stream_smooth.precision(20);
     stream_smooth << smooth;
     rep["smooth"] = stream_smooth.str();
-    rep["smooth-smallest"] = (smooth_smallest ? "true" : "false");
   }
   
-  void NGram::open(const path_type& path, const size_type shard_size, const bool _smooth_smallest)
+  void NGram::open(const path_type& path, const size_type shard_size)
   {
     clear();
-
-    smooth_smallest = _smooth_smallest;
 
     if (boost::filesystem::is_directory(path))
       open_binary(path);
@@ -371,15 +367,10 @@ namespace expgram
     if (siter == rep.end())
       throw std::runtime_error("no smoothing parameter...?");
     smooth = atof(siter->second.c_str());
-
-    repository_type::const_iterator iter = rep.find("smooth-smallest");
-    if (iter != rep.end())
-      smooth_smallest = true_false(iter->second);
     
     if (debug)
       std::cerr << "# of shards: " << index.size()
 		<< " smooth: " << smooth
-		<< " smooth smallest: " << (smooth_smallest ? "true" : "false")
 		<< std::endl;
   }
   

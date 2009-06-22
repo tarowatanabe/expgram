@@ -1,4 +1,11 @@
 
+2009-6-22
+	* The expgram will concentrate on ngrams, not other stuff:
+	    - Completely removed ICU and boost.regex
+	    - Completely removed stemmer/speller
+
+	* Added smooth_smallest to logprob(first, last) and logbound(first, last) when querying logprobabilities
+
 2009-6-1
 	* Renamed ngram_counts/ngram_counts_mpi to ngram_counts_extract/ngram_counts_extract_mpi, respectively.
 	

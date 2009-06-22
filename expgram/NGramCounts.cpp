@@ -799,7 +799,6 @@ namespace expgram
       ngram.backoffs[shard].offset = counts[shard].offset;
     }
     ngram.smooth = boost::numeric::bounds<logprob_type>::lowest();
-    ngram.smooth_smallest = false;
     
     // we will allocate large memory here...
     logprob_shard_set_type logprobs(index.size());
