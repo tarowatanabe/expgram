@@ -26,7 +26,6 @@ namespace expgram
   {
   public:
     typedef Word    word_type;
-    typedef Stemmer stemmer_type;
     
     typedef size_t    size_type;
     typedef ptrdiff_t difference_type;
@@ -41,21 +40,7 @@ namespace expgram
     static const word_type UNK;
     static const word_type BOS;
     static const word_type EOS;
-    
-    static word_type prefix(const word_type& word, size_type size);
-    static word_type suffix(const word_type& word, size_type size);
-    static word_type digits(const word_type& word);
-    static word_type latin(const word_type& word);
-    static word_type stem(const word_type& word, const std::string& algorithm);
-    
-    static std::string prefix(const std::string& word, size_type size);
-    static std::string suffix(const std::string& word, size_type size);
-    static std::string digits(const std::string& word);
-    static std::string latin(const std::string& word);
-    static std::string stem(const std::string& word, const std::string& algorithm);
-    
-    static stemmer_type stemmer(const std::string& algorithm);
-    
+        
   private:
     typedef succinctdb::succinct_hash<char, std::allocator<char> >        succinct_hash_type;
     typedef succinctdb::succinct_hash_mapped<char, std::allocator<char> > succinct_hash_mapped_type;

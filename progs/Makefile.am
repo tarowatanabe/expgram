@@ -1,4 +1,4 @@
-AM_CPPFLAGS = -I.. $(ICU_CPPFLAGS) $(BOOST_CPPFLAGS) $(PTHREAD_FLAGS) $(TCMALLOC_CPPFLAGS) $(PROFILER_CPPFLAGS) $(SPARSEHASH_CPPFLAGS)
+AM_CPPFLAGS = -I.. $(BOOST_CPPFLAGS) $(PTHREAD_FLAGS) $(TCMALLOC_CPPFLAGS) $(PROFILER_CPPFLAGS) $(SPARSEHASH_CPPFLAGS)
 
 perftools_LDADD = $(TCMALLOC_LDFLAGS) $(PROFILER_LDFLAGS)
 
@@ -35,8 +35,6 @@ bin_PROGRAMS = \
 	ngram_counts_stat \
 	\
 	expgram_clean \
-	\
-	tokenize_en \
 	\
 	mpish
 
@@ -102,13 +100,9 @@ ngram_counts_estimate_LDADD   = $(LIBEXPGRAM) $(LIBUTILS) $(boost_LDADD) $(perft
 ngram_counts_stat_SOURCES = ngram_counts_stat.cpp
 ngram_counts_stat_LDADD   = $(LIBEXPGRAM) $(LIBUTILS) $(boost_LDADD) $(perftools_LDADD)
 
-### tokenizer
-tokenize_en_SOURCES = tokenize_en.cpp
-tokenize_en_LDADD   = $(LIBUTILS) $(ICU_LDFLAGS) $(boost_LDADD) $(perftools_LDADD)
-
 ### utilities
 expgram_clean_SOURCES = expgram_clean.cpp
-expgram_clean_LDADD   = $(LIBUTILS) $(ICU_LDFLAGS) $(boost_LDADD) $(perftools_LDADD)
+expgram_clean_LDADD   = $(LIBUTILS) $(boost_LDADD) $(perftools_LDADD)
 
 mpish_SOURCES = mpish.cpp
 mpish_CPPFLAGS = $(MPI_CPPFLAGS) $(AM_CPPFLAGS)

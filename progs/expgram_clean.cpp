@@ -1,7 +1,7 @@
 // clear temporary files
 
 #include <boost/filesystem.hpp>
-#include <boost/regex.hpp>
+#include <boost/algorithm/string/find.hpp>
 
 #include <utils/tempfile.hpp>
 #include <utils/filesystem.hpp>
@@ -13,17 +13,33 @@ int main(int argc, char** argv)
   try {
     const path_type tmp_dir = utils::tempfile::tmp_dir();
 
-    boost::regex pattern_expgram("^expgram\\.(logprob|backoff|logbound|index|position|vocab|modified|count|accumulated)\\..+$");
-    boost::regex pattern_succinct("^succinct-db\\.(size|key-data)\\..+$");
+    static const char* expgram_suffix[9] = {
+      "logprob",
+      "backoff",
+      "logbound",
+      "index",
+      "position",
+      "vocab",
+      "modified",
+      "count",
+      "accumulated",
+    };
+    
+    static const char* succinct_suffix[2] = {
+      "size",
+      "key-data",
+    };
     
     boost::filesystem::directory_iterator iter_end;
     for (boost::filesystem::directory_iterator iter(tmp_dir); iter != iter_end; ++ iter) {
       const path_type path = *iter;
-      
-      if (boost::regex_search(path.filename(), pattern_expgram))
-	utils::filesystem::remove_all(path);
-      else if (boost::regex_search(path.filename(), pattern_succinct))
-	utils::filesystem::remove_all(path);
+
+      for (int i = 0; i < 9; ++ i)
+	if (path.filename().find(std::string("expgram.") + expgram_suffix[i]) != std::string::npos)
+	  utils::filesystem::remove_all(path);
+      for (int i = 0; i < 2; ++ i)
+	if (path.filename().find(std::string("succinct-db.") + succinct_suffix[i]) != std::string::npos)
+	  utils::filesystem::remove_all(path);
     }
   }
   catch (const std::exception& err) {

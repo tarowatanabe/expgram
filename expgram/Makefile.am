@@ -1,8 +1,7 @@
-AM_CPPFLAGS = -I.. $(BOOST_CPPFLAGS) $(ICU_CPPFLAGS) $(PTHREAD_FLAGS) $(TCMALLOC_CPPFLAGS) $(PROFILER_CPPFLAGS) $(SPARSEHASH_CPPFLAGS)
+AM_CPPFLAGS = -I.. $(BOOST_CPPFLAGS) $(PTHREAD_FLAGS) $(TCMALLOC_CPPFLAGS) $(PROFILER_CPPFLAGS) $(SPARSEHASH_CPPFLAGS)
 
 LIBUTILS=$(top_builddir)/utils/libutils.la
 LIBCODEC=$(top_builddir)/codec/libcodec.la
-LIBSTEMMER=$(top_builddir)/stemmer/libstemmer.la
 
 lib_LTLIBRARIES = libexpgram.la
 
@@ -14,7 +13,6 @@ NGramCounts.hpp \
 NGramIndex.hpp \
 Sentence.hpp \
 Stat.hpp \
-Stemmer.hpp \
 Vocab.hpp \
 Word.hpp
 
@@ -28,7 +26,6 @@ NGram.cpp \
 NGramCounts.cpp \
 NGramIndex.cpp \
 Sentence.cpp \
-Stemmer.cpp \
 Vocab.cpp \
 Word.cpp
 
@@ -42,8 +39,6 @@ libexpgram_la_LDFLAGS = \
 libexpgram_la_LIBADD = \
 	$(LIBUTILS) \
 	$(LIBCODEC) \
-	$(LIBSTEMMER) \
-	$(ICU_LDFLAGS) \
 	$(BOOST_THREAD_LIBS) \
 	$(BOOST_FILESYSTEM_LIBS) \
 	$(BOOST_IOSTREAMS_LIBS) \

@@ -2,7 +2,7 @@
 #include <signal.h>
 
 #include <boost/thread/mutex.hpp>
-#include <boost/regex.hpp>
+#include <boost/algorithm/string/replace.hpp>
 
 #include <utils/filesystem.hpp>
 
@@ -207,8 +207,12 @@ namespace utils
   std::string get_hostname_short()
   {
     std::string hostname = get_hostname();
-    
-    return boost::regex_replace(hostname, boost::regex("[.].+$"), "");
+
+    std::string::size_type pos = hostname.find('.');
+    if (pos != std::string::npos)
+      return hostname.substr(0, pos);
+    else
+      return hostname;
   }
   
   
@@ -218,41 +222,15 @@ namespace utils
     if (tmpdir_spec_env) {
       std::string tmpdir_spec(tmpdir_spec_env);
       
-      const std::string tmpdir_spec_short = boost::regex_replace(tmpdir_spec, boost::regex("%host"), get_hostname_short());
-      const std::string tmpdir_spec_long = boost::regex_replace(tmpdir_spec, boost::regex("%host"), get_hostname());
-#if 0
-      // do we check for ':' and perform splitting?
-      {
-	boost::sregex_token_iterator iter(tmpdir_spec_short.begin(), tmpdir_spec_short.end(), boost::regex(":"), -1);
-	boost::sregex_token_iterator iter_end;
-	
-	for (/**/; iter != iter_end; ++ iter) {
-	  const std::string __tmpdir = *iter;
-	  
-	  if (! __tmpdir.empty() && boost::filesystem::exists(__tmpdir) && boost::filesystem::is_directory(__tmpdir))
-	    return __tmpdir;
-	}
-      }
+      const std::string tmpdir_spec_short = boost::algorithm::replace_all_copy(tmpdir_spec, "%host", get_hostname_short());
+      const std::string tmpdir_spec_long = boost::algorithm::replace_all_copy(tmpdir_spec, "%host", get_hostname());
+
       
-      {
-	boost::sregex_token_iterator iter(tmpdir_spec_long.begin(), tmpdir_spec_long.end(), boost::regex(":"), -1);
-	boost::sregex_token_iterator iter_end;
-	
-	for (/**/; iter != iter_end; ++ iter) {
-	  const std::string __tmpdir = *iter;
-	  
-	  if (! __tmpdir.empty() && boost::filesystem::exists(__tmpdir) && boost::filesystem::is_directory(__tmpdir))
-	    return __tmpdir;
-	}
-      }
-#endif
-#if 1
       if (boost::filesystem::exists(tmpdir_spec_short) && boost::filesystem::is_directory(tmpdir_spec_short))
 	return tmpdir_spec_short;
       
       if (boost::filesystem::exists(tmpdir_spec_long) && boost::filesystem::is_directory(tmpdir_spec_long))
 	return tmpdir_spec_long;
-#endif
     }
     
     // wired to /tmp... is this safe?

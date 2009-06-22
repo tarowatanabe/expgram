@@ -1,5 +1,5 @@
 
-AM_CPPFLAGS = -I$(top_builddir) $(BOOST_CPPFLAGS) $(ICU_CPPFLAGS)
+AM_CPPFLAGS = -I$(top_builddir) $(BOOST_CPPFLAGS)
 
 perftools_LDADD = $(TCMALLOC_LDFLAGS) $(PROFILER_LDFLAGS)
 
@@ -13,16 +13,13 @@ libutils_la_SOURCES = \
 	bitpack16.cpp \
 	bitpack32.cpp \
 	bitpack64.cpp \
-	icu_filter.cpp \
 	map_file_allocator.cpp \
 	tempfile.cpp
 
 libutils_la_LIBADD = \
-	$(ICU_LDFLAGS) \
 	$(BOOST_THREAD_LDFLAGS) $(BOOST_THREAD_LIBS) \
 	$(BOOST_IOSTREAMS_LDFLAGS) $(BOOST_IOSTREAMS_LIBS) \
 	$(BOOST_FILESYSTEM_LDFLAGS) $(BOOST_FILESYSTEM_LIBS) \
-	$(BOOST_REGEX_LDFLAGS) $(BOOST_REGEX_LIBS) \
 	$(BOOST_SYSTEM_LDFLAGS) $(BOOST_SYSTEM_LIBS)
 
 libutilsincludedir = $(pkgincludedir)/utils
@@ -45,7 +42,6 @@ filesystem.hpp \
 group_aligned_code.hpp \
 group_aligned_code_offsets.hpp \
 hashmurmur.hpp \
-icu_filter.hpp \
 indexed_hashtable.hpp \
 indexed_map.hpp \
 indexed_set.hpp \
@@ -91,7 +87,6 @@ sample_byte_aligned_code \
 sample_chunk_vector \
 sample_compress_stream \
 sample_group_aligned_code \
-sample_icu_filter \
 sample_indexed_set \
 sample_istream_line_iterator \
 sample_lockfree_list_queue \
@@ -149,9 +144,6 @@ sample_compress_stream_SOURCES = sample_compress_stream.cpp
 sample_compress_stream_LDFLAGS = $(LIBUTILS)
 
 sample_group_aligned_code_SOURCES = sample_group_aligned_code.cpp
-
-sample_icu_filter_SOURCES = sample_icu_filter.cpp
-sample_icu_filter_LDFLAGS = $(LIBUTILS) $(BOOST_IOSTREAMS_LDFLAGS)
 
 sample_indexed_set_SOURCES = sample_indexed_set.cpp
 
