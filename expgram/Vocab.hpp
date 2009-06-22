@@ -11,7 +11,6 @@
 #include <boost/shared_ptr.hpp>
 
 #include <expgram/Word.hpp>
-#include <expgram/Stemmer.hpp>
 
 #include <succinct_db/succinct_hash.hpp>
 
