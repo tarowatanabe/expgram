@@ -24,10 +24,7 @@ namespace utils
   public:
     typedef uint32_t index_type;
     typedef size_t   size_type;
-    
-  protected:
-    static const index_type index_max() { return boost::numeric::bounds<index_type>::highest(); }
-    
+        
   public:
     
     inline size_type power_of_two(size_type n)
@@ -296,7 +293,7 @@ namespace utils
     node_set_type nodes;
     
   public:
-    indexed_hashtable(const size_type size=8) : bins(power_of_two(size)), nodes() { using namespace std; fill(bins.begin(), bins.end(), index_max()); }
+    indexed_hashtable(const size_type size=8) : bins(power_of_two(size)), nodes() { using namespace std; fill(bins.begin(), bins.end(), 0); }
     indexed_hashtable(const indexed_hashtable& x) : bins(), nodes() { assign(x); }
     ~indexed_hashtable() { clear(); }
     
@@ -340,7 +337,7 @@ namespace utils
     
     void clear() 
     { 
-      std::fill(bins.begin(), bins.end(), index_max());
+      std::fill(bins.begin(), bins.end(), 0);
       nodes.clear();
     }
     
@@ -348,11 +345,12 @@ namespace utils
     {
       using namespace std;
       
-      // no resize!
+      size = power_of_two(size);
+
       if (size <= bins.size()) return;
       
-      bins.resize(power_of_two(size));
-      fill(bins.begin(), bins.end(), index_max());
+      bins.resize(size);
+      fill(bins.begin(), bins.end(), 0);
       
       const size_type hash_mask = bins.size() - 1;
       
@@ -361,7 +359,7 @@ namespace utils
       for (typename node_set_type::iterator iter = nodes.begin(); iter != iter_end; ++ iter, ++ pos) {
 	const index_type key = hash()(extract_key()(iter->data())) & hash_mask;
 	iter->next = bins[key];
-	bins[key] = pos;
+	bins[key] = pos + 1;
       }
     }
     
@@ -369,17 +367,17 @@ namespace utils
     {
       const size_type key = hash()(x);
       
-      index_type i = bins[key & (bins.size() - 1)];
-      for (/**/; i != index_max() && ! equal()(extract_key()(nodes[i].data()), x); i = nodes[i].next);
-      return (i != index_max() ? begin() + i : end());
+      index_type index = bins[key & (bins.size() - 1)];
+      for (/**/; index && ! equal()(extract_key()(nodes[index - 1].data()), x); index = nodes[index - 1].next);
+      return (index ? begin() + index - 1 : end());
     }
     
     std::pair<iterator, bool> insert(const value_type& x)
     {
       const size_type key = hash()(extract_key()(x));
-      index_type i = bins[key & (bins.size() - 1)];
-      for (/**/; i != index_max() && ! equal()(extract_key()(nodes[i].data()), extract_key()(x)); i = nodes[i].next);
-      if (i != index_max()) return std::make_pair(begin() + i, false);
+      index_type index = bins[key & (bins.size() - 1)];
+      for (/**/; index && ! equal()(extract_key()(nodes[index - 1].data()), extract_key()(x)); index = nodes[index - 1].next);
+      if (index) return std::make_pair(begin() + index - 1, false);
       
       // not found...
       
@@ -392,7 +390,7 @@ namespace utils
       
       nodes.push_back(x);
       nodes.back().next = bins[pos];
-      bins[pos] = nodes.size() - 1;
+      bins[pos] = nodes.size();
       
       return std::make_pair(end() - 1, true);
     }

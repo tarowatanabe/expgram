@@ -99,6 +99,11 @@ int main(int argc, char** argv)
       std::vector<ostream_ptr_type> stream(mpi_size);
       for (int rank = 1; rank < mpi_size; ++ rank)
 	stream[rank].reset(new ostream_type(rank, command_tag, 4096));
+
+      for (int rank = 1; rank < mpi_size; ++ rank) {
+	while (! stream[rank]->test())
+	  boost::thread::yield();
+      }
       
       queue_type queue(1);
       std::auto_ptr<thread_type> thread(new thread_type(task_type(queue)));
