@@ -120,6 +120,8 @@ int main(int argc, char** argv)
 	utils::compress_istream is(*piter);
 	
 	std::string command;
+
+	int non_found_iter = 0;
 	
 	while (is) {
 	  bool found = false;
@@ -150,9 +152,22 @@ int main(int argc, char** argv)
 	    found = true;
 	  }
 	  
-	  if (! found)
+	  if (! found) {
 	    boost::thread::yield();
-	}	
+	    ++ non_found_iter;
+	  } else
+	    non_found_iter = 0;
+	  
+	  if (non_found_iter >= 50) {
+	
+	    struct timespec tm;
+	    tm.tv_sec = 0;
+	    tm.tv_nsec = 2000001;
+	    nanosleep(&tm, NULL);
+	    
+	    non_found_iter = 0;
+	  }
+	}
       }
 
       while (! command_root.empty()) {

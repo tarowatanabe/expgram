@@ -35,6 +35,9 @@ int main(int argc, char** argv)
       throw std::runtime_error("no output file?");
     
     expgram::NGramCounts ngram_counts(ngram_file, shards, unique, debug);
+
+    if (! ngram_counts.is_modified())
+      ngram_counts.modify();
     
     expgram::NGram ngram(debug);
     ngram_counts.estimate(ngram, remove_unk);

@@ -329,6 +329,8 @@ struct MapReduceLine
     
       utils::compress_istream is(*piter, 1024 * 1024);
     
+      int non_found_iter = 0;
+
       while (is) {
 	bool found = false;
       
@@ -348,8 +350,20 @@ struct MapReduceLine
 	  found = true;
 	}
       
-	if (! found)
+	if (! found) {
 	  boost::thread::yield();
+	  ++ non_found_iter;
+	} else
+	  non_found_iter = 0;
+	
+	if (non_found_iter >= 50) {
+	  struct timespec tm;
+	  tm.tv_sec = 0;
+	  tm.tv_nsec = 2000001;
+	  nanosleep(&tm, NULL);
+	    
+	  non_found_iter = 0;
+	}
       }
     }
   
@@ -478,6 +492,8 @@ struct MapReduceFile
 				      ? new thread_type(task_type(queue, *subprocess, output_path, paths_counts, max_malloc))
 				      : new thread_type(task_type(queue, output_path, paths_counts, max_malloc)));
     
+    int non_found_iter = 0;
+
     path_set_type::const_iterator piter_end = paths.end();
     path_set_type::const_iterator piter = paths.begin();
     while (piter != piter_end) {
@@ -510,8 +526,21 @@ struct MapReduceFile
 	}
       }
       
-      if (! found)
+      if (! found) {
 	boost::thread::yield();
+	++ non_found_iter;
+      } else
+	non_found_iter = 0;
+      
+      if (non_found_iter >= 50) {
+	struct timespec tm;
+	tm.tv_sec = 0;
+	tm.tv_nsec = 2000001;
+	nanosleep(&tm, NULL);
+	    
+	non_found_iter = 0;
+      }
+      
     }
     
     // send termination flag...    
