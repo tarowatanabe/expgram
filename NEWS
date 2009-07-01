@@ -1,3 +1,7 @@
+2009-7-1
+	* ngram_counts_estimate can starts from ngram counts in Google format :)
+	    - For larger data, it is recommended to run separately, but you can, for instance, run
+	      ngram_counts_estimate directly after ngram_counts_extract
 
 2009-6-22
 	* The expgram will concentrate on ngrams, not other stuff:
