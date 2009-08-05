@@ -170,6 +170,8 @@ int main(int argc, char** argv)
 	}
       }
 
+      
+      int non_found_iter = 0;
       while (! command_root.empty()) {
 	bool found = false;
 
@@ -188,9 +190,22 @@ int main(int argc, char** argv)
 	    found = true;
 	  }
 	
-	if (! found)
+	if (! found) {
 	  boost::thread::yield();
+	  ++ non_found_iter;
+	} else
+	  non_found_iter = 0;
+	
+	if (non_found_iter >= 50) {
+	  struct timespec tm;
+	  tm.tv_sec = 0;
+	  tm.tv_nsec = 2000001;
+	  nanosleep(&tm, NULL);
+	  
+	  non_found_iter = 0;
+	}
       }
+      
       
       bool terminated = false;
       while (1) {
@@ -213,8 +228,20 @@ int main(int argc, char** argv)
 	
 	if (terminated && std::count(stream.begin(), stream.end(), ostream_ptr_type()) == mpi_size) break;
 	
-	if (! found)
+	if (! found) {
 	  boost::thread::yield();
+	  ++ non_found_iter;
+	} else
+	  non_found_iter = 0;
+	
+	if (non_found_iter >= 50) {
+	  struct timespec tm;
+	  tm.tv_sec = 0;
+	  tm.tv_nsec = 2000001;
+	  nanosleep(&tm, NULL);
+	  
+	  non_found_iter = 0;
+	}
       }
 
       thread->join();

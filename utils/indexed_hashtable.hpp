@@ -328,6 +328,7 @@ namespace utils
     }
     
     size_type size() const { return nodes.size(); }
+    bool      empty() const { return nodes.empty(); }
     
     inline const_reference operator[](const index_type x) const { return nodes[x].data(); }
     inline       reference operator[](const index_type x)       { return nodes[x].data(); }
