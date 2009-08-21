@@ -194,18 +194,19 @@ namespace utils
   class basic_mpi_istream
   {
   public:
-    basic_mpi_istream(MPI::Comm& comm, int rank, int tag, size_t buffer_size=4096) : pimpl(new impl()){ open(comm, rank, tag, buffer_size); }
-    basic_mpi_istream(int rank, int tag, size_t buffer_size=4096) : pimpl(new impl()){ open(rank, tag, buffer_size); }
+    basic_mpi_istream(MPI::Comm& comm, int rank, int tag, size_t buffer_size=4096, bool no_ready=false) : pimpl(new impl()){ open(comm, rank, tag, buffer_size, no_ready); }
+    basic_mpi_istream(int rank, int tag, size_t buffer_size=4096, bool no_ready=false) : pimpl(new impl()){ open(rank, tag, buffer_size, no_ready); }
     
   public:
-    void open(MPI::Comm& comm, int rank, int tag, size_t buffer_size=4096) { pimpl->open(comm, rank, tag, buffer_size); }
-    void open(int rank, int tag, size_t buffer_size=4096) { pimpl->open(MPI::COMM_WORLD, rank, tag, buffer_size); }
+    void open(MPI::Comm& comm, int rank, int tag, size_t buffer_size=4096, bool no_ready=false) { pimpl->open(comm, rank, tag, buffer_size, no_ready); }
+    void open(int rank, int tag, size_t buffer_size=4096, bool no_ready=false) { pimpl->open(MPI::COMM_WORLD, rank, tag, buffer_size, no_ready); }
     
     basic_mpi_istream& read(std::string& data) { pimpl->read(data); return *this; }
     void close() { pimpl->close(); }
     
     bool test() { return pimpl->test(); }
     void wait() { pimpl->wait(); };
+    void ready() { pimpl->ready(); }
     
     operator bool() const { return pimpl->is_open(); }
    
@@ -216,7 +217,7 @@ namespace utils
       
       impl() {}
       
-      void open(MPI::Comm& comm, int rank, int tag, size_t buffer_size=4096);
+      void open(MPI::Comm& comm, int rank, int tag, size_t buffer_size=4096, bool __no_ready=false);
       void close();
       
       void read(std::string& data);
@@ -224,6 +225,7 @@ namespace utils
       bool test();
       void wait();
       size_t fill();
+      void ready();
       
       bool is_open() const;
       
@@ -238,6 +240,8 @@ namespace utils
       
       MPI::Prequest request_buffer;
       MPI::Prequest request_buffer_size;
+
+      bool no_ready;
     };
     
     boost::shared_ptr<impl> pimpl;
@@ -245,7 +249,7 @@ namespace utils
 
   
   template <typename Alloc>
-  void basic_mpi_istream<Alloc>::impl::open(MPI::Comm& comm, int rank, int tag, size_t __buffer_size)
+  void basic_mpi_istream<Alloc>::impl::open(MPI::Comm& comm, int rank, int tag, size_t __buffer_size, bool __no_ready)
   {
     close();
     
@@ -266,6 +270,8 @@ namespace utils
     request_size.Start();
     request_buffer.Start();
     request_buffer_size.Start();
+
+    no_ready = __no_ready;
   }
   
   template <typename Alloc>
@@ -279,6 +285,8 @@ namespace utils
     
     buffer.clear();
     buffer_recv.clear();
+
+    no_ready = false;
   }
 
   template <typename Alloc>
@@ -300,9 +308,26 @@ namespace utils
       data.insert(data.end(), buffer.begin(), buffer.begin() + buffer_size);
       buffer.erase(buffer.begin(), buffer.begin() + buffer_size);
       
-      request_size.Start();
-      request_ack.Start();
+      if (! no_ready) {
+	request_size.Start();
+	request_ack.Start();
+      }
     }
+  }
+
+  template <typename Alloc>
+  inline
+  void basic_mpi_istream<Alloc>::impl::ready()
+  {
+    if (! no_ready) return;
+
+    if (! request_ack.Test())
+      request_ack.Wait();
+    if (! request_size.Test())
+      request_size.Wait();
+    
+    request_size.Start();
+    request_ack.Start();
   }
 
   template <typename Alloc>

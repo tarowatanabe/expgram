@@ -255,13 +255,14 @@ int main(int argc, char** argv)
       queue_type queue(1);
       std::auto_ptr<thread_type> thread(new thread_type(task_type(queue)));
       
-      utils::mpi_istream is(0, command_tag, 4096);
+      utils::mpi_istream is(0, command_tag, 4096, true);
       std::string command;
       while (is.read(command)) {
 	if (debug)
 	  std::cerr << "rank: " << mpi_rank << " " << command << std::endl;
 	
 	queue.push(command);
+	is.ready();
       }
       
       queue.push(std::string());
