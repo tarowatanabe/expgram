@@ -36,12 +36,11 @@
 #include <utils/tempfile.hpp>
 #include <utils/subprocess.hpp>
 #include <utils/async_device.hpp>
+#include <utils/malloc_stats.hpp>
 
 #include <expgram/Word.hpp>
 #include <expgram/Vocab.hpp>
 #include <expgram/Sentence.hpp>
-
-#include <google/malloc_extension.h>
 
 struct GoogleNGramCounts
 {
@@ -152,14 +151,9 @@ struct GoogleNGramCounts
 	  
 	  __task(lines.begin(), lines.end(), counts, path, paths, max_malloc);
 	  
-	  if (! counts.empty()) {
-	    size_t num_allocated = 0;
-	    MallocExtension::instance()->GetNumericProperty("generic.current_allocated_bytes", &num_allocated);
-	    
-	    if (num_allocated > size_t(max_malloc * 1024 * 1024 * 1024)) {
-	      GoogleNGramCounts::dump_counts(counts, path, paths);
-	      counts.clear();
-	    }
+	  if (! counts.empty() && utils::malloc_stats::allocated() > size_t(max_malloc * 1024 * 1024 * 1024)) {
+	    GoogleNGramCounts::dump_counts(counts, path, paths);
+	    counts.clear();
 	  }
 	}
       }
@@ -275,14 +269,9 @@ struct GoogleNGramCounts
 	  
 	  __task(utils::istream_line_iterator(is), utils::istream_line_iterator(), counts, path, paths, max_malloc);
 	  
-	  if (! counts.empty()) {
-	    size_t num_allocated = 0;
-	    MallocExtension::instance()->GetNumericProperty("generic.current_allocated_bytes", &num_allocated);
-	    
-	    if (num_allocated > size_t(max_malloc * 1024 * 1024 * 1024)) {
-	      GoogleNGramCounts::dump_counts(counts, path, paths);
-	      counts.clear();
-	    }
+	  if (! counts.empty() && utils::malloc_stats::allocated() > size_t(max_malloc * 1024 * 1024 * 1024)) {
+	    GoogleNGramCounts::dump_counts(counts, path, paths);
+	    counts.clear();
 	  }
 	}
       }
@@ -682,14 +671,9 @@ struct GoogleNGramCounts
 	  }
 	}
 	
-	if ((iteration & iteration_mask) == iteration_mask) {
-	  size_t num_allocated = 0;
-	  MallocExtension::instance()->GetNumericProperty("generic.current_allocated_bytes", &num_allocated);
-	  
-	  if (num_allocated > size_t(max_malloc * 1024 * 1024 * 1024)) {
-	    GoogleNGramCounts::dump_counts(counts, path, paths);
-	    counts.clear();
-	  }
+	if ((iteration & iteration_mask) == iteration_mask && utils::malloc_stats::allocated() > size_t(max_malloc * 1024 * 1024 * 1024)) {
+	  GoogleNGramCounts::dump_counts(counts, path, paths);
+	  counts.clear();
 	}
       }
     }
@@ -722,14 +706,9 @@ struct GoogleNGramCounts
 	
 	counts[counts.insert(tokens.begin(), tokens.end() - 1)] += atoll(tokens.back().c_str());
 	
-	if ((iteration & iteration_mask) == iteration_mask) {
-	  size_t num_allocated = 0;
-	  MallocExtension::instance()->GetNumericProperty("generic.current_allocated_bytes", &num_allocated);
-	  
-	  if (num_allocated > size_t(max_malloc * 1024 * 1024 * 1024)) {
-	    GoogleNGramCounts::dump_counts(counts, path, paths);
-	    counts.clear();
-	  }
+	if ((iteration & iteration_mask) == iteration_mask && utils::malloc_stats::allocated() > size_t(max_malloc * 1024 * 1024 * 1024)) {
+	  GoogleNGramCounts::dump_counts(counts, path, paths);
+	  counts.clear();
 	}
       }
     }

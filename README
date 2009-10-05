@@ -1,8 +1,11 @@
 expgram: EXPonential-order n-GRAM toolkit
 
-This is an ngram package with efficient handling of large data in mind, based on a succinct storage.
+This is an ngram package with efficient handling of large data in mind, based on a succinct storage [1].
 The target is to index Google's ngrams into 10GB.
-Also, this toolkit tries to implement large scale ngram language model proposed by Goolge[1]
+Among ngram compression mentioned in [1], we do not implement block-wise compression (or gzip every 8k-byte)
+for efficiency reason. One of the serious problem is a synchronization when used with multiple threads...
+Also, this toolkit tries to implement large scale ngram language model proposed by Goolge [2].
+However, mpi version is not fully tested.
 
 Brief descriptions:
 
@@ -55,25 +58,27 @@ They performed similar to threaded version, but differ in that you have to expli
 API: Sample codes exists at sample directory, ngram.cc and ngram_counts.cc
 
 	NGram:
-		operator()(first, last) : return backoff log-probabilities for ngram. Iterator must supports random-access concepts, such as
-			     	  	vector's iterator.
+		operator()(first, last) : return backoff log-probabilities for ngram. Iterator must supports random-access
+				  	  concepts, such as vector's iterator.
 
 		logprob(first, last) : synonym to operator()(first, last)
 		
-		logbound(first, last) : Return upper-bound log-probability for ngram. Specifically, P_{bound}(w_n | w_i ... w_{n-1}) = max_{w_{i-1}} P(w_n | w_{i-1}, ... w_{n-1})
-				      	It is useful for a task, such as decoding, when we want to pre-compute heuristic score in advance.
+		logbound(first, last) : Return upper-bound log-probability for ngram. Specifically,
+				        P_{bound}(w_n | w_i ... w_{n-1}) = max_{w_{i-1}} P(w_n | w_{i-1}, ... w_{n-1}).
+				      	It is useful for a task, such as decoding, when we want to pre-compute heuristic
+					score in advance.
 		
 		exists(first, last) : check whether a particular ngram exists or not.
 
 		index.order(): returns ngram's maximum order
-
+		
 	NGramCounts:
 		operator()(first, last) : return ngram count. if an ngram [first, last) does not exist, return zero.
-
+		
 		count(first, last) : synonym to operator()(first, last)
 		
-		exists(first, last) : check whether a particula ngram exists or not.
-			    
+		exists(first, last) : check whether a particular ngram exists or not.
+		
 		index.order(): returns ngram's maximum order
 	
 	Internally, words (assuming std::string) are autoamtically converted into word_type (expgram::Word), then word_id
@@ -83,7 +88,6 @@ API: Sample codes exists at sample directory, ngram.cc and ngram_counts.cc
 	
 	All the operations are thread-safe, meaning that concurrent programs may call any API any time without locking!
 	(except for ngram loading...)
-
 
 Requirements:
 	Following table lists required libraries for installation. The tools are successfully compiled
@@ -107,6 +111,19 @@ Imported Libraries:
 
 References:
 [1]
+@InProceedings{watanabe-tsukada-isozaki:2009:Short,
+  author    = {Watanabe, Taro  and  Tsukada, Hajime  and  Isozaki, Hideki},
+  title     = {A Succinct N-gram Language Model},
+  booktitle = {Proceedings of the ACL-IJCNLP 2009 Conference Short Papers},
+  month     = {August},
+  year      = {2009},
+  address   = {Suntec, Singapore},
+  publisher = {Association for Computational Linguistics},
+  pages     = {341--344},
+  url       = {http://www.aclweb.org/anthology/P/P09/P09-2086}
+}
+
+[2]
 @InProceedings{brants-EtAl:2007:EMNLP-CoNLL2007,
   author    = {Brants, Thorsten  and  Popat, Ashok C.  and  Xu, Peng  and  Och, Franz J.  and  Dean, Jeffrey},
   title     = {Large Language Models in Machine Translation},

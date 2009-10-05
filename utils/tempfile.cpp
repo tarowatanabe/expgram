@@ -58,7 +58,7 @@ namespace utils
       {
 	if (path.empty()) return;
 	
-	SignalBlocker __block;
+	SignalBlocker __blocker;
 	
 	lock_type lock(__mutex);
 	
@@ -71,7 +71,7 @@ namespace utils
       {
 	if (path.empty()) return;
 	
-	SignalBlocker __block;
+	SignalBlocker __blocker;
 	
 	lock_type lock(__mutex);
 
@@ -82,7 +82,7 @@ namespace utils
 
       void clear()
       {
-	SignalBlocker __block;
+	SignalBlocker __blocker;
 	
 	lock_type lock(__mutex);
 	

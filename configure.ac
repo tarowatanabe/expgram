@@ -49,6 +49,9 @@ fi
 AC_ARG_WITH(tcmalloc,
 	[AC_HELP_STRING([--with-tcmalloc=DIR], [tcmalloc in DIR])],
 	[tcmalloc_dir="${withval}"], [tcmalloc_dir=''])
+AC_ARG_ENABLE(tcmalloc,
+	[AC_HELP_STRING([--enable-tcmalloc], [enable profiling via google's libtcmalloc])],
+	[ac_enable_tcmalloc=yes], [ac_enable_tcmalloc=no])
 
 if test "x$tcmalloc_dir" != "x"; then
   TCMALLOC_CPPFLAGS="-I${tcmalloc_dir}/include"
@@ -57,23 +60,33 @@ else
   TCMALLOC_CPPFLAGS=""
   TCMALLOC_LDFLAGS="-ltcmalloc"
 fi
+
+if test "x$ac_enable_tcmalloc" = "xyes"; then
+   AC_MSG_CHECKING(for tcmalloc)
+   save_LDFLAGS="$LDFLAGS"
+   LDFLAGS="$LDFLAGS $TCMALLOC_LDFLAGS"
+   AC_TRY_LINK([], [], [ac_have_libtcmalloc=yes], [ac_have_libtcmalloc=no])
+   LDFLAGS="$save_LDFLAGS"
+   AC_MSG_RESULT($ac_have_libtcmalloc)
+   if test "x$ac_have_libtcmalloc" = "xno"; then
+     TCMALLOC_CPPFLAGS=""
+     TCMALLOC_LDFLAGS=""
+   fi
+else
+  TCMALLOC_CPPFLAGS=""
+  TCMALLOC_LDFLAGS=""
+fi
 AC_SUBST(TCMALLOC_CPPFLAGS)
 AC_SUBST(TCMALLOC_LDFLAGS)
 
-AC_MSG_CHECKING(for tcmalloc)
-save_LDFLAGS="$LDFLAGS"
-LDFLAGS="$LDFLAGS $TCMALLOC_LDFLAGS"
-AC_TRY_LINK([], [], [ac_have_libtcmalloc=yes], [ac_have_libtcmalloc=no])
-LDFLAGS="$save_LDFLAGS"
-AC_MSG_RESULT($ac_have_libtcmalloc)
-if test "x$ac_have_libtcmalloc" = "xno"; then
-  AS_ERROR("no tcmallo")
-fi
 
 ## --with-profiler
 AC_ARG_WITH(profiler,
 	[AC_HELP_STRING([--with-profiler=DIR], [profiler in DIR])],
 	[profiler_dir="${withval}"], [profiler_dir=''])
+AC_ARG_ENABLE(profiler,
+	[AC_HELP_STRING([--enable-profiler], [enable profiling via google's libprofiler])],
+	[ac_enable_profiler=yes], [ac_enable_profiler=no])
 
 if test "x$profiler_dir" != "x"; then
   PROFILER_CPPFLAGS="-I${profiler_dir}/include"
@@ -82,10 +95,6 @@ else
   PROFILER_CPPFLAGS=""
   PROFILER_LDFLAGS="-lprofiler"
 fi
-
-AC_ARG_ENABLE(profiler,
-	[AC_HELP_STRING([--enable-profiler], [enable profiling via google's libprofiler])],
-	[ac_enable_profiler=yes], [ac_enable_profiler=no])
 
 if test "x$ac_enable_profiler" = "xyes"; then
    AC_MSG_CHECKING(for -lprofiler)
@@ -235,6 +244,46 @@ AC_LINK_IFELSE([AC_LANG_PROGRAM([#if defined(__GNUC__) && (defined(__i386__) || 
                [AC_DEFINE(HAVE_TLS, 1, Define to 1 if compiler supports __thread)
                 AC_MSG_RESULT([yes])],
                [AC_MSG_RESULT([no])])
+
+## check malloc stuff...
+AC_CHECK_HEADERS([malloc.h malloc/malloc.h sys/resource.h])
+
+save_CXXFLAGS="$CXXFLAGS"
+save_CPPFLAGS="$CPPFLAGS"
+CXXFLAGS="$CXXFLAGS $TCMALLOC_CPPFLAGS"
+CPPFLAGS="$CPPFLAGS $TCMALLOC_CPPFLAGS"
+AC_CHECK_HEADERS([google/malloc_extension.h])
+CXXFLAGS="$save_CXXFLAGS"
+CPPFLAGS="$save_CPPFLAGS"
+
+AC_MSG_CHECKING(malloc_zone_statistics)
+AC_TRY_LINK([#include <malloc/malloc.h>],
+            [struct malloc_statistics_t stat;
+	     malloc_zone_statistics(NULL, &stat);],
+	     [have_malloc_zone_statistics=yes], [have_malloc_zone_statistics=no])
+AC_MSG_RESULT($have_malloc_zone_statistics)
+if test "$have_malloc_zone_statistics" = "yes"; then
+  AC_DEFINE(HAVE_MALLOC_ZONE_STATISTICS, 1, [Define if you have malloc_zone_statistics])
+fi
+
+AC_MSG_CHECKING(MallocExtension)
+save_CXXFLAGS="$CXXFLAGS"
+save_LDFLAGS="$LDFLAGS"
+CXXFLAGS="$CXXFLAGS $TCMALLOC_CPPFLAGS"
+LDFLAGS="$LDFLAGS $TCMALLOC_LDFLAGS"
+AC_TRY_LINK([#include <google/malloc_extension.h>],
+            [MallocExtension::instance();],
+	    [have_malloc_extension=yes], [have_malloc_extension=no])
+CXXFLAGS="$save_CXXFLAGS"
+LDFLAGS="$save_LDFLAGS"
+AC_MSG_RESULT($have_malloc_extension)
+if test "$have_malloc_extension" = "yes"; then
+  AC_DEFINE(HAVE_GOOGLE_MALLOC_EXTENSION, 1, [Define if you have malloc_extension])
+fi
+
+if test "$have_malloc_extension" = "no" -a "$have_malloc_zone_statistics" = "no"; then
+    AS_ERROR("no malloc statistics...")
+fi
 
 # Checks for header files.
 AC_HEADER_DIRENT

@@ -1,5 +1,5 @@
 
-AM_CPPFLAGS = -I$(top_builddir) $(BOOST_CPPFLAGS)
+AM_CPPFLAGS = -I$(top_builddir) $(BOOST_CPPFLAGS) $(TCMALLOC_CPPFLAGS)
 
 perftools_LDADD = $(TCMALLOC_LDFLAGS) $(PROFILER_LDFLAGS)
 
@@ -13,6 +13,7 @@ libutils_la_SOURCES = \
 	bitpack16.cpp \
 	bitpack32.cpp \
 	bitpack64.cpp \
+	malloc_stats.cpp \
 	map_file_allocator.cpp \
 	tempfile.cpp
 
@@ -20,7 +21,8 @@ libutils_la_LIBADD = \
 	$(BOOST_THREAD_LDFLAGS) $(BOOST_THREAD_LIBS) \
 	$(BOOST_IOSTREAMS_LDFLAGS) $(BOOST_IOSTREAMS_LIBS) \
 	$(BOOST_FILESYSTEM_LDFLAGS) $(BOOST_FILESYSTEM_LIBS) \
-	$(BOOST_SYSTEM_LDFLAGS) $(BOOST_SYSTEM_LIBS)
+	$(BOOST_SYSTEM_LDFLAGS) $(BOOST_SYSTEM_LIBS) \
+	$(TCMALLOC_LDFLAGS)
 
 libutilsincludedir = $(pkgincludedir)/utils
 libutilsinclude_HEADERS = \
@@ -48,6 +50,7 @@ indexed_set.hpp \
 istream_line_iterator.hpp \
 lockfree_list_queue.hpp \
 lockfree_queue.hpp \
+malloc_stats.hpp \
 map_file.hpp \
 map_file_allocator.hpp \
 mathop.hpp \

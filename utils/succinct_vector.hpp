@@ -364,27 +364,27 @@ namespace utils
 
   public:
     succinct_vector_mapped()
-      : __size(0), __block(), __rank_high(), __rank_low() {}
+      : __size(0), __blocks(), __rank_high(), __rank_low() {}
     succinct_vector_mapped(const path_type& path)
-      : __size(0), __block(), __rank_high(), __rank_low() { open(path); }
+      : __size(0), __blocks(), __rank_high(), __rank_low() { open(path); }
     
     bool operator[](size_type pos) const { return test(pos); }
     bool test(size_type pos) const
     {
-      return __block[pos >> shift_block] & masks()[pos & mask_block];
+      return __blocks[pos >> shift_block] & masks()[pos & mask_block];
     }
     size_type size() const { return __size; }
     bool empty() const { return __size == 0; }
-    bool is_open() const { return __block.is_open(); }
+    bool is_open() const { return __blocks.is_open(); }
     
-    uint64_t size_bytes() const { return __block.size_bytes() + __rank_high.size_bytes() + __rank_low.size_bytes(); }
-    uint64_t size_compressed() const { return __block.size_compressed() + __rank_high.size_compressed() + __rank_low.size_compressed(); }
+    uint64_t size_bytes() const { return __blocks.size_bytes() + __rank_high.size_bytes() + __rank_low.size_bytes(); }
+    uint64_t size_compressed() const { return __blocks.size_compressed() + __rank_high.size_compressed() + __rank_low.size_compressed(); }
     uint64_t size_cache() const { return __cache_select0.size() * sizeof(cache_type) + __cache_select1.size() * sizeof(cache_type); }
     
     void clear()
     {
       __size = 0;
-      __block.clear();
+      __blocks.clear();
       __rank_high.clear();
       __rank_low.clear();
       
@@ -415,8 +415,8 @@ namespace utils
 	return __select;
       
       __select = (bit 
-		  ? base_type::select1(__block, __rank_high, __rank_low, pos)
-		  : base_type::select0(__block, __rank_high, __rank_low, pos));
+		  ? base_type::select1(__blocks, __rank_high, __rank_low, pos)
+		  : base_type::select0(__blocks, __rank_high, __rank_low, pos));
       
       cache_new.value = ((uint64_t(pos) << 32) & mask_pos) | (uint64_t(__select) & mask_select);
       
@@ -430,11 +430,11 @@ namespace utils
       if (__rank_high.empty() || __rank_low.empty()) 
 	throw std::runtime_error("no ranks...");
 
-      const size_type rank1_value = base_type::rank1(__block, __rank_high, __rank_low, pos);
+      const size_type rank1_value = base_type::rank1(__blocks, __rank_high, __rank_low, pos);
       return (~size_type(bit - 1) & rank1_value) | (size_type(bit - 1) & (pos + 1 - rank1_value));
     }
     
-    path_type path() const { return __block.path().parent_path(); }
+    path_type path() const { return __blocks.path().parent_path(); }
 
     void read(const path_type& path) { open(path); }
     void open(const path_type& path)
@@ -444,7 +444,7 @@ namespace utils
       close();
       
       repository_type repository(path, repository_type::read);
-      __block.open(repository.path("bits"));
+      __blocks.open(repository.path("bits"));
       __rank_high.open(repository.path("rank-high"));
       __rank_low.open(repository.path("rank-low"));
       
@@ -501,7 +501,7 @@ namespace utils
     
   public:
     size_type          __size;
-    bit_block_type     __block;
+    bit_block_type     __blocks;
     bit_rank_high_type __rank_high;
     bit_rank_low_type  __rank_low;
     
@@ -536,14 +536,14 @@ namespace utils
   public:
     succinct_vector()
       : __size(0),
-	__block(),
+	__blocks(),
 	__rank_high(),
 	__rank_low() {}
     
     template <typename __Alloc>
     succinct_vector(const succinct_vector_mapped<__Alloc>& x)
       : __size(x.__size),
-	__block(x.__block.begin(), x.__block.end()),
+	__blocks(x.__blocks.begin(), x.__blocks.end()),
 	__rank_high(x.__rank_high.begin(), x.__rank_high.end()),
 	__rank_low(x.__rank_low.begin(), x.__rank_low.end()) {}
     
@@ -551,7 +551,7 @@ namespace utils
     succinct_vector& operator=(const succinct_vector_mapped<__Alloc>& x)
     {
       __size = x.__size;
-      __block.assign(x.__block.begin(), x.__block.end());
+      __blocks.assign(x.__blocks.begin(), x.__blocks.end());
       __rank_high.assign(x.__rank_high.begin(), x.__rank_high.end());
       __rank_low.assign(x.__rank_low.begin(), x.__rank_low.end());
       return *this;
@@ -566,23 +566,23 @@ namespace utils
       const size_type mask_pos  = pos & mask_block;
       
       __size = bithack::max(pos + 1, __size);
-      if (block_pos >= __block.size())
-	__block.resize(block_pos + 1, block_type());
+      if (block_pos >= __blocks.size())
+	__blocks.resize(block_pos + 1, block_type());
       
-      __block[block_pos] = (__block[block_pos] & masks_reverse()[mask_pos]) | (-bit & masks()[mask_pos]);
+      __blocks[block_pos] = (__blocks[block_pos] & masks_reverse()[mask_pos]) | (-bit & masks()[mask_pos]);
     }
 
     bool operator[](size_type pos) const { return test(pos); }
     bool test(size_type pos) const
     {
-      return __block[pos >> shift_block] & masks()[pos & mask_block];
+      return __blocks[pos >> shift_block] & masks()[pos & mask_block];
     }
     size_type size() const { return __size; }
     bool empty() const { return __size == 0; }
 
     uint64_t size_bytes() const
     { 
-      return (__block.size() * sizeof(block_type)
+      return (__blocks.size() * sizeof(block_type)
 	      + __rank_high.size() * sizeof(rank_high_type)
 	      + __rank_low.size() * sizeof(rank_low_type));
     }
@@ -592,7 +592,7 @@ namespace utils
     void clear()
     {
       __size = 0;
-      __block.clear();
+      __blocks.clear();
       __rank_high.clear();
       __rank_low.clear();
     }
@@ -603,8 +603,8 @@ namespace utils
 	throw std::runtime_error("no ranks...");
       
       return (bit 
-	      ? base_type::select1(__block, __rank_high, __rank_low, pos)
-	      : base_type::select0(__block, __rank_high, __rank_low, pos));
+	      ? base_type::select1(__blocks, __rank_high, __rank_low, pos)
+	      : base_type::select0(__blocks, __rank_high, __rank_low, pos));
     }
     
     size_type rank(size_type pos, bool bit) const
@@ -612,7 +612,7 @@ namespace utils
       if (__rank_high.empty() || __rank_low.empty()) 
 	throw std::runtime_error("no ranks...");
       
-      const size_type rank1_value = base_type::rank1(__block, __rank_high, __rank_low, pos);
+      const size_type rank1_value = base_type::rank1(__blocks, __rank_high, __rank_low, pos);
       return (~size_type(bit - 1) & rank1_value) | (size_type(bit - 1) & (pos + 1 - rank1_value));
     }
 
@@ -629,8 +629,8 @@ namespace utils
       
       // we emit hight block every num_block_rank_high
       int i = 0;
-      typename bit_block_type::const_iterator biter_end = __block.end();
-      for (typename bit_block_type::const_iterator biter = __block.begin(); biter != biter_end; ++ biter, ++ i) {
+      typename bit_block_type::const_iterator biter_end = __blocks.end();
+      for (typename bit_block_type::const_iterator biter = __blocks.begin(); biter != biter_end; ++ biter, ++ i) {
 	const rank_high_type bitcount = bithack::bit_count(*biter);
 	
 	sum_low += bitcount;
@@ -655,7 +655,7 @@ namespace utils
 	const_cast<succinct_vector&>(*this).build();
 
       repository_type repository(path, repository_type::write);
-      dump_file(repository.path("bits"), __block);
+      dump_file(repository.path("bits"), __blocks);
       dump_file(repository.path("rank-high"), __rank_high);
       dump_file(repository.path("rank-low"), __rank_low);
       
@@ -682,7 +682,7 @@ namespace utils
     
   private:
     size_type          __size;
-    bit_block_type     __block;
+    bit_block_type     __blocks;
     bit_rank_high_type __rank_high;
     bit_rank_low_type  __rank_low;
   };
