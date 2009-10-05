@@ -252,6 +252,17 @@ namespace utils
     }
 
   };
+
+  template <typename _Tp, size_t _Size, typename _Alloc>
+  inline bool operator==(const static_allocator<_Tp,_Size,_Alloc>& x,
+                         const static_allocator<_Tp,_Size,_Alloc>& y)
+  { return true; }
+  
+  template <typename _Tp, size_t _Size, typename _Alloc>
+  inline bool operator!=(const static_allocator<_Tp,_Size,_Alloc>& x,
+                         const static_allocator<_Tp,_Size,_Alloc>& y)
+  { return false; }
+
 };
 
 #endif

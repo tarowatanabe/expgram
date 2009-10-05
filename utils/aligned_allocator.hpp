@@ -120,6 +120,17 @@ namespace utils
 #endif
     }
   };
+
+  template <typename _Tp>
+  inline bool operator==(const aligned_allocator<_Tp>& x,
+                         const aligned_allocator<_Tp>& y)
+  { return true; }
+  
+  template <typename _Tp>
+  inline bool operator!=(const aligned_allocator<_Tp>& x,
+                         const aligned_allocator<_Tp>& y)
+  { return false; }
+
 };
 
 #endif

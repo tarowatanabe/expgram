@@ -350,6 +350,17 @@ namespace utils
     }
     
   };
+
+  template <typename _Tp, typename _Alloc>
+  inline bool operator==(const map_file_allocator<_Tp,_Alloc>& x,
+                         const map_file_allocator<_Tp,_Alloc>& y)
+  { return true; }
+  
+  template <typename _Tp, typename _Alloc>
+  inline bool operator!=(const map_file_allocator<_Tp,_Alloc>& x,
+                         const map_file_allocator<_Tp,_Alloc>& y)
+  { return false; }
+
 };
 
 #endif
