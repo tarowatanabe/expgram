@@ -78,7 +78,7 @@ namespace utils
 	::dup2(pout[1], STDOUT_FILENO);
 	::close(pout[1]);
 	
-	::execlp(command.file_string().c_str(), command.file_string().c_str(), 0);
+	::execlp(command.file_string().c_str(), command.file_string().c_str(), (char*) 0);
 	
 	::_exit(errno);  // not exit(errno)!
       } else {
