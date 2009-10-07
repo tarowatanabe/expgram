@@ -119,48 +119,52 @@ namespace expgram
     logprob_type logbound(Iterator first, Iterator last, bool smooth_smallest=false) const
     {
       if (first == last) return 0.0;
-      
-      first = std::max(first, last - index.order());
-      
-      bool performed_backoff = false;
-      logprob_type logbackoff = 0.0;
-      for (/**/; first != last - 1; ++ first) {
-	const int order = last - first;
-	const size_type shard_index = index.shard_index(first, last);
-	std::pair<Iterator, size_type> result = index.traverse(shard_index, first, last);
 
+      const int order = last - first;
+      
+      if (order >= index.order())
+	return logprob(first, last, smooth_smallest);
+      
+      if (order >= 2) { 
+	const size_type shard_index = index.shard_index(first, last);
+	const size_type shard_index_backoff = size_type((order == 2) - 1) & shard_index;
+	std::pair<Iterator, size_type> result = index.traverse(shard_index, first, last);
+	
 	if (result.first == last) {
-	  const logprob_type __logbound = ((! performed_backoff) && result.second < logbounds[shard_index].size()
+	  const logprob_type __logbound = (result.second < logbounds[shard_index].size()
 					   ? logbounds[shard_index](result.second, order)
 					   : logprobs[shard_index](result.second, order));
 	  if(__logbound != logprob_min())
-	    return logbackoff + __logbound;
+	    return __logbound;
 	  else {
 	    const size_type parent = index[shard_index].parent(result.second);
-	    if (parent != size_type(-1))
-	      logbackoff += backoffs[size_type((order == 2) - 1) & shard_index](parent, order - 1);
+	    const logprob_type logbackoff = (parent != size_type(-1)
+					     ? backoffs[shard_index_backoff](parent, order - 1)
+					     : logprob_type(0.0));
+	    return logprob(first + 1, last, smooth_smallest) + logbackoff;
 	  }
-	} else if (result.first == last - 1)
-	  logbackoff += backoffs[size_type((order == 2) - 1) & shard_index](result.second, order - 1);
+	} else {
+	  const logprob_type logbackoff = (result.first == last - 1
+					   ? backoffs[shard_index_backoff](result.second, order - 1)
+					   : logprob_type(0.0));
+	  return logprob(first + 1, last, smooth_smallest) + logbackoff; 
+	}
+      } else {
+	const size_type shard_index = index.shard_index(first, last);
+	std::pair<Iterator, size_type> result = index.traverse(shard_index, first, last);
 	
-	performed_backoff = true;
+	if (result.first == last) {
+	  const logprob_type __logbound = (result.second < logbounds[shard_index].size()
+					   ? logbounds[shard_index](result.second, order)
+					   : logprobs[shard_index](result.second, order));
+	  return (__logbound != logprob_min()
+		  ? __logbound
+		  : (smooth_smallest
+		     ? logprob_min()
+		     : smooth));
+	} else
+	  return (smooth_smallest ? logprob_min() : smooth);
       }
-      
-      const int order = last - first;
-      const size_type shard_index = index.shard_index(first, last);
-      std::pair<Iterator, size_type> result = index.traverse(shard_index, first, last);
-      
-      if (result.first == last) {
-	const logprob_type __logbound = ((! performed_backoff) && result.second < logbounds[shard_index].size()
-					 ? logbounds[shard_index](result.second, order)
-					 : logprobs[shard_index](result.second, order));
-	return (__logbound != logprob_min()
-		? logbackoff + __logbound
-		: (smooth_smallest
-		   ? logprob_min()
-		   : logbackoff + smooth));
-      } else
-	return (smooth_smallest ? logprob_min() : logbackoff + smooth);
     }
     
     template <typename Iterator>
@@ -180,6 +184,7 @@ namespace expgram
       for (/**/; first != last - 1; ++ first) {
 	const int order = last - first;
 	const size_type shard_index = index.shard_index(first, last);
+	const size_type shard_index_backoff = size_type((order == 2) - 1) & shard_index;
 	std::pair<Iterator, size_type> result = index.traverse(shard_index, first, last);
 	
 	if (result.first == last) {
@@ -189,10 +194,10 @@ namespace expgram
 	  else {
 	    const size_type parent = index[shard_index].parent(result.second);
 	    if (parent != size_type(-1))
-	      logbackoff += backoffs[size_type((order == 2) - 1) & shard_index](parent, order - 1);
+	      logbackoff += backoffs[shard_index_backoff](parent, order - 1);
 	  }
 	} else if (result.first == last - 1)
-	  logbackoff += backoffs[size_type((order == 2) - 1) & shard_index](result.second, order - 1);
+	  logbackoff += backoffs[shard_index_backoff](result.second, order - 1);
       }
       
       const int order = last - first;
