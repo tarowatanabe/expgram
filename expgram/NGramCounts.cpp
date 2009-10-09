@@ -586,6 +586,10 @@ namespace expgram
 	const int order = last - first;
 	const size_type shard_index = ngram.index.shard_index(first, last);
 	const size_type offset = ngram.counts[shard_index].offset;
+	
+	const size_type shard_index_backoff = size_type((order == 2) - 1) & shard_index;
+	const size_type offset_backoff = size_type((order == 2) - 1) & offset;
+	
 	std::pair<Iterator, size_type> result = ngram.index.traverse(shard_index, first, last);
 	
 	if (result.first == last) {
@@ -597,14 +601,10 @@ namespace expgram
 	  else {
 	    const size_type parent = ngram.index[shard_index].parent(result.second);
 	    if (parent != size_type(-1))
-	      logbackoff += (order == 2 
-			     ? backoffs[0][parent]
-			     : backoffs[shard_index][parent - offset]);
+	      logbackoff += backoffs[shard_index_backoff][parent - offset_backoff];
 	  }
 	} else if (result.first == last - 1)
-	  logbackoff += (order == 2
-			 ? backoffs[0][result.second]
-			 : backoffs[shard_index][result.second - offset]);
+	  logbackoff += backoffs[shard_index_backoff][result.second - offset_backoff];
       }
       
       // unigram...
