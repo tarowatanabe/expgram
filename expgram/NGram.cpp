@@ -953,12 +953,13 @@ namespace expgram
 	      context_type::const_iterator citer_end = context.end();
 	      context_type::const_iterator citer_begin = context.begin() + 1;
 	      
+#if 0
 	      if (citer_end - citer_begin == 1)
 		unigrams[*citer_begin] = std::max(unigrams[*citer_begin], logprob);
 	      else
 		queues[ngram.index.shard_index(citer_begin, citer_end)]->push(std::make_pair(context_type(citer_begin, citer_end), logprob));
+#endif
 	      
-#if 0	      
 	      context_type::const_iterator citer_end = context.end();
 	      for (context_type::const_iterator citer = context.begin() + 1; citer != citer_end; ++ citer) {
 		if (citer_end - citer == 1)
@@ -966,7 +967,6 @@ namespace expgram
 		else
 		  queues[ngram.index.shard_index(citer, citer_end)]->push(std::make_pair(context_type(citer, citer_end), logprob));
 	      }
-#endif
 	    }
 	  }
 	}
