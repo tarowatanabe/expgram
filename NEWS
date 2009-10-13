@@ -1,3 +1,9 @@
+2009-10-14
+	* Ignore unindexed ngrams when computing ngram upper-bound score
+	* Upper-bound estimate will use immediately longer ngrams. For instance, upper
+	  bound for 3-gram will be computed by 4-grams, but not 5,6,7-grams etc.
+	* Bugfix for memory management at ngram_counts_extract
+
 2009-7-1
 	* ngram_counts_estimate can starts from ngram counts in Google format :)
 	    - For larger data, it is recommended to run separately, but you can, for instance, run
