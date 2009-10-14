@@ -1,7 +1,6 @@
 AM_CPPFLAGS = -I.. $(BOOST_CPPFLAGS)
 
 LIBUTILS=$(top_builddir)/utils/libutils.la
-LIBCODEC=$(top_builddir)/codec/libcodec.la
 
 perftools_LDADD = $(TCMALLOC_LDFLAGS) $(PROFILER_LDFLAGS)
 
@@ -27,13 +26,13 @@ noinst_PROGRAMS = \
 	sample_succinct_trie_database
 
 sample_succinct_trie_SOURCES = sample_succinct_trie.cpp
-sample_succinct_trie_LDADD = $(boost_LDADD) $(LIBCODEC) $(LIBUTILS)
+sample_succinct_trie_LDADD = $(boost_LDADD) $(LIBUTILS)
 
 sample_succinct_hash_SOURCES = sample_succinct_hash.cpp
-sample_succinct_hash_LDADD = $(boost_LDADD) $(LIBCODEC) $(LIBUTILS)
+sample_succinct_hash_LDADD = $(boost_LDADD) $(LIBUTILS)
 
 sample_succinct_trie_db_SOURCES = sample_succinct_trie_db.cpp
-sample_succinct_trie_db_LDADD = $(boost_LDADD) $(LIBUTILS) $(perftools_LDADD) $(LIBCODEC) $(LIBUTILS)
+sample_succinct_trie_db_LDADD = $(boost_LDADD) $(LIBUTILS) $(perftools_LDADD) $(LIBUTILS)
 
 sample_succinct_trie_database_SOURCES = sample_succinct_trie_database.cpp
-sample_succinct_trie_database_LDADD = $(boost_LDADD) $(LIBUTILS) $(perftools_LDADD) $(LIBCODEC) $(LIBUTILS)
+sample_succinct_trie_database_LDADD = $(boost_LDADD) $(LIBUTILS) $(perftools_LDADD) $(LIBUTILS)
