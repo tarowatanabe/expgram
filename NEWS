@@ -1,3 +1,6 @@
+?
+	* Removed dependence on libcodec. (deprecated?)
+
 2009-10-14
 	* Ignore unindexed ngrams when computing ngram upper-bound score
 	* Upper-bound estimate will use immediately longer ngrams. For instance, upper

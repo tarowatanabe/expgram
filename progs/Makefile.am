@@ -10,7 +10,6 @@ boost_LDADD = \
 	$(BOOST_SYSTEM_LDFLAGS) $(BOOST_SYSTEM_LIBS)
 
 LIBEXPGRAM = $(top_builddir)/expgram/libexpgram.la
-LIBCODEC   = $(top_builddir)/codec/libcodec.la
 LIBUTILS   = $(top_builddir)/utils/libutils.la
 
 bin_PROGRAMS = \

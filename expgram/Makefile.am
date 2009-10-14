@@ -1,7 +1,6 @@
 AM_CPPFLAGS = -I.. $(BOOST_CPPFLAGS) $(PTHREAD_FLAGS) $(TCMALLOC_CPPFLAGS) $(PROFILER_CPPFLAGS) $(SPARSEHASH_CPPFLAGS)
 
 LIBUTILS=$(top_builddir)/utils/libutils.la
-LIBCODEC=$(top_builddir)/codec/libcodec.la
 
 lib_LTLIBRARIES = libexpgram.la
 
@@ -38,7 +37,6 @@ libexpgram_la_LDFLAGS = \
 
 libexpgram_la_LIBADD = \
 	$(LIBUTILS) \
-	$(LIBCODEC) \
 	$(BOOST_THREAD_LIBS) \
 	$(BOOST_FILESYSTEM_LIBS) \
 	$(BOOST_IOSTREAMS_LIBS) \
