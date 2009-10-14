@@ -224,8 +224,17 @@ namespace expgram
 	const context_type& context = context_count.first;
 	
 	std::pair<context_type::const_iterator, size_type> result = ngram.index.traverse(shard, context.begin(), context.end());
-	if (result.first != context.end() || result.second == size_type(-1))
-	  throw std::runtime_error("no ngram?");
+	if (result.first != context.end() || result.second == size_type(-1)) {
+
+	  if (debug >= 2) {
+	    std::cerr << "WARNING: no ngram for:";
+	    context_type::const_iterator citer_end = context.end();
+	    for (context_type::const_iterator citer = context.begin(); citer != citer_end; ++ citer)
+	      std::cerr << ' ' << ngram.index.vocab()[*citer];
+	    std::cerr << std::endl;
+	  }
+	  continue;
+	}
 	
 	counts_modified[result.second - offset] += context_count.second;
       }
