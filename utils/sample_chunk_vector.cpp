@@ -1,6 +1,7 @@
 
 #include <iostream>
 #include <string>
+#include <cstdio>
 
 #include "utils/chunk_vector.hpp"
 #include "utils/allocinfo_allocator.hpp"
