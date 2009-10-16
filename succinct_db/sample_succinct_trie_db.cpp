@@ -86,8 +86,8 @@ int main(int argc, char** argv)
       
       for (int i = 0; i < 1024 * 32; ++ i) {
 	
-	const bool clip1 = random() & 0x03;
-	const bool clip2 = random() & 0x03;
+	const int clip1 = random() & 0x03;
+	const int clip2 = random() & 0x03;
 	
 	int value1 = random();
 	switch (clip1) {
