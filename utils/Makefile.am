@@ -105,6 +105,9 @@ sample_tempfile \
 sample_vector2 \
 sample_vertical_coded_vector
 
+noinst_SCRIPTS = \
+bitpack_gen.py \
+group_aligned_code_offsets.py
 
 bitpack8.cpp  : bitpack_impl.hpp bitpack8_impl.hpp
 bitpack16.cpp  : bitpack_impl.hpp bitpack16_impl.hpp
