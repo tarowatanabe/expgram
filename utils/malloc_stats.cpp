@@ -10,16 +10,16 @@
 #include <sys/resource.h>
 #endif
 
-#if defined(HAVE_MALLOC_H)
-#include <malloc.h>
-#endif
-
 #if defined(HAVE_MALLOC_MALLOC_H)
 #include <malloc/malloc.h>
 #endif
 
-#if defined(HAVE_GOOGLE_MALLOC_EXTENSION_H) || defined(HAVE_GOOGLE_MALLOC_EXTENSION)
+#if defined(HAVE_GOOGLE_MALLOC_EXTENSION_H) && defined(HAVE_GOOGLE_MALLOC_EXTENSION)
 #include <google/malloc_extension.h>
+#endif
+
+#if defined(HAVE_JEMALLOC_H) && defined(HAVE_JEMALLOC_STATS)
+#include <jemalloc.h>
 #endif
 
 
@@ -27,7 +27,11 @@ namespace utils
 {
   size_t malloc_stats::used()
   {
-#if defined(HAVE_GOOGLE_MALLOC_EXTENSION)
+#if defined(HAVE_JEMALLOC_STATS)
+    jemalloc_stats_t stats;
+    jemalloc_stats(&stats);
+    return stats.allocated;
+#elif defined(HAVE_GOOGLE_MALLOC_EXTENSION)
     size_t num_used = 0;
     MallocExtension::instance()->GetNumericProperty("generic.current_allocated_bytes", &num_used);
     return num_used;
@@ -50,7 +54,11 @@ namespace utils
 
   size_t malloc_stats::allocated()
   {
-#if defined(HAVE_GOOGLE_MALLOC_EXTENSION)
+#if defined(HAVE_JEMALLOC_STATS)
+    jemalloc_stats_t stats;
+    jemalloc_stats(&stats);
+    return stats.mapped;
+#elif defined(HAVE_GOOGLE_MALLOC_EXTENSION)
     size_t num_allocated = 0;
     MallocExtension::instance()->GetNumericProperty("generic.heap_size", &num_allocated);
     return num_allocated;

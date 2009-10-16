@@ -46,11 +46,44 @@ if test "x$ac_have_libsparsehash" = "xno"; then
   AS_ERROR("no sparsehash")
 fi
 
+AC_ARG_WITH(jemalloc,
+	[AC_HELP_STRING([--with-jemalloc=DIR], [jemalloc in DIR])],
+	[jemalloc_dir="${withval}"], [jemalloc_dir=''])
+AC_ARG_ENABLE(jemalloc,
+	[AC_HELP_STRING([--enable-jemalloc], [enable jemalloc])],
+	[ac_enable_jemalloc=yes], [ac_enable_jemalloc=no])
+
+if test "x$jemalloc_dir" != "x"; then
+  JEMALLOC_CPPFLAGS="-I${jemalloc_dir}/include"
+  JEMALLOC_LDFLAGS="-L${jemalloc_dir}/lib -ljemalloc"
+else
+  JEMALLOC_CPPFLAGS=""
+  JEMALLOC_LDFLAGS="-ljemalloc"
+fi
+
+if test "x$ac_enable_jemalloc" = "xyes"; then
+   AC_MSG_CHECKING(for jemalloc)
+   save_LDFLAGS="$LDFLAGS"
+   LDFLAGS="$LDFLAGS $JEMALLOC_LDFLAGS"
+   AC_TRY_LINK([], [], [ac_have_libjemalloc=yes], [ac_have_libjemalloc=no])
+   LDFLAGS="$save_LDFLAGS"
+   AC_MSG_RESULT($ac_have_libjemalloc)
+   if test "x$ac_have_libjemalloc" = "xno"; then
+     JEMALLOC_CPPFLAGS=""
+     JEMALLOC_LDFLAGS=""
+   fi
+else
+  JEMALLOC_CPPFLAGS=""
+  JEMALLOC_LDFLAGS=""
+fi
+AC_SUBST(JEMALLOC_CPPFLAGS)
+AC_SUBST(JEMALLOC_LDFLAGS)
+
 AC_ARG_WITH(tcmalloc,
 	[AC_HELP_STRING([--with-tcmalloc=DIR], [tcmalloc in DIR])],
 	[tcmalloc_dir="${withval}"], [tcmalloc_dir=''])
 AC_ARG_ENABLE(tcmalloc,
-	[AC_HELP_STRING([--enable-tcmalloc], [enable profiling via google's libtcmalloc])],
+	[AC_HELP_STRING([--enable-tcmalloc], [enable tcmalloc])],
 	[ac_enable_tcmalloc=yes], [ac_enable_tcmalloc=no])
 
 if test "x$tcmalloc_dir" != "x"; then
@@ -248,13 +281,55 @@ AC_LINK_IFELSE([AC_LANG_PROGRAM([#if defined(__GNUC__) && (defined(__i386__) || 
 ## check malloc stuff...
 AC_CHECK_HEADERS([malloc.h malloc/malloc.h sys/resource.h])
 
-save_CXXFLAGS="$CXXFLAGS"
-save_CPPFLAGS="$CPPFLAGS"
-CXXFLAGS="$CXXFLAGS $TCMALLOC_CPPFLAGS"
-CPPFLAGS="$CPPFLAGS $TCMALLOC_CPPFLAGS"
-AC_CHECK_HEADERS([google/malloc_extension.h])
-CXXFLAGS="$save_CXXFLAGS"
-CPPFLAGS="$save_CPPFLAGS"
+if test "x$ac_enable_jemalloc" = "xyes"; then
+  save_CXXFLAGS="$CXXFLAGS"
+  save_CPPFLAGS="$CPPFLAGS"
+  CXXFLAGS="$CXXFLAGS $JEMALLOC_CPPFLAGS"
+  CPPFLAGS="$CPPFLAGS $JEMALLOC_CPPFLAGS"
+  AC_CHECK_HEADERS([jemalloc.h])
+  CXXFLAGS="$save_CXXFLAGS"
+  CPPFLAGS="$save_CPPFLAGS"
+
+  AC_MSG_CHECKING(jemalloc_stats)
+  save_CXXFLAGS="$CXXFLAGS"
+  save_LDFLAGS="$LDFLAGS"
+  CXXFLAGS="$CXXFLAGS $JEMALLOC_CPPFLAGS"
+  LDFLAGS="$LDFLAGS $JEMALLOC_LDFLAGS"
+  AC_TRY_LINK([#include <jemalloc.h>],
+            [jemalloc_stats_t stat; jemalloc_stats(&stat);],
+	    [have_jemalloc_stats=yes], [have_jemalloc_stats=no])
+  CXXFLAGS="$save_CXXFLAGS"
+  LDFLAGS="$save_LDFLAGS"
+  AC_MSG_RESULT($have_jemalloc_stats)
+  if test "$have_jemalloc_stats" = "yes"; then
+    AC_DEFINE(HAVE_JEMALLOC_STATS, 1, [Define if you have jemalloc_stats])
+  fi
+fi
+
+if test "x$ac_enable_tcmalloc" = "xyes"; then
+   save_CXXFLAGS="$CXXFLAGS"
+   save_CPPFLAGS="$CPPFLAGS"
+   CXXFLAGS="$CXXFLAGS $TCMALLOC_CPPFLAGS"
+   CPPFLAGS="$CPPFLAGS $TCMALLOC_CPPFLAGS"
+   AC_CHECK_HEADERS([google/malloc_extension.h])
+   CXXFLAGS="$save_CXXFLAGS"
+   CPPFLAGS="$save_CPPFLAGS"
+
+   AC_MSG_CHECKING(MallocExtension)
+   save_CXXFLAGS="$CXXFLAGS"
+   save_LDFLAGS="$LDFLAGS"
+   CXXFLAGS="$CXXFLAGS $TCMALLOC_CPPFLAGS"
+   LDFLAGS="$LDFLAGS $TCMALLOC_LDFLAGS"
+   AC_TRY_LINK([#include <google/malloc_extension.h>],
+               [MallocExtension::instance();],
+	       	    [have_malloc_extension=yes], [have_malloc_extension=no])
+   CXXFLAGS="$save_CXXFLAGS"
+   LDFLAGS="$save_LDFLAGS"
+   AC_MSG_RESULT($have_malloc_extension)
+   if test "$have_malloc_extension" = "yes"; then
+     AC_DEFINE(HAVE_GOOGLE_MALLOC_EXTENSION, 1, [Define if you have malloc_extension])
+   fi
+fi
 
 AC_MSG_CHECKING(malloc_zone_statistics)
 AC_TRY_LINK([#include <malloc/malloc.h>],
@@ -266,22 +341,8 @@ if test "$have_malloc_zone_statistics" = "yes"; then
   AC_DEFINE(HAVE_MALLOC_ZONE_STATISTICS, 1, [Define if you have malloc_zone_statistics])
 fi
 
-AC_MSG_CHECKING(MallocExtension)
-save_CXXFLAGS="$CXXFLAGS"
-save_LDFLAGS="$LDFLAGS"
-CXXFLAGS="$CXXFLAGS $TCMALLOC_CPPFLAGS"
-LDFLAGS="$LDFLAGS $TCMALLOC_LDFLAGS"
-AC_TRY_LINK([#include <google/malloc_extension.h>],
-            [MallocExtension::instance();],
-	    [have_malloc_extension=yes], [have_malloc_extension=no])
-CXXFLAGS="$save_CXXFLAGS"
-LDFLAGS="$save_LDFLAGS"
-AC_MSG_RESULT($have_malloc_extension)
-if test "$have_malloc_extension" = "yes"; then
-  AC_DEFINE(HAVE_GOOGLE_MALLOC_EXTENSION, 1, [Define if you have malloc_extension])
-fi
 
-if test "$have_malloc_extension" = "no" -a "$have_malloc_zone_statistics" = "no"; then
+if test "$have_malloc_extension" = "no" -a "$have_malloc_zone_statistics" = "no" -a "$have_jemalloc_stats" = "no"; then
     AS_ERROR("no malloc statistics...")
 fi
 
