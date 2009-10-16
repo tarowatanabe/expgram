@@ -147,55 +147,6 @@ fi
 AC_SUBST(PROFILER_CPPFLAGS)
 AC_SUBST(PROFILER_LDFLAGS)
 
-## --with-hunspell
-#AC_ARG_WITH(hunspell,
-#	[AC_HELP_STRING([--with-hunspell=DIR], [hunspell in DIR])],
-#	[hunspell_dir="${withval}"], [hunspell_dir=''])
-#hunspell_versions="1.4 1.3 1.2 1.1"
-#
-#for hunspell_version in $hunspell_versions; do
-#  if test "x$hunspell_dir" != "x"; then
-#    HUNSPELL_CPPFLAGS="-I${hunspell_dir}/include"
-#    HUNSPELL_LDFLAGS="-L${hunspell_dir}/lib -lhunspell-${hunspell_version}"
-#  else
-#    HUNSPELL_CPPFLAGS=""
-#    HUNSPELL_LDFLAGS="-lhunspell-${hunspell_version}"
-#  fi
-#
-#  AC_MSG_CHECKING(for -lhunspell-${hunspell_version})
-#  save_LDFLAGS="$LDFLAGS"
-#  LDFLAGS="$LDFLAGS $HUNSPELL_LDFLAGS"
-#  AC_TRY_LINK([], [], [ac_have_libhunspell=yes], [ac_have_libhunspell=no])
-#  LDFLAGS="$save_LDFLAGS"
-#  AC_MSG_RESULT($ac_have_libhunspell)
-#
-#  if test "x$ac_have_libhunspell" = "xyes"; then
-#    AC_SUBST(HUNSPELL_CPPFLAGS)
-#    AC_SUBST(HUNSPELL_LDFLAGS)
-#    break
-#  fi
-#done
-   
-#if test "x$ac_have_libhunspell" = "xno"; then
-#  AS_ERROR("no hunspell...")
-#fi
-
-### check for ICU libs
-#AC_PATH_PROG(ICU_CONFIG, icu-config, no)
-#if test "x$ICU_CONFIG" = "xno"; then
-#  AS_ERROR("no icu...")
-#fi
-
-#AC_MSG_CHECKING(ICU cppflags)
-#ICU_CPPFLAGS=`$ICU_CONFIG --cppflags`
-#AC_MSG_RESULT($ICU_CPPFLAGS)
-#AC_SUBST(ICU_CPPFLAGS)
-
-#AC_MSG_CHECKING(ICU ldflags)
-#ICU_LDFLAGS=`$ICU_CONFIG --ldflags`
-#AC_MSG_RESULT($ICU_LDFLAGS)
-#AC_SUBST(ICU_LDFLAGS)
-
 # Boost libraries...
 BOOST_REQUIRE([1.38])
 BOOST_PROGRAM_OPTIONS
@@ -203,17 +154,6 @@ BOOST_THREADS
 BOOST_FILESYSTEM
 BOOST_IOSTREAMS
 BOOST_SYSTEM
-
-#boost_icu_save_CPPFLAGS=$CPPFLAGS
-#boost_icu_save_LDFLAGS=$LDFLAGS
-#CPPFLAGS="$CPPFLAGS $ICU_CPPFLAGS"
-#LDFLAGS="$LDFLAGS $ICU_LDFLAGS"
-
-#BOOST_REGEX
-
-#CPPFLAGS=$boost_icu_save_CPPFLAGS
-#LDFLAGS=$boost_icu_save_LDFLAGS
-
 
 ## save pthred-flag, computed by-product of boost-threads
 PTHREAD_FLAGS=$boost_cv_pthread_flag
