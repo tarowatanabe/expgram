@@ -126,6 +126,8 @@ bitpack32_impl.hpp : bitpack_gen.py
 bitpack64_impl.hpp : bitpack_gen.py
 	./bitpack_gen.py --byte-size 8 > bitpack64_impl.hpp
 
+sample_group_aligned_code.cpp : group_aligned_code.hpp group_aligned_code_offsets.hpp
+
 group_aligned_code.hpp : group_aligned_code_offsets.hpp
 
 group_aligned_code_offsets.hpp : group_aligned_code_offsets.py
