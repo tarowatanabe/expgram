@@ -3,8 +3,7 @@ AM_CPPFLAGS = -I$(top_builddir) $(BOOST_CPPFLAGS) $(TCMALLOC_CPPFLAGS) $(PTHREAD
 
 perftools_LDADD = $(JEMALLOC_LDFLAGS) $(TCMALLOC_LDFLAGS) $(PROFILER_LDFLAGS)
 
-LIBCODEC=$(top_builddir)/codec/libcodec.la
-LIBUTILS=$(top_builddir)/utils/libutils.la
+LIBUTILS=libutils.la
 
 lib_LTLIBRARIES = libutils.la
 
@@ -170,12 +169,12 @@ sample_map_file_allocator_LDADD = $(BOOST_FILESYSTEM_LIBS) $(BOOST_IOSTREAMS_LIB
 
 sample_pfor_vector_SOURCES = sample_pfor_vector.cpp
 sample_pfor_vector_LDFLAGS = $(BOOST_FILESYSTEM_LDFLAGS) $(BOOST_THREAD_LDFLAGS)
-sample_pfor_vector_LDADD = $(BOOST_FILESYSTEM_LIBS) $(BOOST_IOSTREAMS_LIBS) $(BOOST_SYSTEM_LIBS) $(BOOST_THREAD_LIBS) $(LIBCODEC) $(LIBUTILS)
+sample_pfor_vector_LDADD = $(BOOST_FILESYSTEM_LIBS) $(BOOST_IOSTREAMS_LIBS) $(BOOST_SYSTEM_LIBS) $(BOOST_THREAD_LIBS) $(LIBUTILS)
 
 
 sample_packed_vector_SOURCES = sample_packed_vector.cpp
 sample_packed_vector_LDFLAGS = $(BOOST_FILESYSTEM_LDFLAGS) $(BOOST_THREAD_LDFLAGS)
-sample_packed_vector_LDADD = $(BOOST_FILESYSTEM_LIBS) $(BOOST_IOSTREAMS_LIBS) $(BOOST_SYSTEM_LIBS) $(BOOST_THREAD_LIBS) $(LIBCODEC) $(LIBUTILS)
+sample_packed_vector_LDADD = $(BOOST_FILESYSTEM_LIBS) $(BOOST_IOSTREAMS_LIBS) $(BOOST_SYSTEM_LIBS) $(BOOST_THREAD_LIBS) $(LIBUTILS)
 
 sample_simple_vector_SOURCES = sample_simple_vector.cpp
 sample_simple_vector_LDFLAGS = $(BOOST_THREAD_LDFLAGS)
@@ -191,7 +190,7 @@ sample_subprocess_LDADD = $(BOOST_IOSTREAMS_LIBS) $(BOOST_SYSTEM_LIBS) $(BOOST_T
 
 sample_succinct_vector_SOURCES = sample_succinct_vector.cpp
 sample_succinct_vector_LDFLAGS = $(BOOST_FILESYSTEM_LDFLAGS) $(BOOST_THREAD_LDFLAGS)
-sample_succinct_vector_LDADD = $(BOOST_FILESYSTEM_LIBS) $(BOOST_IOSTREAMS_LIBS) $(BOOST_SYSTEM_LIBS) $(BOOST_THREAD_LIBS) $(LIBCODEC)
+sample_succinct_vector_LDADD = $(BOOST_FILESYSTEM_LIBS) $(BOOST_IOSTREAMS_LIBS) $(BOOST_SYSTEM_LIBS) $(BOOST_THREAD_LIBS)
 
 sample_tempfile_SOURCES = sample_tempfile.cpp
 sample_tempfile_LDFLAGS = $(BOOST_THREAD_LDFLAGS)
@@ -201,5 +200,5 @@ sample_vector2_SOURCES = sample_vector2.cpp
 
 sample_vertical_coded_vector_SOURCES = sample_vertical_coded_vector.cpp
 sample_vertical_coded_vector_LDFLAGS = $(BOOST_FILESYSTEM_LDFLAGS) $(BOOST_THREAD_LDFLAGS)
-sample_vertical_coded_vector_LDADD = $(BOOST_FILESYSTEM_LIBS) $(BOOST_IOSTREAMS_LIBS) $(BOOST_SYSTEM_LIBS) $(BOOST_THREAD_LIBS) $(LIBCODEC)
+sample_vertical_coded_vector_LDADD = $(BOOST_FILESYSTEM_LIBS) $(BOOST_IOSTREAMS_LIBS) $(BOOST_SYSTEM_LIBS) $(BOOST_THREAD_LIBS)
 

@@ -1,6 +1,6 @@
 AM_CPPFLAGS = -I.. $(BOOST_CPPFLAGS)
 
-LIBCODEC = $(top_builddir)/codec/libcodec.la
+LIBCODEC = libcodec.la
 
 lib_LTLIBRARIES = libcodec.la
 
