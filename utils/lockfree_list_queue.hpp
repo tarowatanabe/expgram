@@ -125,6 +125,8 @@ namespace utils
     typedef typename base_type::local_data_type local_data_type;
     typedef typename base_type::llsc_type       llsc_type;
     typedef typename base_type::node_alloc_type node_alloc_type;
+
+    typedef lockfree_list_queue<Tp,Alloc> __self_type;
     
   public:
     lockfree_list_queue(size_type max_size=0) : head(), tail()
@@ -210,6 +212,12 @@ namespace utils
     };
     
   public:
+    size_type size() const
+    {
+      return atomicop::fetch_and_add(const_cast<__self_type&>(*this).__size, difference_type(0));
+    }
+    bool empty() const { return size() == 0; }
+
     bool push(const value_type& x, const bool no_wait=false)
     {
       if (no_wait)
