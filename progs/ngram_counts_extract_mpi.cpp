@@ -287,6 +287,27 @@ struct MapReduceLine
   
   static const size_type max_lines = 1024 * 8;
   
+
+  static inline
+  int loop_sleep(bool found, int non_found_iter)
+  {
+    if (! found) {
+      boost::thread::yield();
+      ++ non_found_iter;
+    } else
+      non_found_iter = 0;
+    
+    if (non_found_iter >= 50) {
+      struct timespec tm;
+      tm.tv_sec = 0;
+      tm.tv_nsec = 2000001;
+      nanosleep(&tm, NULL);
+      
+      non_found_iter = 0;
+    }
+    return non_found_iter;
+  }
+
   static inline
   void mapper_root(const path_set_type& paths,
 		   const path_type& path_filter,
@@ -318,28 +339,28 @@ struct MapReduceLine
   
     std::string line;
     line_set_type lines;
+
+    int non_found_iter = 0;
     
     path_set_type::const_iterator piter_end = paths.end();
     for (path_set_type::const_iterator piter = paths.begin(); piter != piter_end; ++ piter) {
       if (! boost::filesystem::exists(*piter))
 	throw std::runtime_error(std::string("no file? ") + piter->file_string());
-
+      
       if (debug)
 	std::cerr << "file: " << piter->file_string() << std::endl;
     
       utils::compress_istream is(*piter, 1024 * 1024);
-    
-      int non_found_iter = 0;
-
+      
       while (is) {
 	bool found = false;
-      
+	
 	for (int rank = 1; rank < mpi_size && is; ++ rank)
 	  if (device[rank]->test() && std::getline(is, line)) {
 	    *stream[rank] << line << '\n';
 	    found = true;
 	  }
-      
+	
 	if (is && lines.size() < max_lines && std::getline(is, line)) {
 	  lines.push_back(line);
 	  found = true;
@@ -349,21 +370,8 @@ struct MapReduceLine
 	  lines.clear();
 	  found = true;
 	}
-      
-	if (! found) {
-	  boost::thread::yield();
-	  ++ non_found_iter;
-	} else
-	  non_found_iter = 0;
 	
-	if (non_found_iter >= 50) {
-	  struct timespec tm;
-	  tm.tv_sec = 0;
-	  tm.tv_nsec = 2000001;
-	  nanosleep(&tm, NULL);
-	    
-	  non_found_iter = 0;
-	}
+	non_found_iter = loop_sleep(found, non_found_iter);
       }
     }
   
@@ -380,29 +388,25 @@ struct MapReduceLine
 	lines.clear();
 	found = true;
       }
-    
-      if (utils::mpi_terminate_devices(stream, device))
-	found = true;
-    
-      if (! found)
-	boost::thread::yield();
+      
+      found |= utils::mpi_terminate_devices(stream, device);
+      
+      non_found_iter = loop_sleep(found, non_found_iter);
     }
   
     for (;;) {
       bool found = false;
-    
+      
       if (queue.push_swap(lines, true)) {
 	lines.clear();
 	found = true;
       }
     
-      if (utils::mpi_terminate_devices(stream, device))
-	found = true;
-
+      found |= utils::mpi_terminate_devices(stream, device);
+      
       if (std::count(device.begin(), device.end(), odevice_ptr_type()) == mpi_size) break;
       
-      if (! found)
-	boost::thread::yield();
+      non_found_iter = loop_sleep(found, non_found_iter);
     }
   
     thread->join();
@@ -469,6 +473,27 @@ struct MapReduceFile
   
   typedef typename task_type::subprocess_type     subprocess_type;
   
+
+  static inline
+  int loop_sleep(bool found, int non_found_iter)
+  {
+    if (! found) {
+      boost::thread::yield();
+      ++ non_found_iter;
+    } else
+      non_found_iter = 0;
+    
+    if (non_found_iter >= 50) {
+      struct timespec tm;
+      tm.tv_sec = 0;
+      tm.tv_nsec = 2000001;
+      nanosleep(&tm, NULL);
+      
+      non_found_iter = 0;
+    }
+    return non_found_iter;
+  }
+
   static inline
   void mapper_root(const path_set_type& paths,
 		   const path_type& path_filter,
@@ -512,35 +537,19 @@ struct MapReduceFile
 	  found = true;
 	}
       
-      if (piter != piter_end) {
+      if (piter != piter_end && queue.empty()) {
 	if (! boost::filesystem::exists(*piter))
 	  throw std::runtime_error(std::string("no file? ") + piter->file_string());
 	
-	if (queue.push(*piter, true)) {
-	  
-	  if (debug)
-	    std::cerr << "file: " << piter->file_string() << std::endl;
-	  
-	  ++ piter;
-	  found = true;
-	}
+	if (debug)
+	  std::cerr << "file: " << piter->file_string() << std::endl;
+	
+	queue.push(*piter);
+	++ piter;
+	found = true;
       }
       
-      if (! found) {
-	boost::thread::yield();
-	++ non_found_iter;
-      } else
-	non_found_iter = 0;
-      
-      if (non_found_iter >= 50) {
-	struct timespec tm;
-	tm.tv_sec = 0;
-	tm.tv_nsec = 2000001;
-	nanosleep(&tm, NULL);
-	    
-	non_found_iter = 0;
-      }
-      
+      non_found_iter = loop_sleep(found, non_found_iter);
     }
     
     // send termination flag...    
@@ -549,7 +558,7 @@ struct MapReduceFile
     while (1) {
       bool found = false;
       
-      if (queue.push(path_type(), true)) {
+      if (! terminated && queue.push(path_type(), true)) {
 	terminated = true;
 	found = true;
       }
@@ -565,9 +574,8 @@ struct MapReduceFile
       
       if (terminated && std::count(stream.begin(), stream.end(), ostream_ptr_type()) == mpi_size) break;
       
-      if (! found)
-	boost::thread::yield();
-    }
+      non_found_iter = loop_sleep(found, non_found_iter);
+    }    
     
     thread->join();
   }
@@ -597,6 +605,7 @@ struct MapReduceFile
 	std::cerr << "rank: " << mpi_rank << " file: " << file << std::endl;
 
       queue.push(file);
+      queue.wait_empty();
     }
     file.clear();
     queue.push(file);
