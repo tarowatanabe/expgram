@@ -14,11 +14,13 @@
 #include <boost/thread.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/algorithm/string.hpp>
+#include <boost/tokenizer.hpp>
 
 #include <utils/mpi.hpp>
 #include <utils/mpi_stream.hpp>
 #include <utils/compress_stream.hpp>
 #include <utils/lockfree_list_queue.hpp>
+#include <utils/space_separator.hpp>
 
 typedef boost::filesystem::path path_type;
 typedef std::vector<path_type> path_set_type;
@@ -61,11 +63,19 @@ struct Task
 
   void operator()()
   {
+    typedef boost::tokenizer<utils::space_separator> tokenizer_type;
+    
     std::string command;
     
     while (1) {
       queue.pop_swap(command);
       if (command.empty()) break;
+      
+      tokenizer_type tokenizer(command);
+      tokenizer_type::iterator iter = tokenizer.begin();
+      if (iter == tokenizer.end()) continue;
+      if (*iter != "exec")
+	command = std::string("exec ") + command;
       
       run_command(command);
     }
@@ -110,8 +120,6 @@ int main(int argc, char** argv)
 
       if (input_files.empty())
 	input_files.push_back("-");
-
-      std::string command_root;
       
       for (path_set_type::const_iterator piter = input_files.begin(); piter != input_files.end(); ++ piter) {
 	if (debug)
@@ -136,20 +144,18 @@ int main(int argc, char** argv)
 	      
 	      found = true;
 	    }
-	  
-	  if (command_root.empty() && std::getline(is, command)) {
+
+	  if (queue.empty() && std::getline(is, command)) {
 	    boost::algorithm::trim(command);
 	    
-	    if (! command.empty()) 
-	      command_root = command;
-	  }
-
-	  if (! command_root.empty() && queue.push(command_root, true)) {
-	    if (debug)
-	      std::cerr << "rank: " << mpi_rank << " " << command_root << std::endl;
-
-	    command_root.clear();
-	    found = true;
+	    if (! command.empty()) {
+	      if (debug)
+		std::cerr << "rank: " << mpi_rank << " " << command << std::endl;
+	      
+	      queue.push(command);
+	      
+	      found = true;
+	    }
 	  }
 	  
 	  if (! found) {
@@ -169,50 +175,13 @@ int main(int argc, char** argv)
 	  }
 	}
       }
-
       
       int non_found_iter = 0;
-      while (! command_root.empty()) {
-	bool found = false;
-
-	if (! command_root.empty() && queue.push_swap(command_root, true)) {
-	  command_root.clear();
-	  found = true;
-	}
-	
-	// perform termination
-	for (int rank = 1; rank < mpi_size; ++ rank) 
-	  if (stream[rank]) {
-	    if (! stream[rank]->terminated())
-	      stream[rank]->terminate();
-	    else
-	      stream[rank].reset();
-	    found = true;
-	  }
-	
-	if (! found) {
-	  boost::thread::yield();
-	  ++ non_found_iter;
-	} else
-	  non_found_iter = 0;
-	
-	if (non_found_iter >= 50) {
-	  struct timespec tm;
-	  tm.tv_sec = 0;
-	  tm.tv_nsec = 2000001;
-	  nanosleep(&tm, NULL);
-	  
-	  non_found_iter = 0;
-	}
-      }
-      
-      
       bool terminated = false;
       while (1) {
 	bool found = false;
 	
-	if (! terminated && queue.push_swap(command_root, true)) {
-	  command_root.clear();
+	if (! terminated && queue.push(std::string(), true)) {
 	  terminated = true;
 	  found = true;
 	}
@@ -262,6 +231,7 @@ int main(int argc, char** argv)
 	  std::cerr << "rank: " << mpi_rank << " " << command << std::endl;
 	
 	queue.push(command);
+	queue.wait_empty();
 	is.ready();
       }
       

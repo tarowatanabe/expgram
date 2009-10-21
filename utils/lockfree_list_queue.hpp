@@ -218,6 +218,19 @@ namespace utils
     }
     bool empty() const { return size() == 0; }
 
+    void wait_empty()
+    {
+      for (;;) {
+	for (int i = 0; i < 50; ++ i) {
+	  if (empty())
+	    return;
+	  else
+	    boost::thread::yield();
+	}
+	__sleep_long();
+      }
+    }
+
     bool push(const value_type& x, const bool no_wait=false)
     {
       if (no_wait)
