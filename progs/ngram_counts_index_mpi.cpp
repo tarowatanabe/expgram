@@ -948,7 +948,7 @@ void index_ngram_unique(const path_type& path, ngram_type& ngram, Stream& os_cou
     if (mpi_rank == 0 && debug)
       std::cerr << "order: " << order << std::endl;
     
-    index.order() = order;
+    ngram.index.order() = order;
     
     context_count_type context_count;
 
