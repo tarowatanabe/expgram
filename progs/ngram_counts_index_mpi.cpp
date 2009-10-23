@@ -241,7 +241,6 @@ void index_unigram(const path_type& path, const path_type& output, ngram_type& n
     const path_type vocab_file = unigram_dir / "vocab.gz";
     const path_type vocab_sorted_file = unigram_dir / "vocab_cs.gz";
     
-    
     utils::compress_istream is(vocab_sorted_file, 1024 * 1024);
     
     word_set_type words;
