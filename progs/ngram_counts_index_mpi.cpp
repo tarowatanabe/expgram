@@ -241,6 +241,7 @@ void index_unigram(const path_type& path, const path_type& output, ngram_type& n
     const path_type vocab_file = unigram_dir / "vocab.gz";
     const path_type vocab_sorted_file = unigram_dir / "vocab_cs.gz";
     
+    
     utils::compress_istream is(vocab_sorted_file, 1024 * 1024);
     
     word_set_type words;
@@ -499,8 +500,23 @@ void index_ngram_mapper(intercomm_type& reducer, const PathSet& paths, ngram_typ
     if (! context_stream->first.empty())
       pqueue.push(context_stream);
     
-    if ((iteration & iteration_mask) == iteration_mask && mpi_flush_devices(stream, device))
+    if ((iteration & iteration_mask) == iteration_mask && utils::mpi_flush_devices(stream, device))
       boost::thread::yield();
+  }
+
+  // final dumping...
+  if (count > 0) {
+    if (context.size() == 2)
+      ngram_shard = shard_index(ngram, vocab_map, context);
+    else if (prefix_shard.empty() || ! std::equal(prefix_shard.begin(), prefix_shard.end(), context.begin())) {
+      ngram_shard = shard_index(ngram, vocab_map, context);
+      
+      prefix_shard.clear();
+      prefix_shard.insert(prefix_shard.end(), context.begin(), context.begin() + 2);
+    }
+    
+    std::copy(context.begin(), context.end(), std::ostream_iterator<std::string>(*stream[ngram_shard], " "));
+    *stream[ngram_shard] << count << '\n';
   }
   
   istreams.clear();
@@ -553,10 +569,12 @@ void index_ngram_mapper_root(intercomm_type& reducer, const path_type& path, ngr
       tokens_type tokens;
       while (std::getline(is_index, line)) {
 	tokenizer_type tokenizer(line);
+	
 	tokens.clear();
 	tokens.insert(tokens.end(), tokenizer.begin(), tokenizer.end());
 	
 	if (tokens.empty()) continue;
+	
 	if (tokens.size() != order + 1)
 	  throw std::runtime_error(std::string("invalid google ngram format...") + index_file.file_string());
 

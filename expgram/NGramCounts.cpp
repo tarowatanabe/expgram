@@ -2249,6 +2249,8 @@ namespace expgram
 	    tokens.clear();
 	    tokens.insert(tokens.end(), tokenizer.begin(), tokenizer.end());
 	    
+	    if (tokens.empty()) continue;
+	    
 	    if (tokens.size() != order + 1)
 	      throw std::runtime_error(std::string("invalid google ngram format...") + index_file.file_string());
 	    
