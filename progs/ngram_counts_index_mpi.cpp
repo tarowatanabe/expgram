@@ -233,16 +233,19 @@ void index_unigram(const path_type& path, const path_type& output, ngram_type& n
   
   if (mpi_rank == 0) {
     typedef std::vector<word_type, std::allocator<word_type> > word_set_type;
+
+    if (debug)
+      std::cerr << "order: " << 1 << std::endl;
     
     const path_type unigram_dir = path / "1gms";
     const path_type vocab_file = unigram_dir / "vocab.gz";
     const path_type vocab_sorted_file = unigram_dir / "vocab_cs.gz";
-
-    id_type word_id = 0;
     
     utils::compress_istream is(vocab_sorted_file, 1024 * 1024);
     
     word_set_type words;
+    
+    id_type word_id = 0;
 
     std::string line;
     tokens_type tokens;
@@ -277,6 +280,9 @@ void index_unigram(const path_type& path, const path_type& output, ngram_type& n
     word_set_type(words).swap(words);
     
     vocab.close();
+
+    utils::tempfile::permission(path_vocab);
+    
     vocab.open(path_vocab);
     
     // prepare directory structures...
@@ -927,10 +933,7 @@ void index_ngram_unique(const path_type& path, ngram_type& ngram, Stream& os_cou
   vocab_map_type vocab_map(ngram.index.vocab());
 
   for (int order = 2; /**/; ++ order) {
-    
-    if (mpi_rank == 0 && debug)
-      std::cerr << "order: " << order << std::endl;
-    
+        
     std::ostringstream stream_ngram;
     stream_ngram << order << "gms";
     
@@ -941,7 +944,12 @@ void index_ngram_unique(const path_type& path, ngram_type& ngram, Stream& os_cou
     const path_type index_file = ngram_dir / stream_index.str();
     
     if (! boost::filesystem::exists(ngram_dir) || ! boost::filesystem::exists(index_file)) break;
-
+    
+    if (mpi_rank == 0 && debug)
+      std::cerr << "order: " << order << std::endl;
+    
+    index.order() = order;
+    
     context_count_type context_count;
 
     ngram_context_type ngram_prefix;
@@ -965,11 +973,11 @@ void index_ngram_unique(const path_type& path, ngram_type& ngram, Stream& os_cou
       if (! boost::filesystem::exists(path_ngram))
 	throw std::runtime_error(std::string("invalid google ngram format... no file: ") + path_ngram.file_string());
       
-      
       if (debug >= 2)
 	std::cerr << "\tfile: " << path_ngram.file_string() << std::endl;
-
+      
       utils::compress_istream is(path_ngram, 1024 * 1024);
+      
       while (std::getline(is, line)) {
 	tokenizer_type tokenizer(line);
 	
