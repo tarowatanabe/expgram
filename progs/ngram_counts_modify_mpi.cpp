@@ -161,12 +161,13 @@ void ngram_modify_mapper(const ngram_type& ngram, intercomm_type& reducer)
   context_type   context;
   
   for (int order_prev = 1; order_prev < ngram.index.order(); ++ order_prev) {
-    const size_type pos_context_first = ngram.index[mpi_rank].offsets[order_prev - 1];
-    const size_type pos_context_last  = ngram.index[mpi_rank].offsets[order_prev];
     
     if (debug)
-      std::cerr << "rank: " << mpi_rank << " order: " << (order_prev + 1) << std::endl;
+      std::cerr << "modify counts: shard: " << mpi_rank << " order: " << (order_prev + 1) << std::endl;
     
+    const size_type pos_context_first = ngram.index[mpi_rank].offsets[order_prev - 1];
+    const size_type pos_context_last  = ngram.index[mpi_rank].offsets[order_prev];
+        
     context.resize(order_prev + 1);
     
     size_type pos_last_prev = pos_context_last;
@@ -203,7 +204,7 @@ void ngram_modify_mapper(const ngram_type& ngram, intercomm_type& reducer)
 	}
       }
       
-      if (mpi_flush_devices(stream, device))
+      if (utils::mpi_flush_devices(stream, device))
 	boost::thread::yield();
     }
   }

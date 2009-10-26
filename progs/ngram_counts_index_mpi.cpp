@@ -1026,8 +1026,8 @@ void index_ngram_unique(const path_type& path, ngram_type& ngram, Stream& os_cou
 	    
 	    ngram_prefix.clear();
 	    ngram_prefix.insert(ngram_prefix.end(), tokens.begin(), tokens.begin() + 2);
-	  }
-	  
+	  }	
+  
 	  if (ngram_rank == mpi_rank) {
 	    context_count.first.clear();
 	    tokens_type::const_iterator titer_end = tokens.end() - 1;
