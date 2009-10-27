@@ -186,7 +186,19 @@ void ngram_bound_mapper(const ngram_type& ngram, intercomm_type& reducer)
 	
 	const logprob_type logprob = ngram.logprobs[mpi_rank](pos, order_prev + 1);
 	if (logprob != ngram.logprob_min()) {
-	  
+#if 1
+	  context_type::const_iterator citer_end = context.end();
+	  context_type::const_iterator citer_begin = context.begin() + 1;
+	  if (citer_end - citer_begin == 1)
+	    unigrams[*citer_begin] = std::max(unigrams[*citer_begin], logprob);
+	  else {
+	    const int shard = ngram.index.shard_index(citer_begin, citer_end);
+	    
+	    std::copy(citer_begin, citer_end, std::ostream_iterator<id_type>(*stream[shard], " "));
+	    *stream[shard] << logprob << '\n';
+	  }
+#endif	  
+#if 0  
 	  context_type::const_iterator citer_end = context.end();
 	  for (context_type::const_iterator citer = context.begin() + 1; citer != citer_end; ++ citer) {
 	    if (citer_end - citer == 1)
@@ -198,10 +210,11 @@ void ngram_bound_mapper(const ngram_type& ngram, intercomm_type& reducer)
 	      *stream[shard] << logprob << '\n';
 	    }
 	  }
+#endif
 	}
       }
       
-      if (mpi_flush_devices(stream, device))
+      if (utils::mpi_flush_devices(stream, device))
 	boost::thread::yield();
     }
   }
