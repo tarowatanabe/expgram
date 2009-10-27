@@ -434,6 +434,26 @@ struct greater_pfirst
   }
 };
 
+inline
+int loop_sleep(bool found, int non_found_iter)
+{
+  if (! found) {
+    boost::thread::yield();
+    ++ non_found_iter;
+  } else
+    non_found_iter = 0;
+  
+  if (non_found_iter >= 50) {
+    struct timespec tm;
+    tm.tv_sec = 0;
+    tm.tv_nsec = 2000001;
+    nanosleep(&tm, NULL);
+    
+    non_found_iter = 0;
+  }
+  return non_found_iter;
+}
+
 struct EstimateBigramMapReduce
 {
   typedef std::vector<id_type, std::allocator<id_type> > context_type;
@@ -851,11 +871,11 @@ void estimate_bigram(const ngram_counts_type& ngram,
   for (int rank = 0; rank < mpi_size; ++ rank) {
     
     if (rank != mpi_rank) {
-      istream_counts[rank].reset(new istream_type(rank, bigram_count_tag, 1024));
-      ostream_counts[rank].reset(new ostream_type(rank, bigram_count_tag, 1024));
+      istream_counts[rank].reset(new istream_type(rank, bigram_count_tag, 512));
+      ostream_counts[rank].reset(new ostream_type(rank, bigram_count_tag, 512));
       
-      istream_logprobs[rank].reset(new istream_type(rank, bigram_logprob_tag, 1024));
-      ostream_logprobs[rank].reset(new ostream_type(rank, bigram_logprob_tag, 1024));
+      istream_logprobs[rank].reset(new istream_type(rank, bigram_logprob_tag, 512));
+      ostream_logprobs[rank].reset(new ostream_type(rank, bigram_logprob_tag, 512));
     }
     
     queue_counts_mapper[rank].reset(new queue_count_type());
@@ -878,6 +898,7 @@ void estimate_bigram(const ngram_counts_type& ngram,
   finished_counts[mpi_rank] = true;
   finished_logprobs[mpi_rank] = true;
   
+  int non_found_iter = 0;
   while (1) {
     bool found = false;
     
@@ -992,8 +1013,7 @@ void estimate_bigram(const ngram_counts_type& ngram,
 	&& std::count(istream_counts.begin(), istream_counts.end(), istream_ptr_type()) == mpi_size
 	&& std::count(istream_logprobs.begin(), istream_logprobs.end(), istream_ptr_type()) == mpi_size) break;
     
-    if (! found)
-      boost::thread::yield();
+    non_found_iter = loop_sleep(found, non_found_iter);
   }
   
   mapper->join();
@@ -1023,6 +1043,77 @@ void estimate_bigram(const ngram_counts_type& ngram,
   }
 }
 
+template <typename Tp>
+class Event
+{
+public:
+  typedef Tp& reference;
+  typedef const Tp& const_reference;
+  
+private:
+  struct impl;
+  
+public:
+  Event() : pimpl(new impl()) {}
+  Event(const Tp& x) : pimpl(new impl(x)) {}
+  
+  operator reference() { return pimpl->value; }
+  operator const_reference() const { return pimpl->value; }
+  
+  Event& operator=(const Tp& x) { pimpl->value = x; return *this; }
+  Event& operator+=(const Tp& x) { pimpl->value += x; return *this; }
+  Event& operator-=(const Tp& x) { pimpl->value -= x; return *this; }
+  Event& operator*=(const Tp& x) { pimpl->value *= x; return *this; }
+  Event& operator/=(const Tp& x) { pimpl->value /= x; return *this; }
+
+  void swap(Event& x) { pimpl.swap(x.pimpl); }
+  
+  bool ready()
+  {
+    return utils::atomicop::fetch_and_add(pimpl->completed, int(0));
+  }
+  
+  void wait()
+  {
+    for (;;) {
+      for (int i = 0; i < 50; ++ i) {
+	if (utils::atomicop::fetch_and_add(pimpl->completed, int(0)))
+	  return;
+	else
+	  boost::thread::yield();
+      }
+      
+      struct timespec tm;
+      tm.tv_sec = 0;
+      tm.tv_nsec = 2000001;
+      nanosleep(&tm, NULL);
+    }
+  }
+  
+  void notify()
+  {
+    pimpl->completed = 1;
+  }
+  
+private:
+  struct impl
+  {
+    typedef boost::mutex              mutex_type;
+    typedef boost::condition          condition_type;
+    typedef boost::mutex::scoped_lock lock_type;
+    
+    Tp value;
+    int completed;
+    
+    impl() : value(), completed(false) {}
+    impl(const Tp& x) : value(x), completed(false) {}
+  };
+  
+private:
+  boost::shared_ptr<impl> pimpl;
+};
+
+#if 0
 template <typename Tp>
 class Event
 {
@@ -1087,6 +1178,7 @@ private:
 private:
   boost::shared_ptr<impl> pimpl;
 };
+#endif
 
 namespace std
 {
@@ -1490,6 +1582,7 @@ struct EstimateNGramServer
     
     size_t finished = 0;
     
+    int non_found_iter = 0;
     while (1) {
       bool found = false;
       
@@ -1512,8 +1605,7 @@ struct EstimateNGramServer
       
       if (pendings.empty() && finished >= mpi_size) break;
       
-      if (! found)
-	boost::thread::yield();
+      non_found_iter = loop_sleep(found, non_found_iter);
     }
   }
 };
@@ -1578,11 +1670,11 @@ void estimate_ngram(const ngram_counts_type& ngram,
 
   for (int rank = 0; rank < mpi_size; ++ rank) {
     if (rank != mpi_rank) {
-      istream_ngram[rank].reset(new istream_type(rank, ngram_tag, 1024));
-      ostream_ngram[rank].reset(new ostream_type(rank, ngram_tag, 1024));
+      istream_ngram[rank].reset(new istream_type(rank, ngram_tag, 512));
+      ostream_ngram[rank].reset(new ostream_type(rank, ngram_tag, 512));
       
-      istream_logprob[rank].reset(new istream_type(rank, logprob_tag, 1024));
-      ostream_logprob[rank].reset(new ostream_type(rank, logprob_tag, 1024));
+      istream_logprob[rank].reset(new istream_type(rank, logprob_tag, 512));
+      ostream_logprob[rank].reset(new ostream_type(rank, logprob_tag, 512));
     }
     
     queue_logprob[rank].reset(new queue_context_type());
@@ -1603,8 +1695,8 @@ void estimate_ngram(const ngram_counts_type& ngram,
 
   size_type terminated_recv = 0;
   size_type terminated_send = 0;
-  bool      finished = false;
   
+  int non_found_iter = 0;
   while (1) {
     bool found = false;
 
@@ -1623,10 +1715,10 @@ void estimate_ngram(const ngram_counts_type& ngram,
 	    tokenizer_type tokenizer(line);
 	    
 	    context_logprob.first.clear();
-	    context_logprob.second = logprob_event_type(0.0);
-	    
 	    for (tokenizer_type::iterator iter = tokenizer.begin(); iter != tokenizer.end(); ++ iter)
 	      context_logprob.first.push_back(atol((*iter).c_str()));
+	    
+	    context_logprob.second = logprob_event_type(0.0);
 	    
 	    if (! context_logprob.first.empty())
 	      pending_logprob[rank].push_back(context_logprob.second);
@@ -1703,24 +1795,11 @@ void estimate_ngram(const ngram_counts_type& ngram,
 	
 	found = true;
       }
-    
-    if (! finished && terminated_recv >= mpi_size - 1 && terminated_send >= mpi_size - 1) {
-      bool non_empty = false;
-      for (int rank = 0; rank < mpi_size; ++ rank) {
-	if (! pending_ngram[rank].empty())
-	  non_empty = true;
-	if (! pending_logprob[rank].empty())
-	  non_empty = true;
-	if (! queue_ngram[rank]->empty())
-	  non_empty = true;
-	if (! queue_logprob[rank]->empty())
-	  non_empty = true;
-      }
-      if (non_empty)
-	finished = true;
-    }
-    
-    if (finished) {
+
+    // terminated_send >= mpi_size - 1 implies that the shard mpi_rank finished estimation
+    // terminated_recv >= mpi_size - 1 implies that other shards finished estimation
+    if (terminated_recv >= mpi_size - 1 && terminated_send >= mpi_size - 1) {
+      
       // terminate ostreams...
       for (int rank = 0; rank < mpi_size; ++ rank)
 	if (ostream_ngram[rank] && ostream_ngram[rank]->test()) {
@@ -1749,8 +1828,7 @@ void estimate_ngram(const ngram_counts_type& ngram,
 	  && std::count(ostream_logprob.begin(), ostream_logprob.end(), ostream_ptr_type()) == mpi_size) break;
     }
     
-    if (! found)
-      boost::thread::yield();
+    non_found_iter = loop_sleep(found, non_found_iter);
   }
   
   mapper->join();
