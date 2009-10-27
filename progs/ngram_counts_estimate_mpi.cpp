@@ -153,7 +153,7 @@ int main(int argc, char** argv)
     if (ngram_counts.index.size() != mpi_size)
       throw std::runtime_error("MPI universe size do not match with ngram shard size");
     
-    if (! ngram_counts.is_modified())
+    if (! ngram_counts.counts[mpi_rank].is_modified())
       throw std::runtime_error("ngram counts is nod modified...");
     
     shard_data_type shard_data(ngram_counts.index[mpi_rank].size(), ngram_counts.index[mpi_rank].position_size());
@@ -506,6 +506,10 @@ struct EstimateBigramMapper
     
     const id_type bos_id = ngram.index.vocab()[vocab_type::BOS];
     const id_type unk_id = ngram.index.vocab()[vocab_type::UNK];
+
+
+    if (debug)
+      std::cerr << "order: " << 2 << " shard: " << mpi_rank << std::endl;
     
     for (size_type pos_context = pos_context_first; pos_context < pos_context_last; ++ pos_context) {
       const size_type pos_first = ngram.index[mpi_rank].children_first(pos_context);
@@ -522,6 +526,9 @@ struct EstimateBigramMapper
 	queues[shard_index]->push(std::make_pair(pos_context, std::make_pair(id, count)));
       }
     }
+
+    if (debug)
+      std::cerr << "finished order: " << 2 << " shard: " << mpi_rank << std::endl;
     
     for (int shard_index = 0; shard_index < mpi_size; ++ shard_index)
       queues[shard_index]->push(std::make_pair(id_type(-1), std::make_pair(id_type(-1), 0)));
@@ -837,7 +844,8 @@ void estimate_bigram(const ngram_counts_type& ngram,
   istream_ptr_set_type istream_logprobs(mpi_size);
   ostream_ptr_set_type ostream_logprobs(mpi_size);
   
-  queue_count_ptr_set_type   queue_counts(mpi_size);
+  queue_count_ptr_set_type   queue_counts_mapper(mpi_size);
+  queue_count_ptr_set_type   queue_counts_reducer(mpi_size);
   queue_logprob_ptr_set_type queue_logprobs(mpi_size);
   
   for (int rank = 0; rank < mpi_size; ++ rank) {
@@ -850,12 +858,15 @@ void estimate_bigram(const ngram_counts_type& ngram,
       ostream_logprobs[rank].reset(new ostream_type(rank, bigram_logprob_tag, 1024));
     }
     
-    queue_counts[rank].reset(new queue_count_type());
+    queue_counts_mapper[rank].reset(new queue_count_type());
+    queue_counts_reducer[rank].reset(new queue_count_type());
     queue_logprobs[rank].reset(new queue_logprob_type());
   }
   
-  thread_ptr_type mapper(new thread_type(mapper_type(ngram, queue_counts, remove_unk, mpi_rank, mpi_size)));
-  thread_ptr_type estimator(new thread_type(estimator_type(ngram, shard_data, discounts, queue_counts, queue_logprobs, mpi_rank, mpi_size)));
+  queue_counts_mapper[mpi_rank] = queue_counts_reducer[mpi_rank];
+  
+  thread_ptr_type mapper(new thread_type(mapper_type(ngram, queue_counts_mapper, remove_unk, mpi_rank, mpi_size)));
+  thread_ptr_type estimator(new thread_type(estimator_type(ngram, shard_data, discounts, queue_counts_reducer, queue_logprobs, mpi_rank, mpi_size)));
   thread_ptr_type reducer(new thread_type(reducer_type(ngram, shard_data, *queue_logprobs[mpi_rank], mpi_rank, mpi_size)));
 
   context_count_type   context_count;
@@ -878,7 +889,7 @@ void estimate_bigram(const ngram_counts_type& ngram,
 	stream.push(boost::iostreams::back_inserter(buffer));
 	
 	context_count.first = 0;
-	while (queue_counts[rank]->pop(context_count, true) && context_count.first != id_type(-1)) {
+	while (queue_counts_mapper[rank]->pop(context_count, true) && context_count.first != id_type(-1)) {
 	  stream.write((char*) &context_count, sizeof(context_count_type));
 	  context_count.first = 0;
 	}
@@ -950,10 +961,10 @@ void estimate_bigram(const ngram_counts_type& ngram,
 	  stream.push(boost::iostreams::array_source(buffer.c_str(), buffer.size()));
 	  
 	  while (stream.read((char*) &context_count, sizeof(context_count_type)))
-	    queue_counts[rank]->push(context_count);
+	    queue_counts_reducer[rank]->push(context_count);
 	} else {
 	  istream_counts[rank].reset();
-	  queue_counts[rank]->push(context_count_type(id_type(-1), std::make_pair(id_type(-1), 0)));
+	  queue_counts_reducer[rank]->push(context_count_type(id_type(-1), std::make_pair(id_type(-1), 0)));
 	}
 	
 	found = true;
@@ -990,9 +1001,26 @@ void estimate_bigram(const ngram_counts_type& ngram,
   reducer->join();
   
   // now, bcast backoff parameters....
-  // is it efficient?
-  for (int pos = 0; pos < shard_data.offset; ++ pos)
-    MPI::COMM_WORLD.Bcast(&shard_data.backoffs[pos], 1, utils::mpi_traits<logprob_type>::data_type(), pos % mpi_size);
+  const size_type unigram_size = ngram.index[mpi_rank].offsets[1];
+  for (int rank = 0; rank < mpi_size; ++ rank) {
+    if (rank == mpi_rank) {
+      boost::iostreams::filtering_ostream stream;
+      stream.push(boost::iostreams::gzip_compressor());
+      stream.push(utils::mpi_device_bcast_sink(rank, 1024 * 1024));
+      
+      for (int pos = 0; pos < unigram_size; ++ pos) 
+	if (pos % mpi_size == rank)
+	  stream.write((char*) &shard_data.backoffs[pos], sizeof(logprob_type));
+    } else {
+      boost::iostreams::filtering_istream stream;
+      stream.push(boost::iostreams::gzip_decompressor());
+      stream.push(utils::mpi_device_bcast_source(rank, 1024 * 1024));
+      
+      for (int pos = 0; pos < unigram_size; ++ pos) 
+	if (pos % mpi_size == rank)
+	  stream.read((char*) &shard_data.backoffs[pos], sizeof(logprob_type));
+    }
+  }
 }
 
 template <typename Tp>
@@ -1146,10 +1174,7 @@ struct EstimateNGramMapper
     
     for (int order_prev = 2; order_prev < ngram.index.order(); ++ order_prev) {
       const int order = order_prev + 1;
-      
-      if (debug)
-	std::cerr << "order: " << order << " shard: " << shard << std::endl;
-      
+            
       const size_type pos_context_first = ngram.index[shard].offsets[order_prev - 1];
       const size_type pos_context_last  = ngram.index[shard].offsets[order_prev];
       
@@ -1248,6 +1273,11 @@ struct EstimateNGramReducer
 	
       const size_type pos_context_first = ngram.index[shard].offsets[order_prev - 1];
       const size_type pos_context_last  = ngram.index[shard].offsets[order_prev];
+
+      const size_type pos_estimate_first = ngram.index[shard].offsets[order - 1];
+      const size_type pos_estimate_last  = ngram.index[shard].offsets[order];
+      
+      double percent_next = 10.0;
       
       context.resize(order);
       
@@ -1356,7 +1386,19 @@ struct EstimateNGramReducer
 	
 	// we have computed until pos_last!
 	shard_data.offset = pos_last;
+	
+	const double percent_first(100.0 * (pos_first - pos_estimate_first) / (pos_estimate_last - pos_estimate_first));
+	const double percent_last(100.0 *  (pos_last - pos_estimate_first) / (pos_estimate_last - pos_estimate_first));
+	
+	if (percent_first < percent_next && percent_next <= percent_last) {
+	  if (debug)
+	    std::cerr << "rank: " << mpi_rank << " " << percent_next << "%" << std::endl;
+	  percent_next += 10;
+	}
       }
+      
+      if (debug)
+	std::cerr << "finished order: " << order << " shard: " << shard << std::endl;
     }
     
     // termination...
@@ -1414,7 +1456,7 @@ struct EstimateNGramServer
 	std::pair<context_type::const_iterator, size_type> result = ngram.index.traverse(shard_index, iter, iter_end);
 	if (result.first == iter_end) {
 	  
-	  if (utils::atomicop::fetch_and_add(shard_data.offset, size_type(0)) <= result.second) {
+	  if (result.second >= utils::atomicop::fetch_and_add(shard_data.offset, size_type(0))) {
 	    pendings.insert(std::make_pair(result.second, context_logprob_type(context_type(iter, iter_end), context_logprob.second)));
 	    break;
 	  }
@@ -1550,6 +1592,8 @@ void estimate_ngram(const ngram_counts_type& ngram,
   // use the same queue!
   queue_logprob[mpi_rank] = queue_ngram[mpi_rank];
   
+  shard_data.offset = ngram.index[mpi_rank].offsets[2];
+
   thread_ptr_type mapper(new thread_type(mapper_type(ngram, queue, queue_ngram, remove_unk, mpi_rank, mpi_size)));
   thread_ptr_type reducer(new thread_type(reducer_type(ngram, shard_data, discounts, queue, queue_ngram, remove_unk, mpi_rank, mpi_size)));
   thread_ptr_type server(new thread_type(server_type(ngram, shard_data, queue_logprob, queue_ngram, mpi_rank, mpi_size)));
@@ -1583,13 +1627,13 @@ void estimate_ngram(const ngram_counts_type& ngram,
 	    
 	    for (tokenizer_type::iterator iter = tokenizer.begin(); iter != tokenizer.end(); ++ iter)
 	      context_logprob.first.push_back(atol((*iter).c_str()));
-
-	    queue_logprob[rank]->push_swap(context_logprob);
 	    
 	    if (! context_logprob.first.empty())
 	      pending_logprob[rank].push_back(context_logprob.second);
 	    else
 	      ++ terminated_recv;
+	    
+	    queue_logprob[rank]->push_swap(context_logprob);
 	  }
 	} else
 	  istream_ngram[rank].reset();
