@@ -3,6 +3,8 @@
 #include <stdexcept>
 
 #include <vector>
+#include <queue>
+#include <deque>
 
 #include <expgram/NGramCounts.hpp>
 #include <expgram/NGram.hpp>
@@ -12,18 +14,28 @@
 #include <boost/filesystem.hpp>
 #include <boost/program_options.hpp>
 #include <boost/shared_ptr.hpp>
+#include <boost/tokenizer.hpp>
+
+#include <boost/thread.hpp>
+#include <boost/thread/condition.hpp>
+#include <boost/thread/mutex.hpp>
 
 #include <boost/iostreams/filtering_stream.hpp>
 #include <boost/iostreams/filter/gzip.hpp>
 #include <boost/iostreams/filter/bzip2.hpp>
 
+#include <boost/math/special_functions/expm1.hpp>
+
 #include <utils/tempfile.hpp>
 #include <utils/resource.hpp>
+#include <utils/space_separator.hpp>
 
 #include <utils/mpi.hpp>
 #include <utils/mpi_device.hpp>
 #include <utils/mpi_device_bcast.hpp>
 #include <utils/mpi_stream.hpp>
+#include <utils/mpi_traits.hpp>
+#include <utils/mathop.hpp>
 
 #include <utils/lockfree_list_queue.hpp>
 
@@ -36,6 +48,7 @@ typedef ngram_type::path_type       path_type;
 
 typedef ngram_type::count_type      count_type;
 typedef ngram_type::logprob_type    logprob_type;
+typedef ngram_type::prob_type       prob_type;
 typedef ngram_type::vocab_type      vocab_type;
 typedef ngram_type::word_type       word_type;
 typedef ngram_type::id_type         id_type;
@@ -58,35 +71,46 @@ struct shard_data_type
 };
 
 
-void estimate_ngram_mapper(intercomm_type& estimator,
-			   const ngram_type& ngram,
-			   const bool remove_unk);
-void estimate_ngram_estimator(intercomm_type& mapper,
-			      intercomm_type& reducer,
-			      const ngram_type& ngram,
-			      const bool remove_unk);
-void estimate_ngram_reducer(intercomm_type& estimator,
-			    const ngram_type& ngram,
-			    shard_type& shard);
-
-
 void estimate_discounts(const ngram_counts_type& ngram,
 			discount_set_type& discounts,
 			const bool remove_unk);
+
 void estimate_unigram(const ngram_counts_type& ngram,
-		      shard_data_tyep& shard_data,
+		      shard_data_type& shard_data,
 		      const discount_set_type& discounts,
 		      const bool remove_unk);
 
-template <typename Path, typename Iterator>
-void dump_file(const Path& path, Iterator first, Iterator last)
+void estimate_bigram(const ngram_counts_type& ngram,
+		     shard_data_type& shard_data,
+		     const discount_set_type& discounts,
+		     const bool remove_unk);
+
+void estimate_ngram(const ngram_counts_type& ngram,
+		    shard_data_type& shard_data,
+		    const discount_set_type& discounts,
+		    const bool remove_unk);
+
+int getoptions(int argc, char** argv);
+
+template <typename Path, typename Data>
+inline
+void dump_file(const Path& file, const Data& data)
 {
-  typedef size_t    size_type;
-  typedef ptrdiff_t difference_type;
-  typedef typename std::iterator_traits<Iterator>::value_type value_type;
-  
   boost::iostreams::filtering_ostream os;
-  os.push(boost::iostreams::file_sink(path.file_string(), std::ios_base::out | std::ios_base::trunc), 1024 * 1024);
+  os.push(boost::iostreams::file_sink(file.file_string(), std::ios_base::out | std::ios_base::trunc), 1024 * 1024);
+  
+  const int64_t file_size = sizeof(typename Data::value_type) * data.size();
+  for (int64_t offset = 0; offset < file_size; offset += 1024 * 1024)
+    os.write(((char*) &(*data.begin())) + offset, std::min(int64_t(1024 * 1024), file_size - offset));
+}  
+
+template <typename Path, typename Iterator>
+void dump(const Path& file, Iterator first, Iterator last)
+{
+  typedef typename std::iterator_traits<Iterator>::value_type value_type;
+
+  boost::iostreams::filtering_ostream os;
+  os.push(boost::iostreams::file_sink(file.file_string(), std::ios_base::out | std::ios_base::trunc), 1024 * 1024);
   
   while (first != last) {
     const size_type write_size = std::min(size_type(1024 * 1024), size_type(last - first));
@@ -95,9 +119,22 @@ void dump_file(const Path& path, Iterator first, Iterator last)
   }
 }
 
+path_type ngram_file;
+path_type output_file;
+path_type prog_name;
+
+bool remove_unk = false;
+
+int debug = 0;
+
 
 int main(int argc, char** argv)
 {
+  utils::mpi_world  mpi_world(argc, argv);
+  
+  const int mpi_rank = MPI::COMM_WORLD.Get_rank();
+  const int mpi_size = MPI::COMM_WORLD.Get_size();  
+
   try {
     
     if (getoptions(argc, argv) != 0) 
@@ -140,15 +177,10 @@ int main(int argc, char** argv)
     ngram.logprobs.resize(ngram.index.size());
     ngram.backoffs.resize(ngram.index.size());
     
-    ngram.logprobs[mpi_rank].offset = ngram.counts[mpi_rank].offset;
-    ngram.backoffs[mpi_rank].offset = ngram.counts[mpi_rank].offset;
+    ngram.logprobs[mpi_rank].offset = ngram_counts.counts[mpi_rank].offset;
+    ngram.backoffs[mpi_rank].offset = ngram_counts.counts[mpi_rank].offset;
     
     ngram.smooth = shard_data.smooth;
-    
-    if (mpi_rank != 0) {
-      shard_data.logprobs.erase(shard_data.logprobs.begin(), shard_data.logprobs.begin() + ngram.index[mpi_rank].offsets[1]);
-      shard_data.backoffs.erase(shard_data.backoffs.begin(), shard_data.backoffs.begin() + ngram.index[mpi_rank].offsets[1]);
-    }
     
     const path_type tmp_dir      = utils::tempfile::tmp_dir();
     const path_type path_logprob = utils::tempfile::file_name(tmp_dir / "expgram.logprob.XXXXXX");
@@ -157,8 +189,8 @@ int main(int argc, char** argv)
     utils::tempfile::insert(path_logprob);
     utils::tempfile::insert(path_backoff);
     
-    dump_file(path_logprob, shard_data.logprobs);
-    dump_file(path_backoff, sahrd_data.backoffs);
+    dump(path_logprob, shard_data.logprobs.begin() + ngram.logprobs[mpi_rank].offset, shard_data.logprobs.end());
+    dump(path_backoff, shard_data.backoffs.begin() + ngram.backoffs[mpi_rank].offset, shard_data.backoffs.end());
     
     shard_data.logprobs.clear();
     shard_data.backoffs.clear();
@@ -184,6 +216,13 @@ int main(int argc, char** argv)
   return 0;
 }
 
+enum {
+  bigram_count_tag = 2000,
+  bigram_logprob_tag,
+  ngram_tag,
+  logprob_tag,
+};
+
 
 void estimate_discounts(const ngram_counts_type& ngram,
 			discount_set_type& discounts,
@@ -200,13 +239,13 @@ void estimate_discounts(const ngram_counts_type& ngram,
   
   count_map_type count_of_counts(ngram.index.order() + 1);
   
-  for (int order = (ngram_rank == 0 ? 1 : 2); order <= ngram.index.order(); ++ order) {
-    const size_type pos_first = ngram.index[shard].offsets[order - 1];
-    const size_type pos_last  = ngram.index[shard].offsets[order];
+  for (int order = (mpi_rank == 0 ? 1 : 2); order <= ngram.index.order(); ++ order) {
+    const size_type pos_first = ngram.index[mpi_rank].offsets[order - 1];
+    const size_type pos_last  = ngram.index[mpi_rank].offsets[order];
     
     for (size_type pos = pos_first; pos != pos_last; ++ pos) {
-      const count_type count = ngram.counts[shard][pos];
-      if (count && (order == 1 || ! remove_unk || ngram.index[shard][pos] != unk_id))
+      const count_type count = ngram.counts[mpi_rank][pos];
+      if (count && (order == 1 || ! remove_unk || ngram.index[mpi_rank][pos] != unk_id))
 	++ count_of_counts[order][count];
     }
   }
@@ -224,6 +263,9 @@ void estimate_discounts(const ngram_counts_type& ngram,
 	  stream << order << '\t' << citer->first << ' ' << citer->second << '\n';
       }
     } else {
+      typedef std::vector<std::string, std::allocator<std::string> > tokens_type;
+      typedef boost::tokenizer<utils::space_separator> tokenizer_type;
+
       boost::iostreams::filtering_istream stream;
       stream.push(boost::iostreams::gzip_decompressor());
       stream.push(utils::mpi_device_bcast_source(rank, 1024 * 1024));
@@ -231,7 +273,7 @@ void estimate_discounts(const ngram_counts_type& ngram,
       std::string line;
       tokens_type tokens;
       
-      while (utils::readline(stream, line)) {
+      while (std::getline(stream, line)) {
 	tokenizer_type tokenizer(line);
 	tokens.clear();
 	tokens.insert(tokens.end(), tokenizer.begin(), tokenizer.end());
@@ -255,12 +297,12 @@ void estimate_discounts(const ngram_counts_type& ngram,
     discounts[order].estimate(count_of_counts[order].begin(), count_of_counts[order].end());
   
   if (debug && mpi_rank == 0)
-    for (int order = 1; order <= index.order(); ++ order)
+    for (int order = 1; order <= ngram.index.order(); ++ order)
       std::cerr << "order: " << order << ' ' << discounts[order] << std::endl;
 }
 
 
-void estimate_unigram(const ngram_type& ngram,
+void estimate_unigram(const ngram_counts_type& ngram,
 		      shard_data_type& shard_data,
 		      const discount_set_type& discounts,
 		      const bool remove_unk)
@@ -354,7 +396,7 @@ void estimate_unigram(const ngram_type& ngram,
 	  if (id_type(pos) != bos_id) {
 	    shard_data.logprobs[pos] -= logsum;
 	    if (id_type(pos) == unk_id)
-	      shard_data.smooth = shard.logprobs[pos];
+	      shard_data.smooth = shard_data.logprobs[pos];
 	  }
       }
     }
@@ -414,6 +456,7 @@ struct EstimateBigramMapReduce
   typedef boost::shared_ptr<thread_type> thread_ptr_type;
 };
 
+
 struct EstimateBigramMapper
 {
   // map bigram counts...
@@ -434,15 +477,19 @@ struct EstimateBigramMapper
   const ngram_counts_type&    ngram;
   queue_count_ptr_set_type&   queues;
   
+  bool remove_unk;
+  
   int mpi_rank;
   int mpi_size;
 
   EstimateBigramMapper(const ngram_counts_type&    _ngram,
 		       queue_count_ptr_set_type&   _queues,
+		       const bool _remove_unk,
 		       const int _mpi_rank,
 		       const int _mpi_size)
     : ngram(_ngram),
       queues(_queues),
+      remove_unk(_remove_unk),
       mpi_rank(_mpi_rank), mpi_size(_mpi_size) {}
 
   
@@ -490,6 +537,9 @@ struct EstimateBigramEstimator
   typedef map_reduce_type::context_type         context_type;
   typedef map_reduce_type::context_count_type   context_count_type;
   typedef map_reduce_type::context_logprob_type context_logprob_type;
+
+  typedef map_reduce_type::word_count_type   word_count_type;
+  typedef map_reduce_type::word_logprob_type word_logprob_type;
   
   typedef map_reduce_type::queue_count_type   queue_count_type;
   typedef map_reduce_type::queue_logprob_type queue_logprob_type;
@@ -511,7 +561,7 @@ struct EstimateBigramEstimator
 
   EstimateBigramEstimator(const ngram_counts_type&    _ngram,
 			  shard_data_type&            _shard_data,
-			  const discount_set_type&    _discounts.
+			  const discount_set_type&    _discounts,
 			  queue_count_ptr_set_type&   _queue_counts,
 			  queue_logprob_ptr_set_type& _queue_logprobs,
 			  const int _mpi_rank,
@@ -520,8 +570,12 @@ struct EstimateBigramEstimator
       queue_counts(_queue_counts), queue_logprobs(_queue_logprobs),
       mpi_rank(_mpi_rank), mpi_size(_mpi_size) {}
   
-  void estimate(const id_type& context, const word_count_set_type& counts, word_logprob_set_type& logprobs)
+  
+  template <typename WordCountSet, typename WordLogProbSet>
+  void estimate(const id_type& context, const WordCountSet& counts, WordLogProbSet& logprobs)
   {
+    const int order = 2;
+
     count_type total = 0;
     count_type observed = 0;
     count_type min2 = 0;
@@ -532,8 +586,8 @@ struct EstimateBigramEstimator
 
     logprobs.clear();
     
-    word_count_set_type::const_iterator citer_end = counts.end();
-    for (word_count_set_type::const_iterator citer = counts.begin(); citer != citer_end; ++ citer) {
+    typename WordCountSet::const_iterator citer_end = counts.end();
+    for (typename WordCountSet::const_iterator citer = counts.begin(); citer != citer_end; ++ citer) {
       const id_type&    id = citer->first;
       const count_type& count = citer->second;
       
@@ -558,8 +612,8 @@ struct EstimateBigramEstimator
 
       logprobs.clear();
       
-      word_count_set_type::const_iterator citer_end = counts.end();
-      for (word_count_set_type::const_iterator citer = counts.begin(); citer != citer_end; ++ citer) {
+      typename WordCountSet::const_iterator citer_end = counts.end();
+      for (typename WordCountSet::const_iterator citer = counts.begin(); citer != citer_end; ++ citer) {
 	
 	const id_type&    id = citer->first;
 	const count_type& count = citer->second;
@@ -599,9 +653,9 @@ struct EstimateBigramEstimator
       if (denominator > 0.0)
 	shard_data.backoffs[context] = utils::mathop::log(numerator) - utils::mathop::log(denominator);
       else {
-	word_logprob_set_type::iterator liter_end = logprobs.end();
-	for (word_logprob_set_type::iterator liter = logprobs.begin(); liter != liter_end; ++ liter)
-	  *liter -= logsum;
+	typename WordLogProbSet::iterator liter_end = logprobs.end();
+	for (typename WordLogProbSet::iterator liter = logprobs.begin(); liter != liter_end; ++ liter)
+	  liter->second -= logsum;
       }
     }
   }
@@ -614,7 +668,10 @@ struct EstimateBigramEstimator
     typedef std::pair<id_type, word_count_queue_type>        context_count_queue_type;
     typedef boost::shared_ptr<context_count_queue_type>      context_count_queue_ptr_type;
     typedef std::vector<context_count_queue_ptr_type, std::allocator<context_count_queue_ptr_type> > pqueue_base_type;
-    typedef std::priority_queue<context_count_queue_ptr_type, pqueue_base_type, greater_pfirst<context_count_queue_ptr_type> > pqueue_type;
+    typedef std::priority_queue<context_count_queue_ptr_type, pqueue_base_type, greater_pfirst<context_count_queue_type> > pqueue_type;
+
+    typedef std::vector<word_count_type, std::allocator<word_count_type> > word_count_set_type;
+    typedef std::vector<word_logprob_type, std::allocator<word_logprob_type> > word_logprob_set_type;
     
     pqueue_type pqueue;
     
@@ -623,7 +680,7 @@ struct EstimateBigramEstimator
       queue_counts[rank]->pop(context_count);
       if (context_count.first != id_type(-1))
 	pqueue.push(context_count_queue_ptr_type(new context_count_queue_type(context_count.first,
-									      std::make_pair(context_count.second, queues[rank]))));
+									      std::make_pair(context_count.second, queue_counts[rank]))));
     }
     
     id_type               context(id_type(-1));
@@ -637,13 +694,13 @@ struct EstimateBigramEstimator
       
       if (context != context_count_queue->first) {
 	if (! counts.empty()) {
-	  estimate(conetxt, counts, logprobs);
+	  estimate(context, counts, logprobs);
 	  
 	  bigram[0] = context;
 	  
 	  word_logprob_set_type::const_iterator liter_end = logprobs.end();
 	  for (word_logprob_set_type::const_iterator liter = logprobs.begin(); liter != liter_end; ++ liter) {
-	    bigrams[1] = liter->first;
+	    bigram[1] = liter->first;
 	    queue_logprobs[ngram.index.shard_index(bigram.begin(), bigram.end())]->push(std::make_pair(context, *liter));
 	  }
 	}
@@ -656,20 +713,20 @@ struct EstimateBigramEstimator
       
       context_count_queue->second.second->pop(context_count);
       if (context_count.first != id_type(-1)) {
-	context_count_queue.first        = context_count.first;
-	context_count_queue.second.first = context_count.second;
+	context_count_queue->first        = context_count.first;
+	context_count_queue->second.first = context_count.second;
 	pqueue.push(context_count_queue);
       }
     }
     
     if (! counts.empty()) {
-      estimate(conetxt, counts, logprobs);
+      estimate(context, counts, logprobs);
       
       bigram[0] = context;
       
       word_logprob_set_type::const_iterator liter_end = logprobs.end();
       for (word_logprob_set_type::const_iterator liter = logprobs.begin(); liter != liter_end; ++ liter) {
-	bigrams[1] = liter->first;
+	bigram[1] = liter->first;
 	queue_logprobs[ngram.index.shard_index(bigram.begin(), bigram.end())]->push(std::make_pair(context, *liter));
       }
     }
@@ -691,7 +748,7 @@ struct EstimateBigramReducer
 
   const ngram_counts_type&  ngram;
   shard_data_type&          shard_data;
-  queue_logprob_tyep&       queue;
+  queue_logprob_type&       queue;
   
   int mpi_rank;
   int mpi_size;
@@ -726,21 +783,25 @@ struct EstimateBigramReducer
       bigram[0] = context_logprob.first;
       bigram[1] = context_logprob.second.first;
       
-      std::pair<context_type, size_type> result = ngram.index.traverse(mpi_rank, bigram.begin(), bigram.end());
+      std::pair<context_type::const_iterator, size_type> result = ngram.index.traverse(mpi_rank, bigram.begin(), bigram.end());
       if (result.first != bigram.end() || result.second == size_type(-1))
 	throw std::runtime_error("no ngram?");
       
-      shard_data.logprobs[ngram.second] = context_logprob.second.second;
+      shard_data.logprobs[result.second] = context_logprob.second.second;
     }
   }
 };
 
-void estimate_bigram(const ngram_type& ngram,
+void estimate_bigram(const ngram_counts_type& ngram,
 		     shard_data_type& shard_data,
 		     const discount_set_type& discounts,
 		     const bool remove_unk)
 {
   typedef EstimateBigramMapReduce map_reduce_type;
+
+  typedef EstimateBigramMapper    mapper_type;
+  typedef EstimateBigramReducer   reducer_type;
+  typedef EstimateBigramEstimator estimator_type;
   
   typedef map_reduce_type::context_type         context_type;
   typedef map_reduce_type::context_count_type   context_count_type;
@@ -755,8 +816,8 @@ void estimate_bigram(const ngram_type& ngram,
   typedef map_reduce_type::queue_count_ptr_set_type   queue_count_ptr_set_type;
   typedef map_reduce_type::queue_logprob_ptr_set_type queue_logprob_ptr_set_type;
 
-  typedef map_reduce_type::thead_type     thread_type;
-  typedef map_reduce_type::thead_ptr_type thread_ptr_type;
+  typedef map_reduce_type::thread_type     thread_type;
+  typedef map_reduce_type::thread_ptr_type thread_ptr_type;
 
   typedef utils::mpi_istream istream_type;
   typedef utils::mpi_ostream ostream_type;
@@ -782,18 +843,18 @@ void estimate_bigram(const ngram_type& ngram,
   for (int rank = 0; rank < mpi_size; ++ rank) {
     
     if (rank != mpi_rank) {
-      istream_counts[rank].reset(new istream_type(rank, bigram_count_tag, 4096));
-      ostream_counts[rank].reset(new ostream_type(rank, bigram_count_tag, 4096));
+      istream_counts[rank].reset(new istream_type(rank, bigram_count_tag, 1024));
+      ostream_counts[rank].reset(new ostream_type(rank, bigram_count_tag, 1024));
       
-      istream_logprobs[rank].reset(new istream_type(rank, bigram_logprob_tag, 4096));
-      ostream_logprobs[rank].reset(new ostream_type(rank, bigram_logprob_tag, 4096));
+      istream_logprobs[rank].reset(new istream_type(rank, bigram_logprob_tag, 1024));
+      ostream_logprobs[rank].reset(new ostream_type(rank, bigram_logprob_tag, 1024));
     }
     
     queue_counts[rank].reset(new queue_count_type());
-    queue_logprobs[rank].reset(new queue_logprobs_type());    
+    queue_logprobs[rank].reset(new queue_logprob_type());
   }
   
-  thread_ptr_type mapper(new thread_type(mapper_type(ngram, queue_counts, mpi_rank, mpi_size)));
+  thread_ptr_type mapper(new thread_type(mapper_type(ngram, queue_counts, remove_unk, mpi_rank, mpi_size)));
   thread_ptr_type estimator(new thread_type(estimator_type(ngram, shard_data, discounts, queue_counts, queue_logprobs, mpi_rank, mpi_size)));
   thread_ptr_type reducer(new thread_type(reducer_type(ngram, shard_data, *queue_logprobs[mpi_rank], mpi_rank, mpi_size)));
 
@@ -813,13 +874,16 @@ void estimate_bigram(const ngram_type& ngram,
     for (int rank = 0; rank < mpi_size; ++ rank)
       if (rank != mpi_rank && ostream_counts[rank] && ostream_counts[rank]->test()) {
 	buffer.clear();
-	boost::iostreams::filtering_ostream steram;
+	boost::iostreams::filtering_ostream stream;
 	stream.push(boost::iostreams::back_inserter(buffer));
 	
-	while (queue_counts[rank]->pop(context_count, true) && context_count.first != id_type(-1))
+	context_count.first = 0;
+	while (queue_counts[rank]->pop(context_count, true) && context_count.first != id_type(-1)) {
 	  stream.write((char*) &context_count, sizeof(context_count_type));
+	  context_count.first = 0;
+	}
 	stream.pop();
-
+	
 	if (! buffer.empty()) {
 	  ostream_counts[rank]->write(buffer);
 	  found = true;
@@ -834,11 +898,14 @@ void estimate_bigram(const ngram_type& ngram,
     for (int rank = 0; rank < mpi_size; ++ rank)
       if (rank != mpi_rank && ostream_logprobs[rank] && ostream_logprobs[rank]->test()) {
 	buffer.clear();
-	boost::iostreams::filtering_ostream steram;
+	boost::iostreams::filtering_ostream stream;
 	stream.push(boost::iostreams::back_inserter(buffer));
 	
-	while (queue_logprobs[rank]->pop(context_logprob, true) && context_logprob.first != id_type(-1))
+	context_logprob.first = 0;
+	while (queue_logprobs[rank]->pop(context_logprob, true) && context_logprob.first != id_type(-1)) {
 	  stream.write((char*) &context_logprob, sizeof(context_logprob_type));
+	  context_logprob.first = 0;
+	}
 	stream.pop();
 	
 	if (! buffer.empty()) {
@@ -878,15 +945,12 @@ void estimate_bigram(const ngram_type& ngram,
     // receive counts...
     for (int rank = 0; rank < mpi_size; ++ rank)
       if (rank != mpi_rank && istream_counts[rank] && istream_counts[rank]->test()) {
-	if (istream_cunts[rank]->read(buffer)) {
+	if (istream_counts[rank]->read(buffer)) {
 	  boost::iostreams::filtering_istream stream;
 	  stream.push(boost::iostreams::array_source(buffer.c_str(), buffer.size()));
 	  
-	  do {
-	    stream.read((char*) &context_count, sizeof(context_count_type));
-	    if (stream.gcount() > 0)
-	      queue_counts[rank]->push(context_count);
-	  } while (stream);
+	  while (stream.read((char*) &context_count, sizeof(context_count_type)))
+	    queue_counts[rank]->push(context_count);
 	} else {
 	  istream_counts[rank].reset();
 	  queue_counts[rank]->push(context_count_type(id_type(-1), std::make_pair(id_type(-1), 0)));
@@ -898,15 +962,12 @@ void estimate_bigram(const ngram_type& ngram,
     // receive logprobs...
     for (int rank = 0; rank < mpi_size; ++ rank)
       if (rank != mpi_rank && istream_logprobs[rank] && istream_logprobs[rank]->test()) {
-	if (istream_cunts[rank]->read(buffer)) {
+	if (istream_logprobs[rank]->read(buffer)) {
 	  boost::iostreams::filtering_istream stream;
 	  stream.push(boost::iostreams::array_source(buffer.c_str(), buffer.size()));
 	  
-	  do {
-	    stream.read((char*) &context_logprob, sizeof(context_logprob_type));
-	    if (stream.glogprob() > 0)
-	      queue_logprobs[mpi_rank]->push(context_logprob);
-	  } while (stream);
+	  while (stream.read((char*) &context_logprob, sizeof(context_logprob_type)))
+	    queue_logprobs[mpi_rank]->push(context_logprob);
 	} else {
 	  istream_logprobs[rank].reset();
 	  queue_logprobs[mpi_rank]->push(context_logprob_type(id_type(-1), std::make_pair(id_type(-1), ngram_type::logprob_min())));
@@ -915,10 +976,10 @@ void estimate_bigram(const ngram_type& ngram,
 	found = true;
       }
     
-    if (std::count(ostream_counts.begin(), ostream_counts.end(), ostream_ptr_type() == mpi_size)
-	&& std::count(ostream_logprobs.begin(), ostream_logprobs.end(), ostream_ptr_type() == mpi_size)
-	&& std::count(istream_counts.begin(), istream_counts.end(), istream_ptr_type() == mpi_size)
-	&& std::count(istream_logprobs.begin(), istream_logprobs.end(), istream_ptr_type() == mpi_size)) break;
+    if (std::count(ostream_counts.begin(), ostream_counts.end(), ostream_ptr_type()) == mpi_size
+	&& std::count(ostream_logprobs.begin(), ostream_logprobs.end(), ostream_ptr_type()) == mpi_size
+	&& std::count(istream_counts.begin(), istream_counts.end(), istream_ptr_type()) == mpi_size
+	&& std::count(istream_logprobs.begin(), istream_logprobs.end(), istream_ptr_type()) == mpi_size) break;
     
     if (! found)
       boost::thread::yield();
@@ -1015,11 +1076,11 @@ struct EstimateNGramMapReduce
   typedef std::vector<id_type, std::allocator<id_type> > context_type;
   typedef Event<logprob_type>                            logprob_event_type;
   
-  typedef std::pair<context_type, logprob_event_set_type>                      context_logprob_type;
+  typedef std::pair<context_type, logprob_event_type>                          context_logprob_type;
   typedef std::vector<logprob_event_type, std::allocator<logprob_event_type> > logprob_event_set_type;
 
   typedef utils::lockfree_list_queue<context_logprob_type, std::allocator<context_logprob_type> >     queue_context_type;
-  typedef utils::lockfree_list_queue<logprob_event_set_tyep, std::allocator<logprob_event_set_type> > queue_logprob_type;
+  typedef utils::lockfree_list_queue<logprob_event_set_type, std::allocator<logprob_event_set_type> > queue_logprob_type;
 
   typedef boost::shared_ptr<queue_context_type> queue_context_ptr_type;
   typedef std::vector<queue_context_ptr_type, std::allocator<queue_context_ptr_type> > queue_context_ptr_set_type;
@@ -1028,11 +1089,51 @@ struct EstimateNGramMapReduce
   typedef boost::shared_ptr<thread_type> thread_ptr_type;
 };
 
+namespace std
+{
+  inline
+  void swap(EstimateNGramMapReduce::context_logprob_type& x,
+	    EstimateNGramMapReduce::context_logprob_type& y)
+  {
+    x.first.swap(y.first);
+    x.second.swap(y.second);
+  }
+};
+
 struct EstimateNGramMapper
 {
   // send lower-order ngram scoring....
-  
 
+  typedef EstimateNGramMapReduce map_reduce_type;
+  
+  typedef map_reduce_type::logprob_event_type     logprob_event_type;
+  typedef map_reduce_type::logprob_event_set_type logprob_event_set_type;
+  typedef map_reduce_type::queue_logprob_type     queue_logprob_type;
+
+  typedef map_reduce_type::context_type               context_type;
+  typedef map_reduce_type::context_logprob_type       context_logprob_type;
+  typedef map_reduce_type::queue_context_ptr_set_type queue_context_ptr_set_type;
+  
+  const ngram_counts_type&    ngram;
+  queue_logprob_type&         queue;
+  queue_context_ptr_set_type& queue_ngram;
+  
+  bool remove_unk;
+  
+  int mpi_rank;
+  int mpi_size;
+
+  EstimateNGramMapper(const ngram_counts_type&    _ngram,
+		      queue_logprob_type&         _queue,
+		      queue_context_ptr_set_type& _queue_ngram,
+		      const bool _remove_unk,
+		      const int _mpi_rank,
+		      const int _mpi_size)
+    : ngram(_ngram),
+      queue(_queue), queue_ngram(_queue_ngram),
+      remove_unk(_remove_unk),
+      mpi_rank(_mpi_rank), mpi_size(_mpi_size) {}
+  
   void operator()()
   {
     const int shard = mpi_rank;
@@ -1048,7 +1149,7 @@ struct EstimateNGramMapper
       
       if (debug)
 	std::cerr << "order: " << order << " shard: " << shard << std::endl;
-	
+      
       const size_type pos_context_first = ngram.index[shard].offsets[order_prev - 1];
       const size_type pos_context_last  = ngram.index[shard].offsets[order_prev];
       
@@ -1094,10 +1195,43 @@ struct EstimateNGramMapper
 struct EstimateNGramReducer
 {
   // actually reduced, and estimate ngram probabilities...
+  
+  typedef EstimateNGramMapReduce map_reduce_type;
+  
+  typedef map_reduce_type::logprob_event_type     logprob_event_type;
+  typedef map_reduce_type::logprob_event_set_type logprob_event_set_type;
+  typedef map_reduce_type::queue_logprob_type     queue_logprob_type;
+  
+  typedef map_reduce_type::context_type               context_type;
+  typedef map_reduce_type::context_logprob_type       context_logprob_type;
+  typedef map_reduce_type::queue_context_ptr_set_type queue_context_ptr_set_type;
+  
+  const ngram_counts_type&    ngram;
+  shard_data_type&            shard_data;
+  const discount_set_type&    discounts;
+  queue_logprob_type&         queue;
+  queue_context_ptr_set_type& queue_ngram;
+
+  bool remove_unk;
+  
+  int mpi_rank;
+  int mpi_size;
+
+  EstimateNGramReducer(const ngram_counts_type&    _ngram,
+		       shard_data_type&            _shard_data,
+		       const discount_set_type&    _discounts,
+		       queue_logprob_type&         _queue,
+		       queue_context_ptr_set_type& _queue_ngram,
+		       const bool _remove_unk,
+		       const int _mpi_rank,
+		       const int _mpi_size)
+    : ngram(_ngram), shard_data(_shard_data), discounts(_discounts),
+      queue(_queue), queue_ngram(_queue_ngram),
+      remove_unk(_remove_unk),
+      mpi_rank(_mpi_rank), mpi_size(_mpi_size) {}
 
   void operator()()
   {
-    
     const int shard = mpi_rank;
     
     const id_type bos_id = ngram.index.vocab()[vocab_type::BOS];
@@ -1142,7 +1276,7 @@ struct EstimateNGramReducer
 	
 	double logsum_lower_order = boost::numeric::bounds<double>::lowest();
 	  
-	logprob_event_set_type::const_iterator liter = lowers.begin();
+	logprob_event_set_type::iterator liter = lowers.begin();
 	for (size_type pos = pos_first; pos != pos_last; ++ pos, ++ liter) {
 	  const count_type count = ngram.counts[shard][pos];
 
@@ -1159,7 +1293,7 @@ struct EstimateNGramReducer
 	  min3 += (count >= discounts[order].mincount3);
 	    
 	  context.back() = ngram.index[shard][pos];
-	
+	  
 	  // wait for toggle!
 	  liter->wait();
 	  
@@ -1220,11 +1354,16 @@ struct EstimateNGramReducer
 	  }
 	}
 	
+	// we have computed until pos_last!
 	shard_data.offset = pos_last;
+      }
     }
+    
+    // termination...
+    for (int rank = 0; rank < mpi_size; ++ rank)
+      queue_ngram[rank]->push(context_logprob_type(context_type(), logprob_event_type()));
   }
-}
-  };
+};
 
 struct EstimateNGramServer
 {
@@ -1232,7 +1371,38 @@ struct EstimateNGramServer
   // we will receive scoring query from mapper or shards...
 
   
-  void logprob(context_logprob_type& context_logprob, pending_set_type& pendings)
+  typedef EstimateNGramMapReduce map_reduce_type;
+  
+  typedef map_reduce_type::logprob_event_type     logprob_event_type;
+  typedef map_reduce_type::logprob_event_set_type logprob_event_set_type;
+  typedef map_reduce_type::queue_logprob_type     queue_logprob_type;
+
+  typedef map_reduce_type::context_type               context_type;
+  typedef map_reduce_type::context_logprob_type       context_logprob_type;
+  typedef map_reduce_type::queue_context_ptr_set_type queue_context_ptr_set_type;
+
+  
+  const ngram_counts_type&    ngram;
+  shard_data_type&            shard_data;
+  
+  queue_context_ptr_set_type& queue_logprob;
+  queue_context_ptr_set_type& queue_ngram;
+  
+  int mpi_rank;
+  int mpi_size;
+
+  EstimateNGramServer(const ngram_counts_type&    _ngram,
+		      shard_data_type&            _shard_data,
+		      queue_context_ptr_set_type& _queue_logprob,
+		      queue_context_ptr_set_type& _queue_ngram,
+		      const int _mpi_rank,
+		      const int _mpi_size)
+    : ngram(_ngram), shard_data(_shard_data),
+      queue_logprob(_queue_logprob), queue_ngram(_queue_ngram),
+      mpi_rank(_mpi_rank), mpi_size(_mpi_size) {}
+
+  template <typename PendingSet>
+  void logprob(context_logprob_type& context_logprob, PendingSet& pendings)
   {
     context_type::const_iterator iter_begin = context_logprob.first.begin();
     context_type::const_iterator iter_end   = context_logprob.first.end();
@@ -1250,15 +1420,15 @@ struct EstimateNGramServer
 	  }
 	  
 	  if (shard_data.logprobs[result.second] != ngram_type::logprob_min()) {
-	    context_logprobs.second += shard_data.logprobs[result.second];
-	    context_logprobs.second.notify();
+	    context_logprob.second += shard_data.logprobs[result.second];
+	    context_logprob.second.notify();
 	    break;
 	  } else {
 	    const size_type parent = ngram.index[shard_index].parent(result.second);
 	    if (parent != size_type(-1))
 	      context_logprob.second += shard_data.backoffs[parent];
 	  }
-	} else if (result.first == last - 1)
+	} else if (result.first == iter_end - 1)
 	  context_logprob.second += shard_data.backoffs[result.second];
 	
       } else {
@@ -1270,15 +1440,21 @@ struct EstimateNGramServer
   
   void operator()()
   {
+    typedef std::multimap<size_type, context_logprob_type, std::less<size_type>, std::allocator<std::pair<const size_type, context_logprob_type> > > pending_set_type;
+    
+    
     context_logprob_type context_logprob;
-
+    pending_set_type pendings;
+    
+    size_t finished = 0;
+    
     while (1) {
       bool found = false;
       
       for (int rank = 0; rank < mpi_size; ++ rank) 
 	while (queue_logprob[rank]->pop_swap(context_logprob, true)) {
 	  if (context_logprob.first.empty())
-	    finished[rank] = true;
+	    ++ finished;
 	  else
 	    logprob(context_logprob, pendings);
 	  
@@ -1286,13 +1462,13 @@ struct EstimateNGramServer
 	}
       
       while (! pendings.empty() && pendings.begin()->first < utils::atomicop::fetch_and_add(shard_data.offset, size_type(0))) {
-	logprob(queue.begin()->second, pendings);
+	logprob(pendings.begin()->second, pendings);
 	pendings.erase(pendings.begin());
 	
 	found = true;
       }
       
-      // TODO: termination condition...?
+      if (pendings.empty() && finished >= mpi_size) break;
       
       if (! found)
 	boost::thread::yield();
@@ -1302,7 +1478,7 @@ struct EstimateNGramServer
 
 
 
-void estimate_ngram(const ngram_type& ngram,
+void estimate_ngram(const ngram_counts_type& ngram,
 		    shard_data_type& shard_data,
 		    const discount_set_type& discounts,
 		    const bool remove_unk)
@@ -1312,14 +1488,25 @@ void estimate_ngram(const ngram_type& ngram,
   // server will handle lower-order logprob-request, by sending/receiving logprob requests
   //
   
-
   typedef EstimateNGramMapReduce map_reduce_type;
+
+  typedef EstimateNGramMapper  mapper_type;
+  typedef EstimateNGramReducer reducer_type;
+  typedef EstimateNGramServer  server_type;
   
-  typedef map_reduce_type::logprob_event_type logprob_event_type;
+  typedef map_reduce_type::logprob_event_type   logprob_event_type;
+  typedef map_reduce_type::context_type         context_type;
+  typedef map_reduce_type::context_logprob_type context_logprob_type;
   
+  typedef map_reduce_type::queue_logprob_type         queue_logprob_type;
+  typedef map_reduce_type::queue_context_type         queue_context_type;
+  typedef map_reduce_type::queue_context_ptr_set_type queue_context_ptr_set_type;
+
+  typedef map_reduce_type::thread_type     thread_type;
+  typedef map_reduce_type::thread_ptr_type thread_ptr_type;
   
   typedef std::deque<logprob_event_type, std::allocator<logprob_event_type> > pending_set_type;
-  typedef std::vector<pending_set_tyep, std::allocator<pending_set_type> >    pending_map_type;
+  typedef std::vector<pending_set_type, std::allocator<pending_set_type> >    pending_map_type;
   
   typedef utils::mpi_istream istream_type;
   typedef utils::mpi_ostream ostream_type;
@@ -1349,23 +1536,30 @@ void estimate_ngram(const ngram_type& ngram,
 
   for (int rank = 0; rank < mpi_size; ++ rank) {
     if (rank != mpi_rank) {
-      istream_ngram[rank].reset(new istream_type(rank, ngram_tag, 4096));
-      ostream_ngram[rank].reset(new ostream_type(rank, ngram_tag, 4096));
+      istream_ngram[rank].reset(new istream_type(rank, ngram_tag, 1024));
+      ostream_ngram[rank].reset(new ostream_type(rank, ngram_tag, 1024));
       
-      istream_logprob[rank].reset(new istream_type(rank, logprob_tag, 4096));
-      ostream_logprob[rank].reset(new ostream_type(rank, logprob_tag, 4096));
+      istream_logprob[rank].reset(new istream_type(rank, logprob_tag, 1024));
+      ostream_logprob[rank].reset(new ostream_type(rank, logprob_tag, 1024));
     }
     
     queue_logprob[rank].reset(new queue_context_type());
     queue_ngram[rank].reset(new queue_context_type());
   }
   
-  thread_ptr_type mapper(new thread_type(mapper_type()));
-  thread_ptr_type reducer(new thread_type(reducer_type()));
-  thread_ptr_type server(new thread_type(server_type()));
+  // use the same queue!
+  queue_logprob[mpi_rank] = queue_ngram[mpi_rank];
+  
+  thread_ptr_type mapper(new thread_type(mapper_type(ngram, queue, queue_ngram, remove_unk, mpi_rank, mpi_size)));
+  thread_ptr_type reducer(new thread_type(reducer_type(ngram, shard_data, discounts, queue, queue_ngram, remove_unk, mpi_rank, mpi_size)));
+  thread_ptr_type server(new thread_type(server_type(ngram, shard_data, queue_logprob, queue_ngram, mpi_rank, mpi_size)));
   
   context_logprob_type context_logprob;
   std::string buffer;
+
+  size_type terminated_recv = 0;
+  size_type terminated_send = 0;
+  bool      finished = false;
   
   while (1) {
     bool found = false;
@@ -1380,6 +1574,8 @@ void estimate_ngram(const ngram_type& ngram,
 	  
 	  std::string line;
 	  while (std::getline(stream, line)) {
+	    typedef boost::tokenizer<utils::space_separator> tokenizer_type;
+	    
 	    tokenizer_type tokenizer(line);
 	    
 	    context_logprob.first.clear();
@@ -1387,9 +1583,13 @@ void estimate_ngram(const ngram_type& ngram,
 	    
 	    for (tokenizer_type::iterator iter = tokenizer.begin(); iter != tokenizer.end(); ++ iter)
 	      context_logprob.first.push_back(atol((*iter).c_str()));
-	    
-	    pending_logprob.push_back(context_logprob.second);
+
 	    queue_logprob[rank]->push_swap(context_logprob);
+	    
+	    if (! context_logprob.first.empty())
+	      pending_logprob[rank].push_back(context_logprob.second);
+	    else
+	      ++ terminated_recv;
 	  }
 	} else
 	  istream_ngram[rank].reset();
@@ -1401,12 +1601,12 @@ void estimate_ngram(const ngram_type& ngram,
     for (int rank = 0; rank < mpi_size; ++ rank)
       if (rank != mpi_rank && ostream_logprob[rank] && ostream_logprob[rank]->test()) {
 	buffer.clear();
-	boost::iostreams::filtering_ostream steram;
+	boost::iostreams::filtering_ostream stream;
 	stream.push(boost::iostreams::back_inserter(buffer));
 	
-	while (! pending_logprob.empty() && pending_logprob.font().ready()) {
-	  stream.write((char*) &static_cast<const logprob_type&>(pending_logprob.front()), sizeof(logprob_type));
-	  pending_logprob.pop_front();
+	while (! pending_logprob[rank].empty() && pending_logprob[rank].front().ready()) {
+	  stream.write((char*) &static_cast<const logprob_type&>(pending_logprob[rank].front()), sizeof(logprob_type));
+	  pending_logprob[rank].pop_front();
 	}
 	stream.pop();
 	
@@ -1420,14 +1620,17 @@ void estimate_ngram(const ngram_type& ngram,
     for (int rank = 0; rank < mpi_size; ++ rank)
       if (rank != mpi_rank && ostream_ngram[rank] && ostream_ngram[rank]->test()) {
 	buffer.clear();
-	boost::iostreams::filtering_ostream steram;
+	boost::iostreams::filtering_ostream stream;
 	stream.push(boost::iostreams::back_inserter(buffer));
 	
-	while (queue_ngram[rank].pop_swap(context_logprob, true)) {
+	while (queue_ngram[rank]->pop_swap(context_logprob, true)) {
 	  std::copy(context_logprob.first.begin(), context_logprob.first.end(), std::ostream_iterator<id_type>(stream, " "));
 	  stream << '\n';
 	  
-	  pending_ngram.push_back(context_logprob.second);
+	  if (! context_logprob.first.empty())
+	    pending_ngram[rank].push_back(context_logprob.second);
+	  else
+	    ++ terminated_send;
 	}
 	stream.pop();
 	
@@ -1436,7 +1639,6 @@ void estimate_ngram(const ngram_type& ngram,
 	  found = true;
 	}
       }
-    
     
     // receive ngram results..
     for (int rank = 0; rank < mpi_size; ++ rank)
@@ -1447,28 +1649,100 @@ void estimate_ngram(const ngram_type& ngram,
 	  stream.push(boost::iostreams::array_source(buffer.c_str(), buffer.size()));
 	  
 	  logprob_type logprob;
-	  do {
-	    stream.read((char*) &logprob, sizeof(logprob_type));
-	    if (stream.gcount() > 0) {
-	      pending_ngram[rank].front() += logprob;
-	      pending_ngram[rank].front().notify();
-	      pending_ngram[rank].pop_front();
-	    }
-	  } while (stream);
+	  while (stream.read((char*) &logprob, sizeof(logprob_type))) {
+	    pending_ngram[rank].front() += logprob;
+	    pending_ngram[rank].front().notify();
+	    pending_ngram[rank].pop_front();
+	  }
 	} else
 	  istream_logprob[rank].reset();
 	
 	found = true;
       }
     
-    // termination...?
-    if (std::count(istream_ngram.begin(), istream_ngram.end(), istream_ptr_type()) == mpi_size
-	&& std::count(ostream_ngram.begin(), ostream_ngram.end(), ostream_ptr_type()) == mpi_size
-	&& std::count(istream_logprob.begin(), istream_logprob.end(), istream_ptr_type()) == mpi_size
-	&& std::count(ostream_logprob.begin(), ostream_logprob.end(), ostream_ptr_type()) == mpi_size) break;
+    if (! finished && terminated_recv >= mpi_size - 1 && terminated_send >= mpi_size - 1) {
+      bool non_empty = false;
+      for (int rank = 0; rank < mpi_size; ++ rank) {
+	if (! pending_ngram[rank].empty())
+	  non_empty = true;
+	if (! pending_logprob[rank].empty())
+	  non_empty = true;
+	if (! queue_ngram[rank]->empty())
+	  non_empty = true;
+	if (! queue_logprob[rank]->empty())
+	  non_empty = true;
+      }
+      if (non_empty)
+	finished = true;
+    }
+    
+    if (finished) {
+      // terminate ostreams...
+      for (int rank = 0; rank < mpi_size; ++ rank)
+	if (ostream_ngram[rank] && ostream_ngram[rank]->test()) {
+	  if (! ostream_ngram[rank]->terminated())
+	    ostream_ngram[rank]->terminate();
+	  else
+	    ostream_ngram[rank].reset();
+	  
+	  found = true;
+	}
+      
+      for (int rank = 0; rank < mpi_size; ++ rank)
+	if (ostream_logprob[rank] && ostream_logprob[rank]->test()) {
+	  if (! ostream_logprob[rank]->terminated())
+	    ostream_logprob[rank]->terminate();
+	  else
+	    ostream_logprob[rank].reset();
+	  
+	  found = true;
+	}
+      
+      // termination...
+      if (std::count(istream_ngram.begin(), istream_ngram.end(), istream_ptr_type()) == mpi_size
+	  && std::count(ostream_ngram.begin(), ostream_ngram.end(), ostream_ptr_type()) == mpi_size
+	  && std::count(istream_logprob.begin(), istream_logprob.end(), istream_ptr_type()) == mpi_size
+	  && std::count(ostream_logprob.begin(), ostream_logprob.end(), ostream_ptr_type()) == mpi_size) break;
+    }
     
     if (! found)
       boost::thread::yield();
   }
   
+  mapper->join();
+  reducer->join();
+  server->join();
+}
+
+
+int getoptions(int argc, char** argv)
+{
+  const int mpi_rank = MPI::COMM_WORLD.Get_rank();
+  const int mpi_size = MPI::COMM_WORLD.Get_size();
+
+  namespace po = boost::program_options;
+  
+  po::options_description desc("options");
+  desc.add_options()
+    ("ngram",  po::value<path_type>(&ngram_file),  "ngram counts")
+    ("output", po::value<path_type>(&output_file), "output in binary format")
+
+    ("prog",   po::value<path_type>(&prog_name),   "this binary")
+    
+    ("remove-unk", po::bool_switch(&remove_unk),   "remove UNK when estimating language model")
+    
+    ("debug", po::value<int>(&debug)->implicit_value(1), "debug level")
+    ("help", "help message");
+  
+  po::variables_map vm;
+  po::store(po::parse_command_line(argc, argv, desc), vm);
+  po::notify(vm);
+  
+  if (vm.count("help")) {
+    if (mpi_rank == 0)
+      std::cout << argv[0] << " [options]" << '\n' << desc << '\n';
+    return 1;
+  }
+  
+  return 0;
 }

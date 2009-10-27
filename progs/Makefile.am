@@ -31,6 +31,7 @@ bin_PROGRAMS = \
 	ngram_counts_modify_mpi \
 	ngram_counts_dump \
 	ngram_counts_estimate \
+	ngram_counts_estimate_mpi \
 	ngram_counts_stat \
 	\
 	expgram_clean \
@@ -95,6 +96,10 @@ ngram_counts_dump_LDADD   = $(LIBEXPGRAM) $(LIBUTILS) $(boost_LDADD) $(perftools
 
 ngram_counts_estimate_SOURCES = ngram_counts_estimate.cpp
 ngram_counts_estimate_LDADD   = $(LIBEXPGRAM) $(LIBUTILS) $(boost_LDADD) $(perftools_LDADD)
+
+ngram_counts_estimate_mpi_SOURCES = ngram_counts_estimate_mpi.cpp
+ngram_counts_estimate_mpi_CPPFLAGS = $(MPI_CPPFLAGS) $(AM_CPPFLAGS)
+ngram_counts_estimate_mpi_LDADD   = $(MPI_LDFLAGS) $(LIBEXPGRAM) $(LIBUTILS) $(boost_LDADD) $(perftools_LDADD)
 
 ngram_counts_stat_SOURCES = ngram_counts_stat.cpp
 ngram_counts_stat_LDADD   = $(LIBEXPGRAM) $(LIBUTILS) $(boost_LDADD) $(perftools_LDADD)

@@ -65,7 +65,7 @@ namespace utils
   struct mpi_traits<uint32_t>
   {
     typedef uint32_t value_type;
-    static inline MPI::Datatype data_type() { return MPI::UNSIGNED_INT; }
+    static inline MPI::Datatype data_type() { return MPI::UNSIGNED; }
   };
   
 };
