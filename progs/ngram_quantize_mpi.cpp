@@ -121,6 +121,9 @@ void ngram_quantize(ngram_type& ngram)
   logprob_map_type    codebook;
   
   if (! ngram.logprobs[mpi_rank].quantized.is_open() && ngram.logprobs[mpi_rank].logprobs.is_open()) {
+
+    if (debug)
+      std::cerr << "shard: " << mpi_rank << " quantize logprob" << std::endl;
     
     const path_type path = utils::tempfile::directory_name(tmp_dir / "expgram.logprob.quantized.XXXXXX");
     utils::tempfile::insert(path);
@@ -145,6 +148,7 @@ void ngram_quantize(ngram_type& ngram)
     }
     
     os.pop();
+    
     utils::tempfile::permission(path);
     
     ngram.logprobs[mpi_rank].logprobs.clear();
@@ -152,6 +156,10 @@ void ngram_quantize(ngram_type& ngram)
   }
   
   if (! ngram.backoffs[mpi_rank].quantized.is_open() && ngram.backoffs[mpi_rank].logprobs.is_open()) {
+
+    if (debug)
+      std::cerr << "shard: " << mpi_rank << " quantize backoff" << std::endl;
+
     const path_type path = utils::tempfile::directory_name(tmp_dir / "expgram.backoff.quantized.XXXXXX");
     utils::tempfile::insert(path);
 	
@@ -182,6 +190,10 @@ void ngram_quantize(ngram_type& ngram)
   }
       
   if (! ngram.logbounds[mpi_rank].quantized.is_open() && ngram.logbounds[mpi_rank].logprobs.is_open()) {
+    
+    if (debug)
+      std::cerr << "shard: " << mpi_rank << " quantize logbound" << std::endl;
+    
     const path_type path = utils::tempfile::directory_name(tmp_dir / "expgram.logbound.quantized.XXXXXX");
     utils::tempfile::insert(path);
 	
@@ -210,7 +222,6 @@ void ngram_quantize(ngram_type& ngram)
     ngram.logbounds[mpi_rank].logprobs.clear();
     ngram.logbounds[mpi_rank].quantized.open(path);
   }
-    
 }
 
 
