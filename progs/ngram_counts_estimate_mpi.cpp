@@ -1483,7 +1483,7 @@ struct EstimateNGramReducer
 	const double percent_last(100.0 *  (pos_last - pos_estimate_first) / (pos_estimate_last - pos_estimate_first));
 	
 	if (percent_first < percent_next && percent_next <= percent_last) {
-	  if (debug)
+	  if (debug >= 2)
 	    std::cerr << "rank: " << mpi_rank << " " << percent_next << "%" << std::endl;
 	  percent_next += 10;
 	}
