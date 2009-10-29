@@ -36,6 +36,10 @@ Brief descriptions:
       ngram_stat/ngram_counts_stat
 	dump statistics on storage size
 
+      expgram_clearn
+	If you found spurious data on your temporary directory, run this to clean up the data. 
+	REMARK: make sure you are not runnning other expgram tools!
+
      The set of tools provided here extensively use temporary disk space specified either by TMPDIR or TMPDIR_SPEC.
      TMPDIR is usually set by default, and usually specified /tmp or /var/tmp
      Alternatively, you can specify via TMPDIR_SPEC: 
