@@ -44,7 +44,7 @@ Brief descriptions:
      
      The %host key word is simply replaced by the host of running machine (so that each binary may abuse only local-storage).
 
-For larger data, it is recommended to use mpi-version for scalability. (Currently, experimental, and NOT TESTED.)
+For larger data, it is recommended to use mpi-version for scalability.
 
       ngram_counts_extract_mpi
       ngram_counts_index_mpi

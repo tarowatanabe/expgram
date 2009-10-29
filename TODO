@@ -1,6 +1,3 @@
-
-* Test for MPI implementation!
-
 * Implement ngram_counts_filter/ngram_counts_filter_mpi
     - perform ngram-counts filtering by its "unigram" freqency
     - Less-frequent words are mapped into <unk>, thus ngram-counts recomputation will be required.
