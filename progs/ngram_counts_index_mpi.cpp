@@ -151,9 +151,9 @@ int main(int argc, char** argv)
 	throw std::runtime_error(std::string("no output?"));
       
       // we are reducers..
-      
       const path_type tmp_dir = utils::tempfile::tmp_dir();
       const path_type path_count = utils::tempfile::directory_name(tmp_dir / "expgram.count.XXXXXX");
+      utils::tempfile::insert(path_count);
       
       ngram_type ngram;
       
