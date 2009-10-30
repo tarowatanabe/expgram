@@ -361,7 +361,7 @@ struct MapReduceLine
 	    found = true;
 	  }
 	
-	if (is && lines.size() < max_lines && std::getline(is, line)) {
+	if (is && lines.size() < max_lines && queue.empty() && std::getline(is, line)) {
 	  lines.push_back(line);
 	  found = true;
 	}
