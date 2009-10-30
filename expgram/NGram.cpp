@@ -762,7 +762,7 @@ namespace expgram
 
     // unigrams...
     {
-      static const logprob_type logprob_bos = double(-99) * utils::mathop::log(10);
+      static const logprob_type logprob_bos = double(-99) * utils::mathop::log(10.0);
 
       os << "\\1-grams:" << '\n';
       for (size_type pos = 0; pos < index[0].offsets[1]; ++ pos) {
