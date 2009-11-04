@@ -564,7 +564,7 @@ struct MapReduceFile
       }
       
       for (int rank = 1; rank < mpi_size; ++ rank) 
-	if (stream[rank]) {
+	if (stream[rank] && stream[rank]->test()) {
 	  if (! stream[rank]->terminated())
 	    stream[rank]->terminate();
 	  else
