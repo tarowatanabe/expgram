@@ -44,6 +44,7 @@ namespace utils
       typedef std::vector<char, Alloc> buffer_type;
       
       impl() {}
+      ~impl() { close(); }
       
       void open(MPI::Comm& comm, int rank, int tag, size_t buffer_size=4096);
       void close();
@@ -216,6 +217,7 @@ namespace utils
       typedef std::vector<char, Alloc> buffer_type;
       
       impl() {}
+      ~impl() { close(); }
       
       void open(MPI::Comm& comm, int rank, int tag, size_t buffer_size=4096, bool __no_ready=false);
       void close();
