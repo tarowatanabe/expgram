@@ -95,9 +95,9 @@ namespace utils
   inline
   void basic_mpi_ostream<Alloc>::impl::terminate()
   {
-    wait();
-    
     if (buffer_size >= 0) {
+      wait();
+      
       buffer_size = -1;
       request_size.Start();
     }
@@ -254,6 +254,8 @@ namespace utils
   void basic_mpi_istream<Alloc>::impl::open(MPI::Comm& comm, int rank, int tag, size_t __buffer_size, bool __no_ready)
   {
     close();
+
+    no_ready = __no_ready;
     
     buffer.clear();
     buffer_size = -1;
@@ -272,8 +274,6 @@ namespace utils
     request_size.Start();
     request_buffer.Start();
     request_buffer_size.Start();
-
-    no_ready = __no_ready;
   }
   
   template <typename Alloc>
