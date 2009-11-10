@@ -199,32 +199,19 @@ int main(int argc, char** argv)
 	
 	non_found_iter = loop_sleep(found, non_found_iter);
       }
-
+      
       thread->join();
       
     } else {
-      typedef Task task_type;
-      
-      typedef task_type::thread_type thread_type;
-      typedef task_type::queue_type  queue_type;
-      
-      queue_type queue(1);
-      std::auto_ptr<thread_type> thread(new thread_type(task_type(queue)));
-      
       utils::mpi_istream is(0, command_tag, 4096, true);
       std::string command;
       while (is.read(command)) {
 	if (debug)
 	  std::cerr << "rank: " << mpi_rank << " " << command << std::endl;
 	
-	queue.push(command);
-	queue.wait_empty();
+	run_command(command);
 	is.ready();
       }
-      
-      queue.push(std::string());
-
-      thread->join();
     }
   }
   catch (const std::exception& err) {
