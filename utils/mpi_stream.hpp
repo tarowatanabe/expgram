@@ -95,11 +95,11 @@ namespace utils
     buffer.clear();
     buffer.insert(buffer.end(), data.begin(), data.end());
     
+    if (! buffer.empty())
+      request_buffer = comm->Isend(&(*buffer.begin()), buffer.size(), MPI::CHAR, rank, (tag << tag_shift) | tag_buffer);
+    
     request_size.Start();
     request_ack.Start();
-
-    if (buffer_size > 0)
-      request_buffer = comm->Isend(&(*buffer.begin()), buffer.size(), MPI::CHAR, rank, (tag << tag_shift) | tag_buffer);
   }
   
   template <typename Alloc>
@@ -109,6 +109,7 @@ namespace utils
     wait();
     
     if (buffer_size >= 0) {
+      buffer.clear();
       buffer_size = -1;
       request_size.Start();
     }
