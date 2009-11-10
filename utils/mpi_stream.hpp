@@ -113,6 +113,7 @@ namespace utils
     if (buffer_size >= 0 && flush() == 0 && request_buffer_size.Test() && request_buffer.Test()) {
       buffer_size = -1;
       request_size.Start();
+      request_ack.Start();
     }
   }
   
@@ -175,7 +176,7 @@ namespace utils
   template <typename Alloc>
   bool basic_mpi_ostream<Alloc>::impl::terminated()
   {
-    return test() && flush() == 0 && buffer_size < 0;
+    return test() && flush() == 0 && buffer_size < 0 && request_buffer_size.Test() && request_buffer.Test();
   }
   
   template <typename Alloc>
@@ -316,9 +317,14 @@ namespace utils
 
     wait();
     
-    if (buffer_size < 0)
+    if (buffer_size < 0) {
+      // close...
+      request_ack.Start();
+      while (! request_ack.Test())
+	boost::thread::yield();
+      
       close();
-    else {
+    } else {
       data.insert(data.end(), buffer.begin(), buffer.begin() + buffer_size);
       buffer.erase(buffer.begin(), buffer.begin() + buffer_size);
 
