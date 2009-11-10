@@ -25,7 +25,6 @@ namespace utils
     static const int tag_ack         = 0;
     static const int tag_size        = 1;
     static const int tag_buffer      = 2;
-    static const int tag_buffer_size = 3;
   };
 
   template <typename Alloc=std::allocator<char> >
@@ -44,7 +43,6 @@ namespace utils
     
     bool test() { return pimpl->test(); }
     void wait() { pimpl->wait(); };
-    size_t flush() { return pimpl->flush(); }
    
     void terminate() { pimpl->terminate(); }
     bool terminated() { return pimpl->terminated(); }
@@ -55,7 +53,7 @@ namespace utils
     struct impl : public __basic_mpi_stream_base
     {
       typedef std::vector<char, Alloc> buffer_type;
-
+      
       impl() {}
       ~impl() { close(); }
 
@@ -66,24 +64,22 @@ namespace utils
 
       bool test();
       void wait();
-      size_t flush();
       
       void terminate();
       bool terminated();
 
       bool is_open() const;
+
+      MPI::Comm* comm;
+      int        rank;
+      int        tag;
       
       buffer_type  buffer;
       volatile int buffer_size;
-
-      buffer_type  buffer_send;
-      volatile int buffer_send_size;
-
+      
       MPI::Prequest request_ack;
       MPI::Prequest request_size;
-
-      MPI::Prequest request_buffer;
-      MPI::Prequest request_buffer_size;
+      MPI::Request  request_buffer;
     };
 
     boost::shared_ptr<impl> pimpl;
@@ -96,12 +92,14 @@ namespace utils
     wait();
     
     buffer_size = data.size();
+    buffer.clear();
     buffer.insert(buffer.end(), data.begin(), data.end());
     
     request_size.Start();
     request_ack.Start();
-    
-    flush();
+
+    if (buffer_size > 0)
+      request_buffer = comm->Isend(&(*buffer.begin()), buffer.size(), MPI::CHAR, rank, (tag << tag_shift) | tag_buffer);
   }
   
   template <typename Alloc>
@@ -110,32 +108,28 @@ namespace utils
   {
     wait();
     
-    if (buffer_size >= 0 && flush() == 0 && request_buffer_size.Test() && request_buffer.Test()) {
+    if (buffer_size >= 0) {
       buffer_size = -1;
       request_size.Start();
-      request_ack.Start();
     }
   }
   
   template <typename Alloc>
   inline
-  void basic_mpi_ostream<Alloc>::impl::open(MPI::Comm& comm, int rank, int tag, size_t __buffer_size)
+  void basic_mpi_ostream<Alloc>::impl::open(MPI::Comm& __comm, int __rank, int __tag, size_t __buffer_size)
   {
     close();
-
+    
+    comm = &__comm;
+    rank = __rank;
+    tag  = __tag;
+    
     buffer.clear();
     buffer_size = 0;
-
-    buffer_send.reserve(__buffer_size);
-    buffer_send.resize(__buffer_size);
-    buffer_send_size = 0;
-
-    request_ack  = comm.Recv_init(0, 0, MPI::INT, rank, (tag << tag_shift) | tag_ack);
-    request_size = comm.Send_init(const_cast<int*>(&buffer_size), 1, MPI::INT, rank, (tag << tag_shift) | tag_size);
     
-    request_buffer      = comm.Send_init(&(*buffer_send.begin()), buffer_send.size(), MPI::CHAR, rank, (tag << tag_shift) | tag_buffer);
-    request_buffer_size = comm.Send_init(const_cast<int*>(&buffer_send_size), 1, MPI::INT, rank, (tag << tag_shift) | tag_buffer_size);
-
+    request_ack  = comm->Recv_init(0, 0, MPI::INT, rank, (tag << tag_shift) | tag_ack);
+    request_size = comm->Send_init(const_cast<int*>(&buffer_size), 1, MPI::INT, rank, (tag << tag_shift) | tag_size);
+    
     request_ack.Start();
   }
 
@@ -146,66 +140,40 @@ namespace utils
     request_size.Cancel();
     request_ack.Cancel();
     request_buffer.Cancel();
-    request_buffer_size.Cancel();
-
+    
     buffer.clear();
-    buffer_send.clear();
-  }
 
-  template <typename Alloc>
-  inline
-  size_t basic_mpi_ostream<Alloc>::impl::flush()
-  {
-    // returns remaining buffer sizes...
-    
-    if (! request_buffer_size.Test() || ! request_buffer.Test())
-      return buffer.size() + buffer_send_size;
-    
-    if (buffer.empty()) return 0;
-    
-    buffer_send_size = std::min(buffer_send.size(), buffer.size());
-    std::copy(buffer.begin(), buffer.begin() + buffer_send_size, buffer_send.begin());
-    buffer.erase(buffer.begin(), buffer.begin() + buffer_send_size);
-    
-    request_buffer_size.Start();
-    request_buffer.Start();
-    
-    return buffer.size() + buffer_send_size;
+    comm = 0;
+    rank = 0;
+    tag = 0;
   }
+  
   
   template <typename Alloc>
   bool basic_mpi_ostream<Alloc>::impl::terminated()
   {
-    return test() && flush() == 0 && buffer_size < 0 && request_buffer_size.Test() && request_buffer.Test();
+    return test() && buffer_size < 0;
   }
   
   template <typename Alloc>
   bool basic_mpi_ostream<Alloc>::impl::is_open() const
   {
-    return ! terminated();
+    return comm;
   }
   
   template <typename Alloc>
   bool basic_mpi_ostream<Alloc>::impl::test()
   {
-    flush();
-    
-    return request_size.Test() && request_ack.Test();
+    return request_size.Test() && request_ack.Test() && request_buffer.Test();
   }
   
   template <typename Alloc>
   void basic_mpi_ostream<Alloc>::impl::wait()
   {
-    flush();
-    
-    while (! request_size.Test() || ! request_ack.Test()) {
-      flush();
+    while (! request_size.Test() || ! request_ack.Test() || ! request_buffer.Test())
       boost::thread::yield();
-    }
   }
-
-
-
+  
   template <typename Alloc=std::allocator<char> >
   class basic_mpi_istream
   {
@@ -225,7 +193,6 @@ namespace utils
     bool test() { return pimpl->test(); }
     void wait() { pimpl->wait(); };
     void ready() { pimpl->ready(); }
-    size_t fill() { return pimpl->fill(); }
 
     operator bool() const { return pimpl->is_open(); }
 
@@ -244,23 +211,21 @@ namespace utils
 
       bool test();
       void wait();
-      size_t fill();
       void ready();
 
       bool is_open() const;
 
+      MPI::Comm* comm;
+      int        rank;
+      int        tag;
+
       buffer_type  buffer;
       volatile int buffer_size;
 
-      buffer_type  buffer_recv;
-      volatile int buffer_recv_size;
-
       MPI::Prequest request_ack;
       MPI::Prequest request_size;
-
-      MPI::Prequest request_buffer;
-      MPI::Prequest request_buffer_size;
-
+      MPI::Request  request_buffer;
+      
       bool no_ready;
     };
 
@@ -269,29 +234,24 @@ namespace utils
 
 
   template <typename Alloc>
-  void basic_mpi_istream<Alloc>::impl::open(MPI::Comm& comm, int rank, int tag, size_t __buffer_size, bool __no_ready)
+  void basic_mpi_istream<Alloc>::impl::open(MPI::Comm& __comm, int __rank, int __tag, size_t __buffer_size, bool __no_ready)
   {
     close();
 
+    comm = &__comm;
+    rank = __rank;
+    tag  = __tag;
+    
     no_ready = __no_ready;
-
+    
     buffer.clear();
     buffer_size = -1;
 
-    buffer_recv.reserve(__buffer_size);
-    buffer_recv.resize(__buffer_size);
-    buffer_recv_size = 0;
-
-    request_ack  = comm.Send_init(0, 0, MPI::INT, rank, (tag << tag_shift) | tag_ack);
-    request_size = comm.Recv_init(const_cast<int*>(&buffer_size), 1, MPI::INT, rank, (tag << tag_shift) | tag_size);
-
-    request_buffer      = comm.Recv_init(&(*buffer_recv.begin()), buffer_recv.size(), MPI::CHAR, rank, (tag << tag_shift) | tag_buffer);
-    request_buffer_size = comm.Recv_init(const_cast<int*>(&buffer_recv_size), 1, MPI::INT, rank, (tag << tag_shift) | tag_buffer_size);
+    request_ack  = comm->Send_init(0, 0, MPI::INT, rank, (tag << tag_shift) | tag_ack);
+    request_size = comm->Recv_init(const_cast<int*>(&buffer_size), 1, MPI::INT, rank, (tag << tag_shift) | tag_size);
     
     request_ack.Start();
     request_size.Start();
-    request_buffer.Start();
-    request_buffer_size.Start();
   }
 
   template <typename Alloc>
@@ -301,10 +261,12 @@ namespace utils
     request_size.Cancel();
     request_ack.Cancel();
     request_buffer.Cancel();
-    request_buffer_size.Cancel();
-
+    
     buffer.clear();
-    buffer_recv.clear();
+    
+    comm = 0;
+    rank = 0;
+    tag = 0;
     
     no_ready = false;
   }
@@ -313,26 +275,20 @@ namespace utils
   inline
   void basic_mpi_istream<Alloc>::impl::read(std::string& data)
   {
-    data.clear();
-
     wait();
-    
-    if (buffer_size < 0) {
-      // close...
-      request_ack.Start();
-      while (! request_ack.Test())
-	boost::thread::yield();
-      
-      close();
-    } else {
-      data.insert(data.end(), buffer.begin(), buffer.begin() + buffer_size);
-      buffer.erase(buffer.begin(), buffer.begin() + buffer_size);
 
+    data.clear();
+    
+    if (buffer_size < 0)
+      close();
+    else {
+      data.insert(data.end(), buffer.begin(), buffer.end());
+      buffer.clear();
+      buffer_size = -1;
+      
       if (! no_ready) {
 	request_size.Start();
 	request_ack.Start();
-	
-	fill();
       }
     }
   }
@@ -343,75 +299,50 @@ namespace utils
   {
     if (! no_ready) return;
     
-    while (! request_ack.Test() || ! request_size.Test()) {
-      fill();
-      boost::thread::yield();
-    }
+    wait();
     
     request_size.Start();
     request_ack.Start();
-    
-    fill();
   }
-
-  template <typename Alloc>
-  inline
-  size_t basic_mpi_istream<Alloc>::impl::fill()
-  {
-    if (! request_buffer_size.Test() || ! request_buffer.Test())
-      return buffer.size();
-    
-    const int copy_size = buffer_recv_size;
-    buffer.insert(buffer.end(), buffer_recv.begin(), buffer_recv.begin() + copy_size);
-    
-    request_buffer_size.Start();
-    request_buffer.Start();
-    
-    return buffer.size() + copy_size;
-  }
-
+  
   template <typename Alloc>
   inline
   bool basic_mpi_istream<Alloc>::impl::is_open() const
   {
-    return ! buffer_recv.empty();
+    return comm;
   }
 
   template <typename Alloc>
   inline
   bool basic_mpi_istream<Alloc>::impl::test()
   {
-    fill();
-    
     if (! request_ack.Test() || ! request_size.Test()) return false;
-    
-    fill();
     
     if (buffer_size <= 0) return true;
     
-    fill();
+    if (buffer.empty()) {
+      buffer.resize(buffer_size);
+      request_buffer = comm->Irecv(&(*buffer.begin()), buffer.size(), MPI::CHAR, rank, (tag << tag_shift) | tag_buffer);
+    }
     
-    return buffer.size() >= buffer_size;
+    return request_buffer.Test();
   }
   
   template <typename Alloc>
   inline
   void basic_mpi_istream<Alloc>::impl::wait()
   {
-    fill();
-    
-    while (! request_ack.Test() || ! request_size.Test()) {
-      fill();
+    while (! request_ack.Test() || ! request_size.Test())
       boost::thread::yield();
+    
+    if (buffer_size <= 0) return;
+    
+    if (buffer.empty()) {
+      buffer.resize(buffer_size);
+      request_buffer = comm->Irecv(&(*buffer.begin()), buffer.size(), MPI::CHAR, rank, (tag << tag_shift) | tag_buffer);
     }
     
-    fill();
-    
-    if (buffer_size > 0)
-      while (buffer.size() < buffer_size) {
-	fill();
-	boost::thread::yield();
-      }
+    request_buffer.Wait();
   }
 
 
@@ -419,6 +350,5 @@ namespace utils
   typedef basic_mpi_ostream<> mpi_ostream;
   typedef basic_mpi_istream<> mpi_istream;
 };
-
 
 #endif

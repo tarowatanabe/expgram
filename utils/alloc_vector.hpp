@@ -27,6 +27,12 @@ namespace utils
       inline       alloc_type& alloc()       { return static_cast<alloc_type&>(*this); }
       inline const alloc_type& alloc() const { return static_cast<const alloc_type&>(*this); }
 
+      void swap(impl_type& x)
+      {
+	__map.swap(x.__map);
+	std::swap(alloc(), x.alloc());
+      }
+
       void resize(size_t __size)
       {
 	if (__size == __map.size()) return;
@@ -104,7 +110,12 @@ namespace utils
     bool empty() const { return impl.map().empty(); }
     bool exists(size_type __pos) const { return (__pos < impl.map().size() && impl.map()[__pos]); }
 
-
+    void push_back(const value_type& __value)
+    {
+      impl.map().push_back(impl.alloc().allocate(1));
+      utils::construct_object(impl.map().back(), __value);
+    }
+    
     void resize(size_type __size)
     {
       if (__size < impl.map().size())
@@ -119,7 +130,27 @@ namespace utils
     { 
       __destroy_range(impl.map().begin(), impl.map().end());
       impl.clear();
-    }    
+    }
+
+    
+    void swap(alloc_vector& x) { impl.swap(x.impl); }
+    
+    template <typename _Comp>
+    struct __comp_value
+    {
+      _Comp __comp;
+      __comp_value(const _Comp& x) : __comp(x) {}
+      bool operator()(const value_type* x, const value_type* y) const
+      {
+	return __comp(*x, *y);
+      }
+    };
+    
+    template <typename Comp>
+    void sort(Comp comp)
+    {
+      std::sort(impl.map(), impl.map(), __comp_value<Comp>(comp));
+    }
 
     void erase(iterator __iter)
     {
@@ -214,6 +245,17 @@ namespace utils
     impl_type impl;
   };
   
+};
+
+namespace std
+{
+  template <typename Tp, typename Alloc>
+  inline
+  void swap(utils::alloc_vector<Tp,Alloc>& x,
+	    utils::alloc_vector<Tp,Alloc>& y)
+  {
+    x.swap(y);
+  }
 };
 
 #endif
