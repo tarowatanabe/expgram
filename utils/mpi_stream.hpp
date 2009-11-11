@@ -165,19 +165,14 @@ namespace utils
   template <typename Alloc>
   bool basic_mpi_ostream<Alloc>::impl::test()
   {
-    return request_size.Test() && request_ack.Test() && (buffer.empty() || request_buffer.Test());
+    return request_size.Test() && request_ack.Test() && request_buffer.Test();
   }
   
   template <typename Alloc>
   void basic_mpi_ostream<Alloc>::impl::wait()
   {
-    if (buffer.empty()) {
-      while (! request_size.Test() || ! request_ack.Test())
-	boost::thread::yield();
-    } else {
-      while (! request_size.Test() || ! request_ack.Test() || ! request_buffer.Test())
-	boost::thread::yield();
-    }
+    while (! request_size.Test() || ! request_ack.Test() || ! request_buffer.Test())
+      boost::thread::yield();
   }
   
   template <typename Alloc=std::allocator<char> >
