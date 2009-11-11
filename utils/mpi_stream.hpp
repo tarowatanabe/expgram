@@ -54,7 +54,7 @@ namespace utils
     {
       typedef std::vector<char, Alloc> buffer_type;
       
-      impl() {}
+      impl() : comm(0) {}
       ~impl() { close(); }
 
       void open(MPI::Comm& comm, int rank, int tag, size_t buffer_size=4096);
@@ -138,12 +138,16 @@ namespace utils
   inline
   void basic_mpi_ostream<Alloc>::impl::close()
   {
-    request_size.Cancel();
-    request_ack.Cancel();
-    request_buffer.Cancel();
+    if (comm) {
+      if (! terminated())
+	terminate();
+      
+      wait();
+    }
     
     buffer.clear();
-
+    buffer_size = -1;
+    
     comm = 0;
     rank = 0;
     tag = 0;
@@ -202,7 +206,7 @@ namespace utils
     {
       typedef std::vector<char, Alloc> buffer_type;
 
-      impl() {}
+      impl() : comm(0) {}
       ~impl() { close(); }
 
       void open(MPI::Comm& comm, int rank, int tag, size_t buffer_size=4096, bool __no_ready=false);
@@ -259,11 +263,11 @@ namespace utils
   inline
   void basic_mpi_istream<Alloc>::impl::close()
   {
-    request_size.Cancel();
-    request_ack.Cancel();
-    request_buffer.Cancel();
+    if (comm)
+      wait();
     
     buffer.clear();
+    buffer_size = -1;
     
     comm = 0;
     rank = 0;
