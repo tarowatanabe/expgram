@@ -12,6 +12,7 @@
 
 #include <boost/iostreams/categories.hpp>
 #include <boost/shared_ptr.hpp>
+#include <boost/thread.hpp>
 
 #include <mpi.h>
 
@@ -253,10 +254,12 @@ namespace utils
     if (! is_open())
       return;
 
-    if (! const_cast<mpi_device_sink::impl&>(*this).request_size.Test())
-      const_cast<mpi_device_sink::impl&>(*this).request_size.Wait();
-    if (! const_cast<mpi_device_sink::impl&>(*this).request_buffer.Test())
-      const_cast<mpi_device_sink::impl&>(*this).request_buffer.Wait();
+    while (! const_cast<mpi_device_sink::impl&>(*this).request_size.Test() || ! const_cast<mpi_device_sink::impl&>(*this).request_buffer.Test()) {
+      const_cast<mpi_device_sink::impl&>(*this).request_buffer.Test();
+      const_cast<mpi_device_sink::impl&>(*this).request_size.Test();
+      
+      boost::thread::yield();
+    }
   }
 
   void mpi_device_source::impl::wait() const
@@ -264,26 +267,39 @@ namespace utils
     if (! is_open())
       return;
     
-    if (! const_cast<mpi_device_source::impl&>(*this).request_size.Test())
-      const_cast<mpi_device_source::impl&>(*this).request_size.Wait();
-    if (! const_cast<mpi_device_source::impl&>(*this).request_buffer.Test())
-      const_cast<mpi_device_source::impl&>(*this).request_buffer.Wait();
+    while (! const_cast<mpi_device_source::impl&>(*this).request_size.Test() || ! const_cast<mpi_device_source::impl&>(*this).request_buffer.Test()) {
+      const_cast<mpi_device_source::impl&>(*this).request_buffer.Test();
+      const_cast<mpi_device_source::impl&>(*this).request_size.Test();
+    }
   }
   
   bool mpi_device_sink::impl::test() const
   {
     if (! is_open())
       return true;
-    else
-      return const_cast<mpi_device_sink::impl&>(*this).request_size.Test() && const_cast<mpi_device_sink::impl&>(*this).request_buffer.Test();
+
+    if (const_cast<mpi_device_sink::impl&>(*this).request_size.Test() && const_cast<mpi_device_sink::impl&>(*this).request_buffer.Test())
+      return true;
+    else {
+      const_cast<mpi_device_sink::impl&>(*this).request_buffer.Test();
+      const_cast<mpi_device_sink::impl&>(*this).request_size.Test();
+      return false;
+    }
   }
   
   bool mpi_device_source::impl::test() const
   {
     if (! is_open()) 
       return true;
-    else
-      return const_cast<mpi_device_source::impl&>(*this).request_size.Test() && const_cast<mpi_device_source::impl&>(*this).request_buffer.Test();  }
+    
+    if (const_cast<mpi_device_source::impl&>(*this).request_size.Test() && const_cast<mpi_device_source::impl&>(*this).request_buffer.Test())
+      return true;
+    else {
+      const_cast<mpi_device_source::impl&>(*this).request_buffer.Test();
+      const_cast<mpi_device_source::impl&>(*this).request_size.Test();
+      return false;
+    }
+  }
   
   bool mpi_device_sink::impl::is_open() const
   {
