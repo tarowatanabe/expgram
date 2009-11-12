@@ -169,21 +169,42 @@ namespace utils
   template <typename Alloc>
   bool basic_mpi_ostream<Alloc>::impl::test()
   {
-    if (buffer.empty())
-      return request_size.Test() && request_ack.Test();
-    else
-      return request_size.Test() && request_ack.Test() && request_buffer.Test();
+    if (buffer.empty()) {
+      if (request_size.Test() && request_ack.Test())
+	return true;
+      else {
+	request_ack.Test();
+	request_size.Test();
+	return false;
+      }
+    } else {
+      if (request_size.Test() && request_ack.Test() && request_buffer.Test())
+	return true;
+      else {
+	request_buffer.Test();
+	request_ack.Test();
+	request_size.Test();
+	return false;
+      }
+    }
   }
   
   template <typename Alloc>
   void basic_mpi_ostream<Alloc>::impl::wait()
   {
     if (buffer.empty()) {
-      while (! request_size.Test() || ! request_ack.Test())
+      while (! request_size.Test() || ! request_ack.Test()) {
+	request_ack.Test();
+	request_size.Test();
 	boost::thread::yield();
+      }
     } else {
-      while (! request_size.Test() || ! request_ack.Test() || ! request_buffer.Test())
+      while (! request_size.Test() || ! request_ack.Test() || ! request_buffer.Test()) {
+	request_buffer.Test();
+	request_ack.Test();
+	request_size.Test();
 	boost::thread::yield();
+      }
     }
   }
   
@@ -259,12 +280,12 @@ namespace utils
     
     buffer.clear();
     buffer_size = -1;
-
-    request_ack  = comm->Send_init(0, 0, MPI::INT, rank, (tag << tag_shift) | tag_ack);
-    request_size = comm->Recv_init(const_cast<int*>(&buffer_size), 1, MPI::INT, rank, (tag << tag_shift) | tag_size);
     
-    request_ack.Start();
+    request_size = comm->Recv_init(const_cast<int*>(&buffer_size), 1, MPI::INT, rank, (tag << tag_shift) | tag_size);
+    request_ack  = comm->Send_init(0, 0, MPI::INT, rank, (tag << tag_shift) | tag_ack);
+    
     request_size.Start();
+    request_ack.Start();
   }
 
   template <typename Alloc>
@@ -329,7 +350,11 @@ namespace utils
   inline
   bool basic_mpi_istream<Alloc>::impl::test()
   {
-    if (! request_ack.Test() || ! request_size.Test()) return false;
+    if (! request_size.Test() || ! request_ack.Test()) {
+      request_ack.Test();
+      request_size.Test();
+      return false;
+    }
     
     if (buffer_size <= 0) return true;
     
@@ -345,8 +370,12 @@ namespace utils
   inline
   void basic_mpi_istream<Alloc>::impl::wait()
   {
-    while (! request_ack.Test() || ! request_size.Test())
+    while (! request_size.Test() || ! request_ack.Test()) {
+      request_ack.Test();
+      request_size.Test();
+      
       boost::thread::yield();
+    }
     
     if (buffer_size <= 0) return;
     
