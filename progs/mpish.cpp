@@ -78,6 +78,7 @@ struct Task
 
 enum {
   command_tag = 1000,
+  count_tag,
 };
 
 inline
@@ -124,6 +125,12 @@ int main(int argc, char** argv)
       for (int rank = 1; rank < mpi_size; ++ rank)
 	stream[rank].reset(new ostream_type(rank, command_tag, 4096));
 
+
+      std::vector<int, std::allocator<int> >                   num_command(mpi_size, 0);
+      std::vector<MPI::Request, std::allocator<MPI::Request> > requests(mpi_size);
+      for (int rank = 1; rank < mpi_size; ++ rank)
+	requests[rank] = MPI::COMM_WORLD.Irecv(&num_command[rank], 1, MPI::INT, rank, count_tag);
+      
       for (int rank = 1; rank < mpi_size; ++ rank) {
 	while (! stream[rank]->test())
 	  boost::thread::yield();
@@ -167,6 +174,7 @@ int main(int argc, char** argv)
 		std::cerr << "rank: " << mpi_rank << " " << command << std::endl;
 	      
 	      queue.push(command);
+	      ++ num_command[0];
 	      
 	      found = true;
 	    }
@@ -190,28 +198,45 @@ int main(int argc, char** argv)
 	  if (stream[rank] && stream[rank]->test()) {
 	    if (! stream[rank]->terminated())
 	      stream[rank]->terminate();
-	    else
+	    else {
 	      stream[rank].reset();
+	      requests[rank].Test();
+	    }
 	    found = true;
 	  }
 	
-	if (terminated && std::count(stream.begin(), stream.end(), ostream_ptr_type()) == mpi_size) break;
+	if (terminated && std::count(stream.begin(), stream.end(), ostream_ptr_type()) == mpi_size) {
+	  bool waiting = false;
+	  for (int rank = 1; rank < mpi_size; ++ rank)
+	    waiting |= (! requests[rank].Test());
+	  if (! waiting)
+	    break;
+	}
 	
 	non_found_iter = loop_sleep(found, non_found_iter);
       }
       
       thread->join();
+
+      if (debug) {
+	for (int rank = 0; rank < mpi_size; ++ rank)
+	  std::cerr << "rank: " << rank << " processed: " << num_command[rank] << std::endl;
+      }
+
       
     } else {
       utils::mpi_istream is(0, command_tag, 4096, true);
       std::string command;
+      int num_command = 0;
       while (is.read(command)) {
 	if (debug)
 	  std::cerr << "rank: " << mpi_rank << " " << command << std::endl;
 	
 	run_command(command);
+	++ num_command;
 	is.ready();
       }
+      MPI::COMM_WORLD.Send(&num_command, 1, MPI::INT, 0, count_tag);
     }
   }
   catch (const std::exception& err) {
