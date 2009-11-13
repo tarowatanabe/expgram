@@ -188,6 +188,7 @@ enum {
   line_tag = 5000,
   file_tag,
   path_tag,
+  count_tag,
 };
 
 void reduce_counts_root(path_map_type& paths_counts)
@@ -511,6 +512,11 @@ struct MapReduceFile
     
     for (int rank = 1; rank < mpi_size; ++ rank)
       stream[rank].reset(new ostream_type(rank, file_tag, 4096));
+
+    std::vector<int, std::allocator<int> >                   num_file(mpi_size, 0);
+    std::vector<MPI::Request, std::allocator<MPI::Request> > requests(mpi_size);
+    for (int rank = 1; rank < mpi_size; ++ rank)
+      requests[rank] = MPI::COMM_WORLD.Irecv(&num_file[rank], 1, MPI::INT, rank, count_tag);
     
     queue_type queue(1);
     std::auto_ptr<thread_type> thread(subprocess.get()
@@ -545,6 +551,7 @@ struct MapReduceFile
 	  std::cerr << "file: " << piter->file_string() << std::endl;
 	
 	queue.push(*piter);
+	++ num_file[0];
 	++ piter;
 	found = true;
       }
@@ -567,17 +574,30 @@ struct MapReduceFile
 	if (stream[rank] && stream[rank]->test()) {
 	  if (! stream[rank]->terminated())
 	    stream[rank]->terminate();
-	  else
+	  else {
 	    stream[rank].reset();
+	    requests[rank].Test();
+	  }
 	  found = true;
 	}
       
-      if (terminated && std::count(stream.begin(), stream.end(), ostream_ptr_type()) == mpi_size) break;
+      if (terminated && std::count(stream.begin(), stream.end(), ostream_ptr_type()) == mpi_size) {
+	bool waiting = false;
+	for (int rank = 1; rank < mpi_size; ++ rank)
+	  waiting |= (! requests[rank].Test());
+	if (! waiting)
+	  break;
+      }
       
       non_found_iter = loop_sleep(found, non_found_iter);
     }    
     
     thread->join();
+
+    if (debug) {
+      for (int rank = 0; rank < mpi_size; ++ rank)
+	std::cerr << "rank: " << rank << " files: " << num_file[rank] << std::endl;
+    }
   }
   
   static inline
@@ -598,13 +618,14 @@ struct MapReduceFile
 				      ? new thread_type(task_type(queue, *subprocess, output_path, paths_counts, max_malloc))
 				      : new thread_type(task_type(queue, output_path, paths_counts, max_malloc)));
     
+    int num_file = 0;
     std::string file;
     while (stream.read(file)) {
-      
       if (debug >= 2)
 	std::cerr << "rank: " << mpi_rank << " file: " << file << std::endl;
-
+      
       queue.push(file);
+      ++ num_file;
       queue.wait_empty();
     }
     file.clear();
@@ -612,6 +633,7 @@ struct MapReduceFile
     
     thread->join();
     
+    MPI::COMM_WORLD.Send(&num_file, 1, MPI::INT, 0, count_tag);
   }
 };
 
