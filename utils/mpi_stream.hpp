@@ -116,7 +116,7 @@ namespace utils
       request_buffer = comm->Isend(&(*buffer.begin()), buffer.size(), MPI::CHAR, rank, (tag << tag_shift) | tag_buffer);
     
     ++ ack_expected;
-    request_ack.Start();
+    // request_ack.Start();
   }
   
   template <typename Alloc>
@@ -137,11 +137,11 @@ namespace utils
   void basic_mpi_ostream<Alloc>::impl::open(MPI::Comm& __comm, int __rank, int __tag, size_t __buffer_size)
   {
     close();
-
+    
     comm = &__comm;
     rank = __rank;
     tag  = __tag;
-
+    
     buffer.clear();
     buffer_size = 0;
     ack = 0;
@@ -196,7 +196,12 @@ namespace utils
     switch (state) {
     case tag_size:
       if (! request_size.Test()) return false;
-      if (buffer_size <= 0) {
+      
+      if (buffer_size < 0) {	
+	state = tag_ready;
+	return true;
+      } else if (buffer_size == 0) {
+	request_ack.Start();
 	state = tag_ack;
 	if (! request_ack.Test()) return false;
 	state = tag_ready;
@@ -205,16 +210,10 @@ namespace utils
 	state = tag_buffer;
     case tag_buffer:
       if (! request_buffer.Test()) return false;
+      request_ack.Start();
       state = tag_ack;
     case tag_ack:
       if (! request_ack.Test()) return false;
-      
-#if 0
-      if (ack != ack_expected) {
-	throw std::runtime_error("# of ack signal do not match");
-      }
-#endif
-
       state = tag_ready;
     default:
       return true;
@@ -322,7 +321,6 @@ namespace utils
     request_size = comm->Recv_init(const_cast<int*>(&buffer_size), 1, MPI::INT, rank, (tag << tag_shift) | tag_size);
 
     request_ack.Start();
-    request_size.Start();
     state = tag_ack;
     
     test();
@@ -368,7 +366,6 @@ namespace utils
       if (! no_ready) {
 	++ ack;
 	request_ack.Start();
-	request_size.Start();
 	state = tag_ack;
 	
 	test();
@@ -384,7 +381,6 @@ namespace utils
     
     ++ ack;
     request_ack.Start();
-    request_size.Start();
     state = tag_ack;
     
     test();
@@ -405,6 +401,7 @@ namespace utils
     switch (state) {
     case tag_ack:
       if (! request_ack.Test()) return false;
+      request_size.Start();
       state = tag_size;
     case tag_size:
       if (! request_size.Test()) return false;
