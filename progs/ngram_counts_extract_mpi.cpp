@@ -574,10 +574,9 @@ struct MapReduceFile
 	if (stream[rank] && stream[rank]->test()) {
 	  if (! stream[rank]->terminated())
 	    stream[rank]->terminate();
-	  else {
+	  else if (requests[rank].Test())
 	    stream[rank].reset();
-	    requests[rank].Test();
-	  }
+	  
 	  found = true;
 	}
       
@@ -628,6 +627,7 @@ struct MapReduceFile
       ++ num_file;
       queue.wait_empty();
     }
+    
     file.clear();
     queue.push(file);
     

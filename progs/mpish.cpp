@@ -122,19 +122,18 @@ int main(int argc, char** argv)
       typedef task_type::queue_type  queue_type;
       
       std::vector<ostream_ptr_type> stream(mpi_size);
-      for (int rank = 1; rank < mpi_size; ++ rank)
+      for (int rank = 1; rank < mpi_size; ++ rank) {
 	stream[rank].reset(new ostream_type(rank, command_tag, 4096));
-
+	//while (! stream[rank]->test())
+	//  boost::thread::yield();
+      }
 
       std::vector<int, std::allocator<int> >                   num_command(mpi_size, 0);
       std::vector<MPI::Request, std::allocator<MPI::Request> > requests(mpi_size);
       for (int rank = 1; rank < mpi_size; ++ rank)
 	requests[rank] = MPI::COMM_WORLD.Irecv(&num_command[rank], 1, MPI::INT, rank, count_tag);
       
-      for (int rank = 1; rank < mpi_size; ++ rank) {
-	while (! stream[rank]->test())
-	  boost::thread::yield();
-      }
+      std::vector<int, std::allocator<int> > flags(mpi_size, 0);
       
       queue_type queue(1);
       std::auto_ptr<thread_type> thread(new thread_type(task_type(queue)));
@@ -161,6 +160,9 @@ int main(int argc, char** argv)
 	      
 	      if (command.empty()) continue;
 	      
+	      if (debug >= 2)
+		std::cerr << "send: " << rank << " buffer: " << command.size() << std::endl;
+	      
 	      stream[rank]->write(command);
 	      
 	      found = true;
@@ -183,6 +185,9 @@ int main(int argc, char** argv)
 	  non_found_iter = loop_sleep(found, non_found_iter);
 	}
       }
+
+      if (debug >= 2)
+	std::cerr << "terminating" << std::endl;
       
       int non_found_iter = 0;
       bool terminated = false;
@@ -196,16 +201,28 @@ int main(int argc, char** argv)
 	
 	for (int rank = 1; rank < mpi_size; ++ rank) 
 	  if (stream[rank] && stream[rank]->test()) {
-	    if (! stream[rank]->terminated())
+	    if (! stream[rank]->terminated()) {
+	      if (debug >= 2)
+		std::cerr << "terminating: " << rank << " " << flags[rank] << std::endl;
+	      
+	      ++ flags[rank];
 	      stream[rank]->terminate();
-	    else {
+	    } else if (requests[rank].Test()) {
+	      if (debug >= 2)
+		std::cerr << "terminated: " << rank << " " << flags[rank] << std::endl;
+
+	      ++ flags[rank];
 	      stream[rank].reset();
-	      requests[rank].Test();
 	    }
+	    
 	    found = true;
 	  }
 	
 	if (terminated && std::count(stream.begin(), stream.end(), ostream_ptr_type()) == mpi_size) {
+	  
+	  if (debug >= 2)
+	    std::cerr << "send all!" << std::endl;
+
 	  bool waiting = false;
 	  for (int rank = 1; rank < mpi_size; ++ rank)
 	    waiting |= (! requests[rank].Test());
