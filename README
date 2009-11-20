@@ -47,6 +47,10 @@ Brief descriptions:
      export TMPDIR_SPEC=/export/%host/users/${USER}
      
      The %host key word is simply replaced by the host of running machine (so that each binary may abuse only local-storage).
+     RECENT UPDATE: Under NICT environment, you can try:
+
+     export TMPDIR_SPEC=/export/tmp
+
 
 For larger data, it is recommended to use mpi-version for scalability.
 
