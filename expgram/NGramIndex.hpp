@@ -67,6 +67,7 @@ namespace expgram
       
       void open(const path_type& path);
       void write(const path_type& file) const;
+      void write(const path_type& file, const int write_order) const;
       
     public:
       id_type operator[](size_type pos) const { return index(pos); }

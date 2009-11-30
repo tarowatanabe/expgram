@@ -68,6 +68,40 @@ namespace expgram
     }
   }
   
+  void NGramIndex::Shard::write(const path_type& file, const int write_order) const
+  {
+    typedef utils::repository repository_type;
+      
+    // do not allow copying to the same file!
+    if (path() == file) return;
+
+    repository_type rep(file, repository_type::write);
+    
+    const int order = offsets.size() - 1;
+    
+    if (write_order >= order) {
+      ids.write(rep.path("index"));
+      positions.write(rep.path("position"));
+    } else {
+      // we will write subset of ids... How?
+      // it is easier to dump ids, but not positions...
+      
+    }      
+    
+    std::ostringstream stream_order;
+    stream_order << std::min(order, write_order);
+    rep["order"] = stream_order.str();
+    
+    for (int n = 1; n <= std::min(order, write_order); ++ n) {
+      std::ostringstream stream_offset;
+      std::ostringstream stream_ngram;
+      
+      stream_offset << offsets[n];
+      stream_ngram << n << "-gram-offset";
+      
+      rep[stream_ngram.str()] = stream_offset.str();
+    }
+  }
   
   void NGramIndex::open(const path_type& path)
   {
