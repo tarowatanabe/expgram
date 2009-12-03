@@ -524,10 +524,14 @@ struct EstimateBigramMapper
     
     const size_type pos_context_first = ngram.index[mpi_rank].offsets[order_prev - 1];
     const size_type pos_context_last  = ngram.index[mpi_rank].offsets[order_prev];
-    
+
+    const size_type pos_estimate_first = ngram.index[mpi_rank].offsets[order - 1];
+    const size_type pos_estimate_last  = ngram.index[mpi_rank].offsets[order];
+
+    double percent_next = 10.0;
+      
     const id_type bos_id = ngram.index.vocab()[vocab_type::BOS];
     const id_type unk_id = ngram.index.vocab()[vocab_type::UNK];
-
 
     if (debug)
       std::cerr << "order: " << 2 << " shard: " << mpi_rank << std::endl;
@@ -545,6 +549,15 @@ struct EstimateBigramMapper
 	if (remove_unk && id == unk_id) continue;
 	
 	queues[shard_index]->push(std::make_pair(pos_context, std::make_pair(id, count)));
+      }
+      
+      const double percent_first(100.0 * (pos_first - pos_estimate_first) / (pos_estimate_last - pos_estimate_first));
+      const double percent_last(100.0 *  (pos_last - pos_estimate_first) / (pos_estimate_last - pos_estimate_first));
+      
+      if (percent_first < percent_next && percent_next <= percent_last) {
+	if (debug >= 2)
+	  std::cerr << "rank: " << mpi_rank << " " << percent_next << "%" << std::endl;
+	percent_next += 10;
       }
     }
 
