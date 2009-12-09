@@ -4,6 +4,7 @@
 #define __UTILS__COMPACT_TRIE__HPP__ 1
 
 #include <google/sparse_hash_map>
+#include <google/dense_hash_map>
 
 #include <utils/chunk_vector.hpp>
 #include <utils/sgi_hash_map.hpp>
@@ -35,11 +36,14 @@ namespace utils
     
   private:  
     typedef typename Alloc::template rebind<std::pair<const key_type, id_type> >::other id_map_alloc_type;
-    typedef google::sparse_hash_map<key_type, id_type, hash_type, equal_type, id_map_alloc_type> id_map_type;
+    //typedef google::sparse_hash_map<key_type, id_type, hash_type, equal_type, id_map_alloc_type> id_map_type;
+    //typedef google::dense_hash_map<key_type, id_type, hash_type, equal_type, id_map_alloc_type> id_map_type;
     
 #ifdef HAVE_TR1_UNORDERED_MAP
+    typedef std::tr1::unordered_map<key_type, id_type, hash_type, equal_type, id_map_alloc_type> id_map_type;
     typedef std::tr1::unordered_map<key_type, id_type, hash_type, equal_type, id_map_alloc_type> id_map_root_type;
 #else
+    typedef sgi::hash_map<key_type, id_type, hash_type, equal_type, id_map_alloc_type> id_map_type;
     typedef sgi::hash_map<key_type, id_type, hash_type, equal_type, id_map_alloc_type> id_map_root_type;
 #endif
     
