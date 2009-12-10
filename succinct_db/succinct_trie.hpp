@@ -55,6 +55,7 @@ namespace succinctdb
     size_type node() const { return node_pos; }
     bool exists() const { return impl->exists(node_pos); }
     data_type data() const { return impl->data(node_pos); }
+    size_type offset() const { return impl->offset(node_pos); }
     data_type operator*() const { return data(); }
     
     self_type operator++(int)
@@ -176,6 +177,7 @@ namespace succinctdb
     
     bool exists() const { return impl->exists(nodes.back().pos); }
     data_type data() const { return impl->data(nodes.back().pos); }
+    size_type offset() const { return impl->offset(nodes.back().pos); }
     data_type operator*() const { return data(); }
     
     const key_buffer_type& key() const { return nodes.back().buffer; }
@@ -287,6 +289,7 @@ namespace succinctdb
     size_type node() const { return node_pos; }
     bool exists() const { return impl->exists(node_pos); }
     data_type data() const { return impl->data(node_pos); }
+    size_type offset() const { return impl->offset(node_pos); }
     data_type operator*() const { return data(); }
     
     key_type key() const
@@ -382,6 +385,12 @@ namespace succinctdb
     data_type __data(const IndexMap& index_map, const Mapped& mapped, size_type node_pos) const
     {
       return mapped[index_map.rank(node_pos, true) - 1];
+    }
+
+    template <typename IndexMap>
+    size_type __offset(const IndexMap& index_map, size_type node_pos) const
+    {
+      return index_map.rank(node_pos, true) - 1;
     }
     
     template <typename IndexMap>
@@ -662,6 +671,12 @@ namespace succinctdb
     {
       return base_type::__data(index_map, mapped, node_pos);
     }
+    
+    size_type offset(size_type node_pos) const
+    {
+      return base_type::__offset(index_map, node_pos);
+    }
+    
     data_type operator[](size_type node_pos) const
     {
       return data(node_pos);
@@ -914,6 +929,12 @@ namespace succinctdb
     {
       return base_type::__data(index_map, mapped, node_pos);
     }
+    
+    size_type offset(size_type node_pos) const
+    {
+      return base_type::__offset(index_map, node_pos);
+    }
+    
     data_type operator[](size_type node_pos) const
     {
       return data(node_pos);
