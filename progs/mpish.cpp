@@ -122,11 +122,21 @@ int main(int argc, char** argv)
       typedef task_type::queue_type  queue_type;
       
       std::vector<ostream_ptr_type> stream(mpi_size);
-      for (int rank = 1; rank < mpi_size; ++ rank) {
+      for (int rank = 1; rank < mpi_size; ++ rank)
 	stream[rank].reset(new ostream_type(rank, command_tag, 4096));
-	//while (! stream[rank]->test())
-	//  boost::thread::yield();
+      
+      // testing!
+      for (;;) {
+	int num_test = 0;
+	for (int rank = 1; rank < mpi_size; ++ rank)
+	  num_test += bool(stream[rank]->test());
+	
+	if (num_test == mpi_size - 1)
+	  break;
+	else
+	  boost::thread::yield();
       }
+
 
       std::vector<int, std::allocator<int> >                   num_command(mpi_size, 0);
       std::vector<MPI::Request, std::allocator<MPI::Request> > requests(mpi_size);
