@@ -1081,7 +1081,6 @@ namespace succinctdb
 	catch (...) {
 	  throw std::runtime_error("succinct_trie::build() memory error?");
 	}
-	
 	os_index.pop();
 	os_mapped.pop();
       }
@@ -1122,7 +1121,7 @@ namespace succinctdb
 	catch (...) {
 	  throw std::runtime_error("succinct_trie::build() memory error?");
 	}
-	
+
 	os_index.pop();
 	os_mapped.pop();
       }

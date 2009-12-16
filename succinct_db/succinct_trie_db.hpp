@@ -8,13 +8,14 @@
 //
 
 #include <stdint.h>
+#include <unistd.h>
 
 #include <iostream>
 #include <algorithm>
 #include <vector>
 
 #include <boost/iostreams/filtering_stream.hpp>
-#include <boost/iostreams/filter/gzip.hpp>
+#include <boost/iostreams/filter/zlib.hpp>
 #include <boost/iostreams/device/file.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/shared_ptr.hpp>
@@ -102,7 +103,7 @@ namespace succinctdb
       
       __os_key_data->push(boost::iostreams::file_sink(path_key_data.file_string(), std::ios_base::out | std::ios_base::trunc), 1024 * 1024);
       
-      __os_size->push(boost::iostreams::gzip_compressor());
+      __os_size->push(boost::iostreams::zlib_compressor());
       __os_size->push(boost::iostreams::file_sink(path_size.file_string(), std::ios_base::out | std::ios_base::trunc), 1024 * 1024);
       
       __size = 0;
@@ -151,11 +152,18 @@ namespace succinctdb
     {
       typedef utils::map_file<char, byte_alloc_type> map_file_type;
       typedef succinct_trie<key_type, data_type, Alloc> succinct_trie_type;
+
+      if (__os_key_data)
+	__os_key_data->flush();
+      if (__os_size)
+	__os_size->flush();
       
       __os_key_data.reset();
       __os_size.reset();
 
       if (boost::filesystem::exists(path_key_data) && boost::filesystem::exists(path_size) && ! path_output.empty()) {
+
+	::sync();
 	
 	map_file_type map_key_data(path_key_data);
 	__value_set_type values(__size);
@@ -163,12 +171,12 @@ namespace succinctdb
 	if (__size > 0) {
 	  const char* iter = reinterpret_cast<const char*>(&(*map_key_data.begin()));
 	  boost::iostreams::filtering_istream is;
-	  is.push(boost::iostreams::gzip_decompressor());
+	  is.push(boost::iostreams::zlib_decompressor());
 	  is.push(boost::iostreams::file_source(path_size.file_string()));
 	  for (size_type i = 0; i < __size; ++ i) {
 	    size_type key_size = 0;
 	    is.read((char*) &key_size, sizeof(size_type));
-	    
+
 	    values[i].first = reinterpret_cast<const key_type*>(iter);
 	    values[i].last  = reinterpret_cast<const key_type*>(iter) + key_size;
 
@@ -177,7 +185,7 @@ namespace succinctdb
 	    
 	    const size_type data_size_bytes   = sizeof(data_type);
 	    const size_type data_size_aligned = (data_size_bytes + pointer_size - 1) & pointer_mask;
-	    
+
 	    iter += key_size_aligned + data_size_aligned;
 	  }
 	}
@@ -186,12 +194,12 @@ namespace succinctdb
 	
 	// sorting
 	std::sort(values.begin(), values.end(), __less_value());
-	
+
 	{
 	  succinct_trie_type succinct_trie;
 	  succinct_trie.build(path_output, values.begin(), values.end(), __extract_key(), __extract_data());
 	}
-	
+
 	map_key_data.clear();
 	
 	boost::filesystem::remove(path_key_data);

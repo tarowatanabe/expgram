@@ -11,7 +11,7 @@
 #include <vector>
 
 #include <boost/iostreams/filtering_stream.hpp>
-#include <boost/iostreams/filter/gzip.hpp>
+#include <boost/iostreams/filter/zlib.hpp>
 #include <boost/iostreams/device/file.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/shared_ptr.hpp>
@@ -100,7 +100,7 @@ namespace succinctdb
       __os_data_off.reset(new boost::iostreams::filtering_ostream());
       
       __os_key_data->push(boost::iostreams::file_sink(path_key_data.file_string(), std::ios_base::out | std::ios_base::trunc), 1024 * 1024);
-      __os_key_size->push(boost::iostreams::gzip_compressor());
+      __os_key_size->push(boost::iostreams::zlib_compressor());
       __os_key_size->push(boost::iostreams::file_sink(path_size.file_string(), std::ios_base::out | std::ios_base::trunc), 1024 * 1024);
       
       __os_data->push(boost::iostreams::file_sink(rep.path("mapped").file_string(), std::ios_base::out | std::ios_base::trunc), 1024 * 1024);
@@ -168,7 +168,7 @@ namespace succinctdb
 	if (__size > 0) {
 	  const char* iter = reinterpret_cast<const char*>(&(*map_key_data.begin()));
 	  boost::iostreams::filtering_istream is;
-	  is.push(boost::iostreams::gzip_decompressor());
+	  is.push(boost::iostreams::zlib_decompressor());
 	  is.push(boost::iostreams::file_source(path_size.file_string()));
 	  for (size_type i = 0; i < __size; ++ i) {
 	    size_type key_size = 0;
