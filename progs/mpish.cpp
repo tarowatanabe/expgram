@@ -240,8 +240,10 @@ int main(int argc, char** argv)
 	    std::cerr << "send all!" << std::endl;
 
 	  bool waiting = false;
-	  for (int rank = 1; rank < mpi_size; ++ rank)
+	  for (int rank = 1; rank < mpi_size; ++ rank) {
 	    waiting |= (! requests[rank].Test());
+	    utils::atomicop::memory_barrier();
+	  }
 	  if (! waiting)
 	    break;
 	}
