@@ -89,13 +89,15 @@ namespace utils
     if (path.file_string() == "-")  
       is.push(boost::iostreams::file_descriptor_source(::dup(STDIN_FILENO), true), buffer_size);
     else {
-      switch (impl::compress_iformat(path)) {
-      case impl::COMPRESS_STREAM_GZIP:
-	is.push(boost::iostreams::gzip_decompressor());
-	break;
-      case impl::COMPRESS_STREAM_BZIP:
-	is.push(boost::iostreams::bzip2_decompressor());
-	break;
+      if (boost::filesystem::is_regular_file(path)) {
+	switch (impl::compress_iformat(path)) {
+	case impl::COMPRESS_STREAM_GZIP:
+	  is.push(boost::iostreams::gzip_decompressor());
+	  break;
+	case impl::COMPRESS_STREAM_BZIP:
+	  is.push(boost::iostreams::bzip2_decompressor());
+	  break;
+	}
       }
       is.push(boost::iostreams::file_source(path.file_string()), buffer_size);
     }
