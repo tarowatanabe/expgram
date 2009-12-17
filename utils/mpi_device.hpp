@@ -67,7 +67,6 @@ namespace utils
     // do not send too much...
     bool busy = false;
     if (stream && device) {
-      busy |= (! device->test());
       device->flush(true);
       busy |=  (! device->test());
     }
@@ -86,7 +85,6 @@ namespace utils
     typename Devices::iterator diter = devices.begin();
     for (typename Streams::iterator siter = streams.begin(); siter != siter_end; ++ siter, ++ diter)
       if (*siter && *diter) {
-	non_busy |= (*diter)->test();
 	(*diter)->flush(true);
 	non_busy |= (*diter)->test();
       }

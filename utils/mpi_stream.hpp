@@ -17,6 +17,8 @@
 
 #include <mpi.h>
 
+#include <utils/atomicop.hpp>
+
 namespace utils
 {
   struct __basic_mpi_stream_base
@@ -193,6 +195,8 @@ namespace utils
   template <typename Alloc>
   bool basic_mpi_ostream<Alloc>::impl::test()
   {
+    utils::atomicop::memory_barrier();
+    
     switch (state) {
     case tag_size:
       if (! request_size.Test()) return false;
@@ -398,6 +402,8 @@ namespace utils
   inline
   bool basic_mpi_istream<Alloc>::impl::test()
   {
+    utils::atomicop::memory_barrier();
+    
     switch (state) {
     case tag_ack:
       if (! request_ack.Test()) return false;

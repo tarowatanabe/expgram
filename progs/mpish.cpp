@@ -126,10 +126,16 @@ int main(int argc, char** argv)
 	stream[rank].reset(new ostream_type(rank, command_tag, 4096));
       
       // testing!
+      std::vector<bool, std::allocator<bool> > __flags(mpi_size, false);
       for (;;) {
 	int num_test = 0;
-	for (int rank = 1; rank < mpi_size; ++ rank)
-	  num_test += bool(stream[rank]->test());
+	for (int rank = 1; rank < mpi_size; ++ rank) {
+	  if (! __flags[rank]) {
+	    __flags[rank] = stream[rank]->test();
+	    utils::atomicop::memory_barrier();
+	  }
+	  num_test += __flags[rank];
+	}
 	
 	if (num_test == mpi_size - 1)
 	  break;
@@ -244,6 +250,9 @@ int main(int argc, char** argv)
       }
       
       thread->join();
+      
+      for (int rank = 0; rank < mpi_size; ++ rank)
+	requests[rank].Free();
 
       if (debug) {
 	for (int rank = 0; rank < mpi_size; ++ rank)
