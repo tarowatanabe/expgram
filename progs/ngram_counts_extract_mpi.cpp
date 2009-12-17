@@ -582,8 +582,10 @@ struct MapReduceFile
       
       if (terminated && std::count(stream.begin(), stream.end(), ostream_ptr_type()) == mpi_size) {
 	bool waiting = false;
-	for (int rank = 1; rank < mpi_size; ++ rank)
+	for (int rank = 1; rank < mpi_size; ++ rank) {
 	  waiting |= (! requests[rank].Test());
+	  utils::atomicop::memory_barrier();
+	}
 	if (! waiting)
 	  break;
       }

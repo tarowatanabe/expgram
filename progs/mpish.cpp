@@ -122,27 +122,10 @@ int main(int argc, char** argv)
       typedef task_type::queue_type  queue_type;
       
       std::vector<ostream_ptr_type> stream(mpi_size);
-      for (int rank = 1; rank < mpi_size; ++ rank)
+      for (int rank = 1; rank < mpi_size; ++ rank) {
 	stream[rank].reset(new ostream_type(rank, command_tag, 4096));
-      
-      // testing!
-      std::vector<bool, std::allocator<bool> > __flags(mpi_size, false);
-      for (;;) {
-	int num_test = 0;
-	for (int rank = 1; rank < mpi_size; ++ rank) {
-	  if (! __flags[rank]) {
-	    __flags[rank] = stream[rank]->test();
-	    utils::atomicop::memory_barrier();
-	  }
-	  num_test += __flags[rank];
-	}
-	
-	if (num_test == mpi_size - 1)
-	  break;
-	else
-	  boost::thread::yield();
+	stream[rank]->test();
       }
-
 
       std::vector<int, std::allocator<int> >                   num_command(mpi_size, 0);
       std::vector<MPI::Request, std::allocator<MPI::Request> > requests(mpi_size);
