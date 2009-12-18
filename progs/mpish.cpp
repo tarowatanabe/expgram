@@ -120,19 +120,12 @@ int main(int argc, char** argv)
       
       typedef task_type::thread_type thread_type;
       typedef task_type::queue_type  queue_type;
-      
-      std::vector<ostream_ptr_type> stream(mpi_size);
-      for (int rank = 1; rank < mpi_size; ++ rank) {
-	stream[rank].reset(new ostream_type(rank, command_tag, 4096));
-	stream[rank]->test();
-      }
 
-      std::vector<int, std::allocator<int> >                   num_command(mpi_size, 0);
-      std::vector<MPI::Request, std::allocator<MPI::Request> > requests(mpi_size);
+      std::vector<ostream_ptr_type> stream(mpi_size);
       for (int rank = 1; rank < mpi_size; ++ rank)
-	requests[rank] = MPI::COMM_WORLD.Irecv(&num_command[rank], 1, MPI::INT, rank, count_tag);
-      
-      std::vector<int, std::allocator<int> > flags(mpi_size, 0);
+	stream[rank].reset(new ostream_type(rank, command_tag, 4096));
+
+      MPI::COMM_WORLD.Barrier();
       
       queue_type queue(1);
       std::auto_ptr<thread_type> thread(new thread_type(task_type(queue)));
@@ -175,7 +168,6 @@ int main(int argc, char** argv)
 		std::cerr << "rank: " << mpi_rank << " " << command << std::endl;
 	      
 	      queue.push(command);
-	      ++ num_command[0];
 	      
 	      found = true;
 	    }
@@ -200,64 +192,36 @@ int main(int argc, char** argv)
 	
 	for (int rank = 1; rank < mpi_size; ++ rank) 
 	  if (stream[rank] && stream[rank]->test()) {
-	    if (! stream[rank]->terminated()) {
-	      if (debug >= 2)
-		std::cerr << "terminating: " << rank << " " << flags[rank] << std::endl;
-	      
-	      ++ flags[rank];
+	    if (! stream[rank]->terminated())
 	      stream[rank]->terminate();
-	    } else if (requests[rank].Test()) {
-	      if (debug >= 2)
-		std::cerr << "terminated: " << rank << " " << flags[rank] << std::endl;
-
-	      ++ flags[rank];
+	    else
 	      stream[rank].reset();
-	    }
 	    
 	    found = true;
 	  }
 	
-	if (terminated && std::count(stream.begin(), stream.end(), ostream_ptr_type()) == mpi_size) {
-	  
-	  if (debug >= 2)
-	    std::cerr << "send all!" << std::endl;
-
-	  bool waiting = false;
-	  for (int rank = 1; rank < mpi_size; ++ rank) {
-	    waiting |= (! requests[rank].Test());
-	    utils::atomicop::memory_barrier();
-	  }
-	  if (! waiting)
-	    break;
-	}
+	if (terminated && std::count(stream.begin(), stream.end(), ostream_ptr_type()) == mpi_size)
+	  break;
 	
 	non_found_iter = loop_sleep(found, non_found_iter);
       }
       
       thread->join();
       
-      for (int rank = 0; rank < mpi_size; ++ rank)
-	requests[rank].Free();
-
-      if (debug) {
-	for (int rank = 0; rank < mpi_size; ++ rank)
-	  std::cerr << "rank: " << rank << " processed: " << num_command[rank] << std::endl;
-      }
-
-      
     } else {
+      
       utils::mpi_istream is(0, command_tag, 4096, true);
+      
+      MPI::COMM_WORLD.Barrier();
+
       std::string command;
-      int num_command = 0;
       while (is.read(command)) {
 	if (debug)
 	  std::cerr << "rank: " << mpi_rank << " " << command << std::endl;
 	
 	run_command(command);
-	++ num_command;
 	is.ready();
       }
-      MPI::COMM_WORLD.Send(&num_command, 1, MPI::INT, 0, count_tag);
     }
   }
   catch (const std::exception& err) {
