@@ -9,8 +9,12 @@ namespace utils
 {
   struct mpi_world
   {
-    mpi_world(int argc, char** argv) {  MPI::Init_thread(argc, argv, MPI::THREAD_FUNNELED); }
+    mpi_world(int argc, char** argv) {  __provided = MPI::Init_thread(argc, argv, MPI::THREAD_SERIALIZED); }
     ~mpi_world() {  MPI::Finalize(); }
+    
+    const int& provided() const { return __provided; }
+
+    int __provided;
   };
   
   struct mpi_intercomm
