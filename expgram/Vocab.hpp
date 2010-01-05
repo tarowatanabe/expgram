@@ -135,12 +135,15 @@ namespace expgram
     {
       const hash_value_type hash_value = __hasher(word.begin(), word.end(), 0);
       
-      if (__succinct_hash_mapped->find(word.c_str(), word.size(), hash_value) != succinct_hash_mapped_type::npos())
-	return true;
+      if (__succinct_hash_mapped)
+	if (__succinct_hash_mapped->find(word.c_str(), word.size(), hash_value) != succinct_hash_mapped_type::npos())
+	  return true;
       
-      if (! __succinct_hash) return false;
+      if (__succinct_hash)
+	if (__succinct_hash->find(word.c_str(), word.size(), hash_value) != succinct_hash_type::npos())
+	  return true;
       
-      return __succinct_hash->find(word.c_str(), word.size(), hash_value) != succinct_hash_type::npos();
+      return false;
     }
 
     
