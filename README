@@ -93,6 +93,13 @@ API: Sample codes exists at sample directory, ngram.cc and ngram_counts.cc
 	(expgram::Word::id_type). If you want to avoid such conversion on-the-fly, you can pre convert them by
 		
 		expgram::Word::id_type word_id = {ngram or ngram_counts}.index.vocab()[word];
+
+	or, if you don't want to waste extra memory for expgram::Word type, use: (assuming "word" is std::string)
+
+                expgram::Word::id_type word_id = {ngram or ngram_counts}.index.vocab()[expgram::Vocab::UNK];
+		if ({ngram or ngram_counts}.index.vocab().exists(word))
+		  word_id = {ngram or ngram_counts}.index.vocab()[word];
+
 	
 	All the operations are thread-safe, meaning that concurrent programs may call any API any time without locking!
 	(except for ngram loading...)

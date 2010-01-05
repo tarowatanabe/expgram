@@ -131,6 +131,19 @@ namespace expgram
       return find(word) != word_type::id_type(-1);
     }
     
+    bool exists(const std::string& word) const
+    {
+      const hash_value_type hash_value = __hasher(word.begin(), word.end(), 0);
+      
+      if (__succinct_hash_mapped->find(word.c_str(), word.size(), hash_value) != succinct_hash_mapped_type::npos())
+	return true;
+      
+      if (! __succinct_hash) return false;
+      
+      return __succinct_hash->find(word.c_str(), word.size(), hash_value) != succinct_hash_type::npos();
+    }
+
+    
     word_type::id_type find(const word_type& word) const
     {
       if (__succinct_hash_mapped) {
