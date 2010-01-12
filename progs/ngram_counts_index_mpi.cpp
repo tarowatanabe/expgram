@@ -149,6 +149,8 @@ int main(int argc, char** argv)
 	throw std::runtime_error(std::string("no ngram file? ") + ngram_file.directory_string());
       if (output_file.empty())
 	throw std::runtime_error(std::string("no output?"));
+      if (! prog_name.empty() && ! boost::filesystem::exists(prog_name))
+	throw std::runtime_error(std::string("no binary? ") + prog_name.file_string());
       
       // we are reducers..
       const path_type tmp_dir = utils::tempfile::tmp_dir();
