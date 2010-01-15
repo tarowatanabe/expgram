@@ -114,7 +114,7 @@ int getoptions(int argc, char** argv)
     ("output", po::value<path_type>(&output_file)->default_value(output_file), "output")
     
     ("order",       po::value<int>(&order)->default_value(order),              "ngram order")
-    ("include-oov", po::bool_switch(&include_oov)->default_value(include_oov), "include OOV for perpelxity computation")
+    ("include-oov", po::bool_switch(&include_oov)->default_value(include_oov), "include OOV for perplexity computation")
     
     ("shard",  po::value<int>(&shards)->default_value(shards),                 "# of shards (or # of threads)")
     ("debug", po::value<int>(&debug)->implicit_value(1), "debug level")

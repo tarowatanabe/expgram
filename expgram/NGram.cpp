@@ -1081,8 +1081,6 @@ namespace expgram
     if (logbounds.size() == logprobs.size())
       return;
 
-    std::cerr << "upper-bounds" << std::endl;
-
     queue_ptr_set_type  queues(index.size());
     thread_ptr_set_type threads_mapper(index.size());
     thread_ptr_set_type threads_reducer(index.size());
