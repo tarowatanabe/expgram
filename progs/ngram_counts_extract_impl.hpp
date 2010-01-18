@@ -681,6 +681,23 @@ struct GoogleNGramCounts
   
   struct TaskCounts
   {
+    
+    const std::string& escape_word(const std::string& word)
+    {
+      static const std::string& __BOS = static_cast<const std::string&>(vocab_type::BOS);
+      static const std::string& __EOS = static_cast<const std::string&>(vocab_type::EOS);
+      static const std::string& __UNK = static_cast<const std::string&>(vocab_type::UNK);
+      
+      if (strcasecmp(word.c_str(), __BOS.c_str()) == 0)
+	return __BOS;
+      else if (strcasecmp(word.c_str(), __EOS.c_str()) == 0)
+	return __EOS;
+      else if (strcasecmp(word.c_str(), __UNK.c_str()) == 0)
+	return __UNK;
+      else
+	return word;
+    }
+
     template <typename Iterator, typename Counts, typename Path, typename Paths>
     inline
     void operator()(Iterator first, Iterator last, Counts& counts, const Path& path, Paths& paths, const double max_malloc)
@@ -703,6 +720,11 @@ struct GoogleNGramCounts
 	
 	if (tokens.size() < 2) continue;
 	if (tokens.size() - 1 > max_order) continue;
+	
+	// escaping...
+	tokens_type::iterator titer_end = tokens.end() - 1;
+	for (tokens_type::iterator titer = tokens.begin(); titer != titer_end; ++ titer)
+	  *titer = escape_word(*titer);
 	
 	counts[counts.insert(tokens.begin(), tokens.end() - 1)] += atoll(tokens.back().c_str());
 	
