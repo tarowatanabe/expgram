@@ -1,6 +1,7 @@
 
 #include <fstream>
 #include <queue>
+#include <sstream>
 
 #include <boost/thread.hpp>
 #include <boost/shared_ptr.hpp>
@@ -1344,12 +1345,14 @@ namespace expgram
 
       std::pair<context_type::const_iterator, size_type> result = ngram.index.traverse(shard, prefix.begin(), prefix.end());
       if (result.first != prefix.end() || result.second == size_type(-1)) {
-	std::cerr << "context: ";
-	std::copy(prefix.begin(), prefix.end(), std::ostream_iterator<id_type>(std::cerr, " "));
-	std::cerr << "result: " << result.second
-		  << std::endl;
+	std::ostringstream stream;
 	
-	throw std::runtime_error("no prefix?");
+	stream << "No prefix:";
+	context_type::const_iterator citer_end = prefix.end();
+	for (context_type::const_iterator citer = prefix.begin(); citer != citer_end; ++ citer)
+	  stream << ' '  << ngram.index.vocab()[*citer];
+	
+	throw std::runtime_error(stream.str());
       }
       
       const size_type pos = result.second - ngram.index[shard].offsets[order_prev - 1];

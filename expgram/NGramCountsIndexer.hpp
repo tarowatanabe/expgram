@@ -6,6 +6,7 @@
 #include <stdint.h>
 
 #include <stdexcept>
+#include <sstream>
 
 #include <boost/iostreams/filtering_stream.hpp>
 
@@ -161,8 +162,16 @@ namespace expgram
       }
       
       std::pair<typename context_type::const_iterator, size_type> result = ngram.index.traverse(shard, prefix.begin(), prefix.end());
-      if (result.first != prefix.end() || result.second == size_type(-1))
-	throw std::runtime_error("no prefix?");
+      if (result.first != prefix.end() || result.second == size_type(-1)) {
+	std::ostringstream stream;
+	
+	stream << "No prefix:";
+	typename Context::const_iterator citer_end = prefix.end();
+	for (typename Context::const_iterator citer = prefix.begin(); citer != citer_end; ++ citer)
+	  stream << ' ' << ngram.index.vocab()[*citer];
+	
+	throw std::runtime_error(stream.str());
+      }
       
       const size_type pos = result.second - ngram.index[shard].offsets[order_prev - 1];
       positions_first[pos] = ids.size();
