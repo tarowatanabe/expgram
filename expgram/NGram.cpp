@@ -760,17 +760,17 @@ namespace expgram
     
     const double log_10 = utils::mathop::log(10.0);
 
+    static const logprob_type logprob_srilm_min = double(-99) * utils::mathop::log(10.0);
+
     // unigrams...
     {
-      static const logprob_type logprob_bos = double(-99) * utils::mathop::log(10.0);
-
       os << "\\1-grams:" << '\n';
       for (size_type pos = 0; pos < index[0].offsets[1]; ++ pos) {
 	logprob_type logprob = logprobs[0](pos, 1);
 	
-	// escape for BOS
+	// escape logprob-min...
 	if (logprob == logprob_min() && pos == bos_id)
-	  logprob = logprob_bos;
+	  logprob = logprob_srilm_min;
 	
 	if (logprob != logprob_min()) {
 	  const id_type id(pos);
