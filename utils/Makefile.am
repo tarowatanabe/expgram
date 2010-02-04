@@ -149,7 +149,7 @@ sample_chunk_vector_LDFLAGS = $(BOOST_THREAD_LDFLAGS)
 sample_chunk_vector_LDADD = $(BOOST_THREAD_LIBS)
 
 sample_compress_stream_SOURCES = sample_compress_stream.cpp
-sample_compress_stream_LDFLAGS = $(LIBUTILS)
+sample_compress_stream_LDADD = $(LIBUTILS)
 
 sample_group_aligned_code_SOURCES = sample_group_aligned_code.cpp
 
