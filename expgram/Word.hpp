@@ -16,7 +16,6 @@
 #include <utils/indexed_set.hpp>
 #include <utils/hashmurmur.hpp>
 #include <utils/spinlock.hpp>
-#include <utils/config.hpp>
 
 namespace expgram
 {
@@ -135,31 +134,7 @@ namespace expgram
   private:
     static mutex_type    __mutex;
     
-    static word_map_type& __word_maps()
-    {
-#ifdef HAVE_TLS
-      static __thread word_map_type* __maps_tls = 0;
-      static boost::thread_specific_ptr<word_map_type> __maps;
-      
-      if (! __maps_tls) {
-	__maps.reset(new word_map_type());
-	__maps->reserve(allocated());
-	
-	__maps_tls = __maps.get();
-      }
-      
-      return *__maps_tls;
-#else
-      static boost::thread_specific_ptr<word_map_type> __maps;
-      
-      if (! __maps.get()) {
-	__maps.reset(new word_map_type());
-	__maps->reserve(allocated());
-      }
-      
-      return *__maps;
-#endif
-    }
+    static word_map_type& __word_maps();
     
     static word_set_type& __words()
     {

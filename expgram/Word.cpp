@@ -1,3 +1,4 @@
+#include <utils/config.hpp>
 
 #include "Word.hpp"
 
@@ -6,6 +7,32 @@
 
 namespace expgram
 {
+  Word::word_map_type& Word::__word_maps()
+  {
+#ifdef HAVE_TLS
+    static __thread word_map_type* __maps_tls = 0;
+    static boost::thread_specific_ptr<word_map_type> __maps;
+    
+    if (! __maps_tls) {
+      __maps.reset(new word_map_type());
+      __maps->reserve(allocated());
+	
+      __maps_tls = __maps.get();
+    }
+      
+    return *__maps_tls;
+#else
+    static boost::thread_specific_ptr<word_map_type> __maps;
+      
+    if (! __maps.get()) {
+      __maps.reset(new word_map_type());
+      __maps->reserve(allocated());
+    }
+      
+    return *__maps;
+#endif
+  }
+
   void Word::write(const path_type& path)
   {
     lock_type lock(__mutex);
