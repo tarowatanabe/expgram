@@ -48,7 +48,7 @@ namespace expgram
     typedef Stat stat_type;
     
   public:
-    struct Shard
+    struct Shard : public hasher_type
     {
     public:
       typedef utils::packed_vector_mapped<id_type, std::allocator<id_type> >   id_set_type;
