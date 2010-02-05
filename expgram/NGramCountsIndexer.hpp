@@ -116,6 +116,8 @@ namespace expgram
       ngram.index[shard].ids.open(path_id);
       ngram.index[shard].positions.open(path_position);
       ngram.index[shard].offsets.push_back(ngram.index[shard].offsets.back() + ids.size());
+      ngram.index[shard].caches.clear();
+      
       ngram.index.order() = order;
       
       if (debug)

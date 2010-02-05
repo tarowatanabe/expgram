@@ -25,7 +25,9 @@ namespace utils
   class spinlock : private boost::noncopyable
   {
   public:
-    typedef boost::unique_lock<spinlock> scoped_lock;
+    typedef boost::unique_lock<spinlock>       scoped_lock;
+    typedef boost::detail::try_lock_wrapper<spinlock> scoped_try_lock;
+    
     
     spinlock() : m_spinlock()
     {

@@ -23,6 +23,9 @@
 #include <utils/packed_vector.hpp>
 #include <utils/succinct_vector.hpp>
 #include <utils/hashmurmur.hpp>
+#include <utils/array_power2.hpp>
+#include <utils/spinlock.hpp>
+
 
 namespace expgram
 {
@@ -51,10 +54,36 @@ namespace expgram
       typedef utils::packed_vector_mapped<id_type, std::allocator<id_type> >   id_set_type;
       typedef utils::succinct_vector_mapped<std::allocator<int32_t> >          position_set_type;
       typedef std::vector<size_type, std::allocator<size_type> >               off_set_type;
-
+      
+    private:
+      typedef utils::spinlock spinlock_type;
+      typedef spinlock_type::scoped_lock     lock_type;
+      typedef spinlock_type::scoped_try_lock trylock_type;
+      
+      struct cache_pos_type
+      {
+	size_type pos;
+	size_type pos_next;
+	id_type id;
+        
+	cache_pos_type() : pos(size_type(-1)), pos_next(size_type(-1)), id(id_type(-1)) {}
+      };
+      typedef utils::array_power2<cache_pos_type, 1024 * 64, std::allocator<cache_pos_type> > cache_pos_set_type;
+      
     public:
       Shard() {}
       Shard(const path_type& path) { open(path); }
+
+      Shard(const Shard& x) : ids(x.ids), positions(x.positions), offsets(x.offsets) {}
+      Shard& operator=(const Shard& x)
+      {
+	ids = x.ids;
+	positions = x.positions;
+	offsets = x.offsets;
+	caches.clear();
+	return *this;
+      }
+
       
     public:
       void close() { clear(); }
@@ -63,6 +92,7 @@ namespace expgram
 	ids.clear();
 	positions.clear();
 	offsets.clear();
+	caches.clear();
       };
       
       void open(const path_type& path);
@@ -121,7 +151,7 @@ namespace expgram
 	return __traverse_dispatch(first, last, vocab, value_type());
       }
       
-      size_type find(size_type pos, const id_type& id) const
+      size_type __find(size_type pos, const id_type& id) const
       {
 	// we do caching, here...?
 	const size_type pos_first = children_first(pos);
@@ -131,6 +161,29 @@ namespace expgram
 	const size_type found_child_mask = size_type(child != pos_last && ! (id < operator[](child))) - 1;
 	
 	return ((~found_child_mask) & child) | found_child_mask;
+      }
+
+      size_type find(size_type pos, const id_type& id) const
+      {
+	if (pos == size_type(-1)) {
+          const size_type child_mask = size_type(id < offsets[1]) - 1;
+          return (~child_mask & size_type(id)) | child_mask;
+        } else {
+	  // lock here!
+	  trylock_type lock(const_cast<spinlock_type&>(spinlock));
+	  
+	  if (lock) {
+	    const size_type cache_pos = hasher_type::operator()(id, pos) & (caches.size() - 1);
+	    cache_pos_type& cache = const_cast<cache_pos_type&>(caches[cache_pos]);
+	    if (cache.pos != pos || cache.id != id) {
+	      cache.pos      = pos;
+	      cache.id       = id;
+	      cache.pos_next = __find(pos, id);
+	    }
+	    return cache.pos_next;
+	  } else
+	    return __find(pos, id);
+        }
       }
     
       size_type lower_bound(size_type first, size_type last, const id_type& id) const
@@ -193,6 +246,9 @@ namespace expgram
       id_set_type        ids;
       position_set_type  positions;
       off_set_type       offsets;
+
+      spinlock_type      spinlock;
+      cache_pos_set_type caches;
     };
 
     
