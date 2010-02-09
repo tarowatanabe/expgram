@@ -951,7 +951,7 @@ namespace expgram
 	    const logprob_type logprob = ngram.logprobs[shard](pos, order_prev + 1);
 	    if (logprob != ngram.logprob_min()) {
 	      
-#if 1
+#if 0
 	      context_type::const_iterator citer_end = context.end();
 	      context_type::const_iterator citer_begin = context.begin() + 1;
 	      if (citer_end - citer_begin == 1)
@@ -959,7 +959,7 @@ namespace expgram
 	      else
 		queues[ngram.index.shard_index(citer_begin, citer_end)]->push(std::make_pair(context_type(citer_begin, citer_end), logprob));
 #endif
-#if 0      
+#if 1
 	      context_type::const_iterator citer_end = context.end();
 	      for (context_type::const_iterator citer = context.begin() + 1; citer != citer_end; ++ citer) {
 		if (citer_end - citer == 1)
