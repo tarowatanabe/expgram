@@ -416,8 +416,8 @@ namespace succinctdb
     
     const_reverse_iterator rbegin(size_type node_pos) const { return const_reverse_iterator(__succinct_trie->rbegin(node_pos), this); }
     const_reverse_iterator rend(size_type node_pos)   const { return const_reverse_iterator(__succinct_trie->rend(node_pos), this); }
-    const_iterator rbegin() const { return const_iterator(__succinct_trie->rbegin(), this); }
-    const_iterator rend()   const { return const_iterator(__succinct_trie->rend(), this); }
+    const_reverse_iterator rbegin() const { return const_reverse_iterator(__succinct_trie->rbegin(), this); }
+    const_reverse_iterator rend()   const { return const_reverse_iterator(__succinct_trie->rend(), this); }
     
     const_cursor cbegin(size_type node_pos) const { return (is_valid(node_pos) && exists(node_pos)
 							    ? const_cursor(__succinct_trie->cbegin(node_pos), this)
