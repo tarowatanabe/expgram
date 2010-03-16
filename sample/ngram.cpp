@@ -86,9 +86,13 @@ int main(int argc, char** argv)
 	// ngram access must use containser that supports random-iterator concepts.
 	// If not sure, use vector!
 	
-	for (tokens_type::const_iterator titer_first = std::max(titer + 1 - order, titer_begin); titer_first != titer; ++ titer_first) {
-	  std::copy(titer_first, titer + 1, std::ostream_iterator<std::string>(std::cout, " "));
-	  std::cout << ngram(titer_first, titer + 1) << ' ' << ngram.logbound(titer_first, titer + 1) << std::endl;
+	for (tokens_type::const_iterator titer_first = std::max(titer + 1 - order, titer_begin); titer_first != titer + 1; ++ titer_first) {
+	  std::cout << ngram(titer_first, titer + 1)
+		    << ' ' << ngram.logbound(titer_first, titer + 1)
+		    << ' ' << (ngram.exists(titer_first, titer + 1) ? "true" : "false");
+	  std::cout << ' ';
+	  std::copy(titer_first, titer, std::ostream_iterator<std::string>(std::cout, " "));
+	  std::cout << (*titer) << std::endl;
 	}
       }
     }

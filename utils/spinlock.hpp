@@ -11,6 +11,7 @@
 #include <boost/thread/detail/config.hpp>
 #include <boost/utility.hpp>
 
+#include <boost/thread.hpp>
 #include <boost/thread/locks.hpp>
 #include <boost/thread/exceptions.hpp>
 
@@ -18,6 +19,10 @@
 
 #ifdef HAVE_LIBKERN_OSATOMIC_H
   #include <libkern/OSAtomic.h>
+#endif
+
+#if defined(__GNUC__) && ( (__GNUC__ > 4) || ((__GNUC__ >= 4) && (__GNUC_MINOR__ >= 1)) )
+#define __UTILS_SPINLOCK_GCC_CAS__ 1
 #endif
 
 namespace utils
@@ -31,27 +36,31 @@ namespace utils
     
     spinlock() : m_spinlock()
     {
-#ifdef HAVE_OSSPINLOCK
+#if defined(__UTILS_SPINLOCK_GCC_CAS__)
+      m_spinlock = 0;
+#elif defined(HAVE_OSSPINLOCK)
       m_spinlock = OS_SPINLOCK_INIT;
-#else
-  #ifdef HAVE_PTHREAD_SPINLOCK
+#elif defined(HAVE_PTHREAD_SPINLOCK)
       const int res = pthread_spin_init(&m_spinlock, PTHREAD_PROCESS_SHARED);
-  #else
+      if (res != 0)
+	throw boost::thread_resource_error();
+#else
       const int res = pthread_mutex_init(&m_spinlock, 0);
-  #endif
       if (res != 0)
 	throw boost::thread_resource_error();
 #endif
+      
     }
     ~spinlock() { 
-#ifdef HAVE_OSSPINLOCK
+#if defined(__UTILS_SPINLOCK_GCC_CAS__)
+
+#elif defined(HAVE_OSSPINLOCK)
       // do nothing...
-#else
-  #ifdef HAVE_PTHREAD_SPINLOCK
+#elif defined(HAVE_PTHREAD_SPINLOCK)
       const int res = pthread_spin_destroy(&m_spinlock);
-  #else
+      assert(res == 0);
+#else
       const int res = pthread_mutex_destroy(&m_spinlock);
-  #endif
       assert(res == 0);
 #endif
     }
@@ -59,42 +68,50 @@ namespace utils
   public:
     bool try_lock()
     {
-#ifdef HAVE_OSSPINLOCK
+#if defined(__UTILS_SPINLOCK_GCC_CAS__)
+      return __sync_bool_compare_and_swap(&m_spinlock, 0, 1);
+#elif defined(HAVE_OSSPINLOCK)
       return OSSpinLockTry(&m_spinlock);
+#elif defined(HAVE_PTHREAD_SPINLOCK)
+      return ! pthread_spin_trylock(&m_spinlock);
 #else
-  #ifdef HAVE_PTHREAD_SPINLOCK
-      const int res = pthread_spin_trylock(&m_spinlock);
-  #else
-      const int res = pthread_mutex_trylock(&m_spinlock);
-  #endif
-      return ! res;
+      return ! pthread_mutex_trylock(&m_spinlock);
 #endif
     }
     void lock()
     {
-#ifdef HAVE_OSSPINLOCK
+#if defined(__UTILS_SPINLOCK_GCC_CAS__)
+      while (! __sync_bool_compare_and_swap(&m_spinlock, 0, 1))
+	boost::thread::yield();
+      
+#elif defined(HAVE_OSSPINLOCK)
       OSSpinLockLock(&m_spinlock);
-#else
-  #ifdef HAVE_PTHREAD_SPINLOCK
+#elif defined(HAVE_PTHREAD_SPINLOCK)
       const int res = pthread_spin_lock(&m_spinlock);
-  #else
+      if (res == EDEADLK)
+	throw boost::lock_error();
+      assert(res == 0);
+#else
       const int res = pthread_mutex_lock(&m_spinlock); 
-  #endif
       if (res == EDEADLK)
 	throw boost::lock_error();
       assert(res == 0);
 #endif
     }
+    
     void unlock()
     {
-#ifdef HAVE_OSSPINLOCK
+#if defined(__UTILS_SPINLOCK_GCC_CAS__)
+      __sync_lock_test_and_set(&m_spinlock, 0);
+#elif defined(HAVE_OSSPINLOCK)
       OSSpinLockUnlock(&m_spinlock);
-#else
-  #ifdef HAVE_PTHREAD_SPINLOCK
+#elif defined(HAVE_PTHREAD_SPINLOCK)
       const int res = pthread_spin_unlock(&m_spinlock);
-  #else
+      if (res == EPERM)
+	throw boost::lock_error();
+      assert(res == 0);
+#else
       const int res = pthread_mutex_unlock(&m_spinlock);
-  #endif
       if (res == EPERM)
 	throw boost::lock_error();
       assert(res == 0);
@@ -102,14 +119,14 @@ namespace utils
     }
     
   private:
-#ifdef HAVE_OSSPINLOCK
+#if defined(__UTILS_SPINLOCK_GCC_CAS__)
+    volatile int m_spinlock;
+#elif defined(HAVE_OSSPINLOCK)
     OSSpinLock m_spinlock;
-#else
-  #ifdef HAVE_PTHREAD_SPINLOCK
+#elif defined(HAVE_PTHREAD_SPINLOCK)
     pthread_spinlock_t m_spinlock;
-  #else
+#else
     pthread_mutex_t m_spinlock;
-  #endif
 #endif
   };
 };
