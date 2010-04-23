@@ -180,24 +180,63 @@ namespace expgram
       
       first = std::max(first, last - index.order());
       
+      int       shard_prev = -1;
+      size_type node_prev = size_type(-1);
+      
+      
       logprob_type logbackoff = 0.0;
       for (/**/; first != last - 1; ++ first) {
 	const int order = last - first;
 	const size_type shard_index = index.shard_index(first, last);
 	const size_type shard_index_backoff = size_type((order == 2) - 1) & shard_index;
-	std::pair<Iterator, size_type> result = index.traverse(shard_index, first, last);
+	
+	std::pair<Iterator, size_type> result = index.traverse(shard_index, first, last, shard_prev, node_prev);
+#if 0
+	std::pair<Iterator, size_type> result2 = index.traverse(shard_index, first, last);
+#endif
+
+	shard_prev = -1;
+	node_prev = size_type(-1);
 	
 	if (result.first == last) {
+#if 0
+	  // testing...
+	  if (result2.first != result.first)
+	    std::cerr << "no iterator match???" << std::endl;
+	  if (result2.second != result.second)
+	    std::cerr << "no node match???" << std::endl;
+#endif
+	  
 	  const logprob_type __logprob = logprobs[shard_index](result.second, order);
 	  if (__logprob != logprob_min())
 	    return logbackoff + __logprob;
 	  else {
 	    const size_type parent = index[shard_index].parent(result.second);
-	    if (parent != size_type(-1))
+	    if (parent != size_type(-1)) {
 	      logbackoff += backoffs[shard_index_backoff](parent, order - 1);
+	      
+	      shard_prev = shard_index;
+	      node_prev = parent;
+	    }
 	  }
-	} else if (result.first == last - 1)
+	} else if (result.first == last - 1) {
+#if 0
+	  if (result2.first != result.first)
+	    std::cerr << "no backoff iterator match???" << std::endl;
+	  if (result2.second != result.second)
+	    std::cerr << "no backoff node match???" << std::endl;
+#endif
+	  
 	  logbackoff += backoffs[shard_index_backoff](result.second, order - 1);
+	  
+	  shard_prev = shard_index;
+	  node_prev = result.second;
+	} else {
+#if 0
+	  if (result2.first == last || result2.first == last - 1)
+	    std::cerr << "no match..." << std::endl;
+#endif
+	}
       }
       
       const int order = last - first;

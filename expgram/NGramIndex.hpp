@@ -68,7 +68,18 @@ namespace expgram
         
 	cache_pos_type() : pos(size_type(-1)), pos_next(size_type(-1)), id(id_type(-1)) {}
       };
+
+      struct cache_backoff_type
+      {
+	size_type pos;
+	size_type pos_prev;
+	int       shard_prev;
+	
+	cache_backoff_type() : pos(size_type(-1)), pos_prev(size_type(-1)), shard_prev(-1) {}
+      };
+
       typedef utils::array_power2<cache_pos_type, 1024 * 64, std::allocator<cache_pos_type> > cache_pos_set_type;
+      typedef utils::array_power2<cache_backoff_type, 1024 * 64, std::allocator<cache_backoff_type> > cache_backoff_set_type;
       
     public:
       Shard() {}
@@ -80,7 +91,9 @@ namespace expgram
 	ids = x.ids;
 	positions = x.positions;
 	offsets = x.offsets;
-	caches.clear();
+	
+	caches_pos.clear();
+	caches_backoff.clear();
 	return *this;
       }
 
@@ -92,7 +105,9 @@ namespace expgram
 	ids.clear();
 	positions.clear();
 	offsets.clear();
-	caches.clear();
+	
+	caches_pos.clear();
+	caches_backoff.clear();
       };
       
       void open(const path_type& path);
@@ -150,19 +165,23 @@ namespace expgram
 	typedef typename std::iterator_traits<Iterator>::value_type value_type;
 	return __traverse_dispatch(first, last, vocab, value_type());
       }
-      
-      size_type __find(size_type pos, const id_type& id) const
+
+      template <typename Iterator>
+      std::pair<Iterator, size_type> traverse(Iterator first, Iterator last, const vocab_type& vocab, const int& shard_prev, const size_type& pos_prev) const
       {
-	// we do caching, here...?
-	const size_type pos_first = children_first(pos);
-	const size_type pos_last  = children_last(pos);
+	typedef typename std::iterator_traits<Iterator>::value_type value_type;
 	
-	const size_type child = lower_bound(pos_first, pos_last, id);
-	const size_type found_child_mask = size_type(child != pos_last && ! (id < operator[](child))) - 1;
-	
-	return ((~found_child_mask) & child) | found_child_mask;
+	if (std::distance(first, last) >= 3 && shard_prev >= 0) {
+	  trylock_type lock(const_cast<spinlock_type&>(spinlock_backoff));
+	  if (lock)
+	    return __traverse_dispatch(first, last, vocab, shard_prev, pos_prev, value_type());
+	  else
+	    return traverse(first, last, vocab);
+	} else
+	  return traverse(first, last, vocab);
       }
 
+      
       size_type find(size_type pos, const id_type& id) const
       {
 	if (pos == size_type(-1)) {
@@ -170,11 +189,11 @@ namespace expgram
           return (~child_mask & size_type(id)) | child_mask;
         } else {
 	  // lock here!
-	  trylock_type lock(const_cast<spinlock_type&>(spinlock));
+	  trylock_type lock(const_cast<spinlock_type&>(spinlock_pos));
 	  
 	  if (lock) {
-	    const size_type cache_pos = hasher_type::operator()(id, pos) & (caches.size() - 1);
-	    cache_pos_type& cache = const_cast<cache_pos_type&>(caches[cache_pos]);
+	    const size_type cache_pos = hasher_type::operator()(id, pos) & (caches_pos.size() - 1);
+	    cache_pos_type& cache = const_cast<cache_pos_type&>(caches_pos[cache_pos]);
 	    if (cache.pos != pos || cache.id != id) {
 	      cache.pos      = pos;
 	      cache.id       = id;
@@ -214,6 +233,19 @@ namespace expgram
 	}
       }
       
+    private:
+      size_type __find(size_type pos, const id_type& id) const
+      {
+	// we do caching, here...?
+	const size_type pos_first = children_first(pos);
+	const size_type pos_last  = children_last(pos);
+	
+	const size_type child = lower_bound(pos_first, pos_last, id);
+	const size_type found_child_mask = size_type(child != pos_last && ! (id < operator[](child))) - 1;
+	
+	return ((~found_child_mask) & child) | found_child_mask;
+      }
+      
       template <typename Iterator, typename _Word>
       std::pair<Iterator, size_type> __traverse_dispatch(Iterator first, Iterator last, const vocab_type& vocab, _Word) const
       {
@@ -242,13 +274,77 @@ namespace expgram
 	return std::make_pair(first, pos);
       }
 
+      template <typename Iterator, typename _Word>
+      std::pair<Iterator, size_type> __traverse_dispatch(Iterator first,
+							 Iterator last,
+							 const vocab_type& vocab,
+							 const int& shard_prev,
+							 const size_type& pos_prev,
+							 _Word) const
+      {
+	const size_type cache_pos = hasher_type::operator()(pos_prev, shard_prev) & (caches_backoff.size() - 1);
+	cache_backoff_type& cache = const_cast<cache_backoff_type&>(caches_backoff[cache_pos]);
+	if (cache.shard_prev != shard_prev || cache.pos_prev != pos_prev) {
+	  cache.shard_prev = shard_prev;
+	  cache.pos_prev   = pos_prev;
+	  
+	  cache.pos = size_type(-1);
+	  for (Iterator iter = first; iter != last - 1; ++ iter) {
+	    cache.pos = find(cache.pos, vocab[word_type(*iter)]);
+	    if (cache.pos == size_type(-1)) break;
+	  }
+	}
+
+	if (cache.pos != size_type(-1)) {
+	  const size_type node = find(cache.pos, vocab[word_type(*(last - 1))]);
+	  if (node != size_type(-1))
+	    return std::make_pair(last, node);
+	  else
+	    return std::make_pair(last - 1, cache.pos);
+	} else
+	  return std::make_pair(first, cache.pos);
+      }
+      
+      template <typename Iterator>
+      std::pair<Iterator, size_type> __traverse_dispatch(Iterator first,
+							 Iterator last,
+							 const vocab_type& vocab,
+							 const int& shard_prev,
+							 const size_type& pos_prev,
+							 id_type) const
+      {
+	const size_type cache_pos = hasher_type::operator()(pos_prev, shard_prev) & (caches_backoff.size() - 1);
+	cache_backoff_type& cache = const_cast<cache_backoff_type&>(caches_backoff[cache_pos]);
+	if (cache.shard_prev != shard_prev || cache.pos_prev != pos_prev) {
+	  cache.shard_prev = shard_prev;
+	  cache.pos_prev   = pos_prev;
+	  
+	  cache.pos = size_type(-1);
+	  for (Iterator iter = first; iter != last - 1; ++ iter) {
+	    cache.pos = find(cache.pos, *iter);
+	    if (cache.pos == size_type(-1)) break;
+	  }
+	}
+	
+	if (cache.pos != size_type(-1)) {
+	  const size_type node = find(cache.pos, *(last - 1));
+	  if (node != size_type(-1))
+	    return std::make_pair(last, node);
+	  else
+	    return std::make_pair(last - 1, cache.pos);
+	} else
+	  return std::make_pair(first, cache.pos);
+      }
+
     public:
       id_set_type        ids;
       position_set_type  positions;
       off_set_type       offsets;
 
-      spinlock_type      spinlock;
-      cache_pos_set_type caches;
+      spinlock_type          spinlock_pos;
+      spinlock_type          spinlock_backoff;
+      cache_pos_set_type     caches_pos;
+      cache_backoff_set_type caches_backoff;
     };
 
     
@@ -281,12 +377,25 @@ namespace expgram
     {
       return __shards[shard].traverse(first, last, __vocab);
     }
+
+    template <typename Iterator>
+    std::pair<Iterator, size_type> traverse(size_type shard, Iterator first, Iterator last, const int& shard_prev, const size_type& pos_prev) const
+    {
+      return __shards[shard].traverse(first, last, __vocab, shard_prev, pos_prev);
+    }
     
     template <typename Iterator>
     std::pair<Iterator, size_type> traverse(Iterator first, Iterator last) const
     {
       return __shards[shard_index(first, last)].traverse(first, last, __vocab);
     }
+
+    template <typename Iterator>
+    std::pair<Iterator, size_type> traverse(Iterator first, Iterator last, const int& shard_prev, const size_type& pos_prev) const
+    {
+      return __shards[shard_index(first, last)].traverse(first, last, __vocab, shard_prev, pos_prev);
+    }
+
     
     inline const_reference operator[](size_type pos) const { return __shards[pos]; }
     inline       reference operator[](size_type pos)       { return __shards[pos]; }
