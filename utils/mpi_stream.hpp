@@ -167,9 +167,9 @@ namespace utils
       }
       wait();
       
-      request_ack.Free();
-      request_size.Free();
-      request_buffer.Free();
+      //request_ack.Free();
+      //request_size.Free();
+      //request_buffer.Free();
     }
     
     comm = 0;
@@ -337,9 +337,9 @@ namespace utils
     if (comm) {
       wait();
       
-      request_ack.Free();
-      request_size.Free();
-      request_buffer.Free();
+      //request_ack.Free();
+      //request_size.Free();
+      //request_buffer.Free();
     }
     
     comm = 0;

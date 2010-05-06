@@ -387,8 +387,8 @@ namespace utils
     request_size.Wait();
     request_buffer.Wait();
     
-    request_size.Free();
-    request_buffer.Free();
+    //request_size.Free();
+    //request_buffer.Free();
     
     buffer.clear();
     buffer_overcommit.clear();
@@ -467,8 +467,8 @@ namespace utils
   {
     if (buffer.empty()) return;
     
-    request_size.Free();
-    request_buffer.Free();
+    //request_size.Free();
+    //request_buffer.Free();
     
     recv_size = 0;
     buffer_offset = 0;
