@@ -1,4 +1,6 @@
-?
+2010-5-7
+	* Better caching for child-node traversal
+	* Better caching for backoff traversal
 	* Removed dependence on libcodec. (deprecated?)
 
 2009-10-14
