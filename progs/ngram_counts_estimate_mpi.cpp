@@ -1871,7 +1871,7 @@ int getoptions(int argc, char** argv)
     ("help", "help message");
   
   po::variables_map vm;
-  po::store(po::parse_command_line(argc, argv, desc), vm);
+  po::store(po::parse_command_line(argc, argv, desc, po::command_line_style::unix_style & (~po::command_line_style::allow_guessing)), vm);
   po::notify(vm);
   
   if (vm.count("help")) {
