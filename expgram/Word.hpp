@@ -122,7 +122,7 @@ namespace expgram
     static bool exists(const word_type& x)
     {
       lock_type lock(__mutex);
-      return __words().find(x) == __words().end();
+      return __words().find(x) != __words().end();
     }
     static size_t allocated()
     {

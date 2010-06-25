@@ -447,6 +447,7 @@ namespace succinctdb
     }
     
     bool exists(size_type node_pos) const { return __succinct_trie->exists(node_pos); }
+    bool has_children(size_type node_pos) const { return __succinct_trie->has_children(node_pos); }
     bool is_valid(size_type node_pos) const { return node_pos != succinct_trie_type::out_of_range(); }
     
     value_type operator[](size_type node_pos) const

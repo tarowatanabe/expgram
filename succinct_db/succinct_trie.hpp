@@ -400,7 +400,7 @@ namespace succinctdb
     }
     
     template <typename Index, typename Positions>
-    bool __has_children(const Index& index, const Positions& positions, size_type node_pos)
+    bool __has_children(const Index& index, const Positions& positions, size_type node_pos) const
     {
       const std::pair<size_type, size_type> result = __range(index, positions, node_pos);
       return result.first < result.second;
