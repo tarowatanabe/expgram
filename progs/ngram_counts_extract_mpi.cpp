@@ -345,7 +345,7 @@ struct MapReduceLine
     
     path_set_type::const_iterator piter_end = paths.end();
     for (path_set_type::const_iterator piter = paths.begin(); piter != piter_end; ++ piter) {
-      if (! boost::filesystem::exists(*piter))
+      if (*piter != "-" && ! boost::filesystem::exists(*piter))
 	throw std::runtime_error(std::string("no file? ") + piter->file_string());
       
       if (debug)
@@ -532,7 +532,7 @@ struct MapReduceFile
       
       for (int rank = 1; rank < mpi_size && piter != piter_end; ++ rank) 
 	if (stream[rank]->test()) {
-	  if (! boost::filesystem::exists(*piter))
+	  if (*piter != "-" && ! boost::filesystem::exists(*piter))
 	    throw std::runtime_error(std::string("no file? ") + piter->file_string());
 	  
 	  if (debug)
@@ -544,7 +544,7 @@ struct MapReduceFile
 	}
       
       if (piter != piter_end && queue.empty()) {
-	if (! boost::filesystem::exists(*piter))
+	if (*piter != "-" && ! boost::filesystem::exists(*piter))
 	  throw std::runtime_error(std::string("no file? ") + piter->file_string());
 	
 	if (debug)

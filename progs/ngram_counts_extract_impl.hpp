@@ -225,7 +225,7 @@ struct GoogleNGramCounts
 	  queue.pop(file);
 	  if (file.empty()) break;
 	  
-	  if (! boost::filesystem::exists(file))
+	  if (file != "-" && ! boost::filesystem::exists(file))
 	    throw std::runtime_error(std::string("no file? ") + file.file_string());
 	  
 	  char buffer[4096];
@@ -262,7 +262,7 @@ struct GoogleNGramCounts
 	  queue.pop(file);
 	  if (file.empty()) break;
 	  
-	  if (! boost::filesystem::exists(file))
+	  if (file != "-" && ! boost::filesystem::exists(file))
 	    throw std::runtime_error(std::string("no file? ") + file.file_string());
 
 	  utils::compress_istream is(file, 1024 * 1024);
