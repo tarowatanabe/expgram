@@ -18,6 +18,7 @@
 
 #include <map>
 
+#include <boost/version.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/thread.hpp>
 #include <boost/filesystem.hpp>
@@ -116,7 +117,11 @@ struct GoogleNGramCounts
 	line_set_type lines;
 
 	boost::iostreams::filtering_ostream os;
+#if BOOST_VERSION >= 104400
+	os.push(boost::iostreams::file_descriptor_sink(subprocess.desc_write(), boost::iostreams::close_handle));
+#else
 	os.push(boost::iostreams::file_descriptor_sink(subprocess.desc_write(), true));
+#endif
 	
 	while (1) {
 	  queue.pop_swap(lines);
@@ -139,7 +144,11 @@ struct GoogleNGramCounts
 	thread_type thread(SubTask(*subprocess, queue));
 	
 	boost::iostreams::filtering_istream is;
+#if BOOST_VERSION >= 104400
+	is.push(boost::iostreams::file_descriptor_source(subprocess->desc_read(), boost::iostreams::close_handle));
+#else
 	is.push(boost::iostreams::file_descriptor_source(subprocess->desc_read(), true));
+#endif
 	
 	__task(utils::istream_line_iterator(is), utils::istream_line_iterator(), counts, path, paths, max_malloc);
 	
@@ -219,7 +228,11 @@ struct GoogleNGramCounts
 	path_type file;
 	
 	boost::iostreams::filtering_ostream os;
+#if BOOST_VERSION >= 104400
+	os.push(boost::iostreams::file_descriptor_sink(subprocess.desc_write(), boost::iostreams::close_handle));
+#else
 	os.push(boost::iostreams::file_descriptor_sink(subprocess.desc_write(), true));
+#endif
 	
 	while (1) {
 	  queue.pop(file);
@@ -252,7 +265,11 @@ struct GoogleNGramCounts
 	thread_type thread(SubTask(*subprocess, queue));
 	
 	boost::iostreams::filtering_istream is;
+#if BOOST_VERSION >= 104400
+	is.push(boost::iostreams::file_descriptor_source(subprocess->desc_read(), boost::iostreams::close_handle));
+#else
 	is.push(boost::iostreams::file_descriptor_source(subprocess->desc_read(), true));
+#endif
 	
 	__task(utils::istream_line_iterator(is), utils::istream_line_iterator(), counts, path, paths, max_malloc);
 	
