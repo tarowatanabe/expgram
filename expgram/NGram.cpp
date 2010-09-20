@@ -13,23 +13,13 @@
 #include <utils/space_separator.hpp>
 #include <utils/tempfile.hpp>
 #include <utils/packed_device.hpp>
+#include <utils/lexical_cast.hpp>
 
 #include "NGram.hpp"
 #include "Quantizer.hpp"
 
 namespace expgram
 {
- 
-  inline bool true_false(const std::string& optarg)
-  {
-    if (strcasecmp(optarg.c_str(), "true") == 0)
-      return true;
-    if (strcasecmp(optarg.c_str(), "yes") == 0)
-      return true;
-    if (atoi(optarg.c_str()) > 0)
-      return true;
-    return false;
-  }
  
   template <typename Path, typename Data>
   inline
@@ -269,6 +259,7 @@ namespace expgram
     stream_smooth.precision(20);
     stream_smooth << smooth;
     rep["smooth"] = stream_smooth.str();
+    rep["bound-exact"] = utils::lexical_cast<std::string>(bound_exact);
   }
 
   void NGram::write_shard(const path_type& file, int shard) const
@@ -312,6 +303,7 @@ namespace expgram
     stream_smooth.precision(20);
     stream_smooth << smooth;
     rep["smooth"] = stream_smooth.str();
+    rep["bound-exact"] = utils::lexical_cast<std::string>(bound_exact);
   }
   
   void NGram::open(const path_type& path, const size_type shard_size)
@@ -368,6 +360,12 @@ namespace expgram
     if (siter == rep.end())
       throw std::runtime_error("no smoothing parameter...?");
     smooth = atof(siter->second.c_str());
+    
+    repository_type::const_iterator biter = rep.find("bound-exact");
+    if (biter != rep.end())
+      bound_exact = utils::lexical_cast<bool>(biter->second);
+    else
+      bound_exact = false;
     
     if (debug)
       std::cerr << "# of shards: " << index.size()
@@ -1081,7 +1079,9 @@ namespace expgram
     // check if we already computed upper-bounds...
     if (logbounds.size() == logprobs.size())
       return;
-
+    
+    bound_exact = true;
+    
     queue_ptr_set_type  queues(index.size());
     thread_ptr_set_type threads_mapper(index.size());
     thread_ptr_set_type threads_reducer(index.size());
@@ -1705,6 +1705,7 @@ namespace expgram
     threads.clear();
     
     // compute upper bounds...
+    
     bounds();
   }
 };

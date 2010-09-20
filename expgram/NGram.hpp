@@ -273,6 +273,7 @@ namespace expgram
       backoffs.clear();
       logbounds.clear();
       smooth = utils::mathop::log(1e-7);
+      bound_exact = false;
     }
     
     
@@ -321,6 +322,7 @@ namespace expgram
     shard_data_set_type logbounds;
     
     logprob_type   smooth;
+    bool bound_exact;
     int debug;
   };
   

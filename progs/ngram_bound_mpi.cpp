@@ -72,6 +72,7 @@ int main(int argc, char** argv)
       ngram.open_shard(ngram_file, mpi_rank);
       
       // set up logbounds...
+      ngram.bound_exact = true;
       ngram.logbounds.reserve(ngram.index.size());
       ngram.logbounds.resize(ngram.index.size());
       
