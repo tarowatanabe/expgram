@@ -337,6 +337,12 @@ namespace expgram
     if (siter == rep.end())
       throw std::runtime_error("no smoothing parameter...?");
     smooth = atof(siter->second.c_str());
+    
+    repository_type::const_iterator biter = rep.find("bound-exact");
+    if (biter != rep.end())
+      bound_exact = utils::lexical_cast<bool>(biter->second);
+    else
+      bound_exact = false;
   }
   
   
