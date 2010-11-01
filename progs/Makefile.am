@@ -14,6 +14,7 @@ LIBUTILS   = $(top_builddir)/utils/libutils.la
 
 bin_PROGRAMS = \
 	\
+	ngram \
 	ngram_index \
 	ngram_dump \
 	ngram_quantize \
@@ -43,6 +44,9 @@ noinst_HEADERS = \
 
 
 ### ngram language model
+ngram_SOURCES = ngram.cpp
+ngram_LDADD   = $(LIBEXPGRAM) $(LIBUTILS) $(boost_LDADD) $(perftools_LDADD)
+
 ngram_index_SOURCES = ngram_index.cpp
 ngram_index_LDADD   = $(LIBEXPGRAM) $(LIBUTILS) $(boost_LDADD) $(perftools_LDADD)
 
