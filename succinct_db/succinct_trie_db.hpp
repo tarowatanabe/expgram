@@ -1,4 +1,7 @@
 // -*- mode: c++ -*-
+//
+//  Copyright(C) 2009-2010 Taro Watanabe <taro.watanabe@nict.go.jp>
+//
 
 #ifndef __SUCCINCT_DB__SUCCINCT_TRIE_DB__HPP__
 #define __SUCCINCT_DB__SUCCINCT_TRIE_DB__HPP__ 1
@@ -48,9 +51,8 @@ namespace succinctdb
     typedef typename Alloc::template rebind<char>::other      byte_alloc_type;
 
     // we assume that pointer size is multiple of two!
-    static const size_type pointer_size = sizeof(data_type*);
+    static const size_type pointer_size = sizeof(void*);
     static const size_type pointer_mask = ~(pointer_size - 1);
-
     
     __succinct_trie_db_writer(const path_type& path)
       : path_output(), path_key_data(), path_size(), __os_key_data(), __os_size(), __size(0) { open(path); }
@@ -142,7 +144,7 @@ namespace succinctdb
     struct __less_value
     {
       bool operator()(const __value_type& x, const __value_type& y) const {
-	return std::lexicographical_compare(x.first, x.last, y.first, x.last);
+	return std::lexicographical_compare(x.first, x.last, y.first, y.last);
       }
     };
 
@@ -348,9 +350,15 @@ namespace succinctdb
       return __succinct_trie->traverse(key_buf, node_pos, key_pos, key_size);
     }
     
+
+    std::pair<size_type, size_type> range(const size_type node_pos) const { return __succinct_trie->range(node_pos); }
+    size_type parent(size_type node_pos) const { return __succinct_trie->parent(node_pos); }
+    
+    bool is_next_sibling(size_type node_pos) const { return __succinct_trie->is_next_sibling(node_pos); }
     bool exists(size_type node_pos) const { return __succinct_trie->exists(node_pos); }
     bool has_children(size_type node_pos) const { return __succinct_trie->has_children(node_pos); }
     bool is_valid(size_type node_pos) const { return node_pos != succinct_trie_type::out_of_range(); }
+    
     data_type operator[](size_type node_pos) const { return __succinct_trie->data(node_pos); }
 
     uint64_t size_bytes() const { return (__succinct_trie ? __succinct_trie->size_bytes() : uint64_t(0)); }

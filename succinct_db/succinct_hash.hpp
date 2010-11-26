@@ -1,4 +1,7 @@
 // -*- mode: c++ -*-
+//
+//  Copyright(C) 2009-2010 Taro Watanabe <taro.watanabe@nict.go.jp>
+//
 
 #ifndef __SUCCINCT_DB__SUCCINCT_HASH__HPP__
 #define __SUCCINCT_DB__SUCCINCT_HASH__HPP__ 1
@@ -270,7 +273,7 @@ namespace succinctdb
       typename key_set_type::const_iterator first = keys.begin() + offs[pos];
       typename key_set_type::const_iterator last  = keys.begin() + offs[pos + 1];
       
-      return (last - first == size) && std::equal(first, last, buf);
+      return (last - first == difference_type(size)) && std::equal(first, last, buf);
     }
     
   private:
@@ -337,6 +340,8 @@ namespace succinctdb
       
       __offset += size;
       os_offs->write((char*) &__offset, sizeof(__offset));
+      
+      return __size - 1;
     }
     
     void clear() { close(); }
@@ -577,7 +582,7 @@ namespace succinctdb
       typename key_set_type::const_iterator first = keys.begin() + offs[pos];
       typename key_set_type::const_iterator last  = keys.begin() + offs[pos + 1];
       
-      return (last - first == size) && std::equal(first, last, buf);
+      return (last - first == difference_type(size)) && std::equal(first, last, buf);
     }
     
   private:

@@ -1,4 +1,7 @@
 // -*- mode: c++ -*-
+//
+//  Copyright(C) 2009-2010 Taro Watanabe <taro.watanabe@nict.go.jp>
+//
 
 #ifndef __SUCCINCT_DB__SUCCINCT_TRIE__HPP__
 #define __SUCCINCT_DB__SUCCINCT_TRIE__HPP__ 1
@@ -160,10 +163,10 @@ namespace succinctdb
     typedef typename node_type::buffer_type key_buffer_type;
     
   public:
-    __succinct_trie_iterator() : nodes(), impl() {}
-    __succinct_trie_iterator(const __succinct_trie_iterator& x) : nodes(x.nodes), impl(x.impl) {}
-    __succinct_trie_iterator(const impl_type& _impl) : nodes(), impl(&_impl) {}
-    __succinct_trie_iterator(const size_type pos, const impl_type& _impl) : nodes(1, node_type(pos)), impl(&_impl)
+    __succinct_trie_iterator() : impl(), nodes() {}
+    __succinct_trie_iterator(const __succinct_trie_iterator& x) : impl(x.impl), nodes(x.nodes) {}
+    __succinct_trie_iterator(const impl_type& _impl) : impl(&_impl), nodes() {}
+    __succinct_trie_iterator(const size_type pos, const impl_type& _impl) : impl(&_impl), nodes(1, node_type(pos))
     {
       if (! exists())
 	increment();
@@ -276,11 +279,11 @@ namespace succinctdb
     typedef __succinct_trie_reverse_iterator<Key,Data,Impl,Alloc> self_type;
 
   public:
-    __succinct_trie_reverse_iterator() : node_pos(0), impl() {}
-    __succinct_trie_reverse_iterator(const __succinct_trie_reverse_iterator& x) : node_pos(x.node_pos), impl(x.impl) {}
-    __succinct_trie_reverse_iterator(const impl_type& _impl) : node_pos(0), impl(&_impl) {}
+    __succinct_trie_reverse_iterator() : impl(), node_pos(0) {}
+    __succinct_trie_reverse_iterator(const __succinct_trie_reverse_iterator& x) : impl(x.impl), node_pos(x.node_pos) {}
+    __succinct_trie_reverse_iterator(const impl_type& _impl) : impl(&_impl), node_pos(0) {}
     __succinct_trie_reverse_iterator(const size_type _node_pos, const impl_type& _impl)
-      : node_pos(_node_pos), impl(&_impl) {}
+      : impl(&_impl), node_pos(_node_pos) {}
     
   public:
     cursor begin() const { return cursor(node_pos, impl); }
@@ -739,6 +742,11 @@ namespace succinctdb
       return base_type::__has_children(index, positions, node_pos);
     }
     
+    bool is_valid(size_type node_pos) const
+    {
+      return node_pos != out_of_range();
+    }
+    
     size_type find(const key_type* key_buf, size_type key_size, size_type node_pos) const
     {
       size_type key_pos = 0;
@@ -1111,6 +1119,11 @@ namespace succinctdb
     {
       return base_type::__has_children(index, positions, node_pos);
     }
+    
+    bool is_valid(size_type node_pos) const
+    {
+      return node_pos != out_of_range();
+    }
 
     size_type find(const key_type* key_buf, size_type key_size, size_type node_pos) const
     {
@@ -1356,7 +1369,7 @@ namespace succinctdb
 	    queue.push_front(node_set_type());
 	    children(*niter, queue.front(), first, last, extract_key);
 	    
-	    for (int i = 0; i < niter->terminals.size() - 1; ++ i)
+	    for (int i = 0; i < int(niter->terminals.size()) - 1; ++ i)
 	      queue.push_front(node_set_type());
 	    
 	    children_size += niter->terminals.size();
@@ -1365,7 +1378,7 @@ namespace succinctdb
 	
 	queue.pop_back();
 	
-	for (int i = 0; i < children_size; ++ i)
+	for (size_t i = 0; i != children_size; ++ i)
 	  positions.set(positions.size(), true);
 	positions.set(positions.size(), false);
       }
@@ -1425,7 +1438,7 @@ namespace succinctdb
 	    queue.push_front(node_set_type());
 	    children(*niter, queue.front(), first, last, extract_key);
 	    
-	    for (int i = 0; i < niter->terminals.size() - 1; ++ i)
+	    for (int i = 0; i < int(niter->terminals.size()) - 1; ++ i)
 	      queue.push_front(node_set_type());
 	    
 	    children_size += niter->terminals.size();
@@ -1434,7 +1447,7 @@ namespace succinctdb
 	
 	queue.pop_back();
 	
-	for (int i = 0; i < children_size; ++ i)
+	for (size_t i = 0; i != children_size; ++ i)
 	  positions.set(positions.size(), true);
 	positions.set(positions.size(), false);
       }
