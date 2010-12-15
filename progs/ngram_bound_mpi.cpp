@@ -17,6 +17,8 @@
 
 #include <utils/tempfile.hpp>
 #include <utils/resource.hpp>
+#include <utils/base64.hpp>
+#include <utils/lexical_cast.hpp>
 
 #include <utils/mpi.hpp>
 #include <utils/mpi_device.hpp>
@@ -157,8 +159,6 @@ void ngram_bound_mapper(const ngram_type& ngram, intercomm_type& reducer)
     
     stream[rank]->push(boost::iostreams::gzip_compressor());
     stream[rank]->push(*device[rank]);
-
-    stream[rank]->precision(20);
   }
   
   logprob_set_type unigrams(ngram.index[mpi_rank].offsets[1], ngram.logprob_min());
@@ -199,7 +199,7 @@ void ngram_bound_mapper(const ngram_type& ngram, intercomm_type& reducer)
 	    const int shard = ngram.index.shard_index(citer_begin, citer_end);
 	    
 	    std::copy(citer_begin, citer_end, std::ostream_iterator<id_type>(*stream[shard], " "));
-	    *stream[shard] << logprob << '\n';
+	    *stream[shard] << utils::encode_base64(logprob) << '\n';
 	  }
 #endif	  
 #if 1
@@ -211,7 +211,7 @@ void ngram_bound_mapper(const ngram_type& ngram, intercomm_type& reducer)
 	      const int shard = ngram.index.shard_index(citer, citer_end);
 	      
 	      std::copy(citer, citer_end, std::ostream_iterator<id_type>(*stream[shard], " "));
-	      *stream[shard] << logprob << '\n';
+	      *stream[shard] << utils::encode_base64(logprob) << '\n';
 	    }
 	  }
 #endif
@@ -225,7 +225,7 @@ void ngram_bound_mapper(const ngram_type& ngram, intercomm_type& reducer)
   
   for (id_type id = 0; id < unigrams.size(); ++ id)
     if (unigrams[id] > ngram.logprob_min())
-      *stream[0] << id << ' ' << unigrams[id] << '\n';
+      *stream[0] << id << ' ' << utils::encode_base64(unigrams[id]) << '\n';
 
   
   for (int rank = 0; rank < mpi_size; ++ rank) {
@@ -313,14 +313,14 @@ void ngram_bound_reducer(ngram_type& ngram, intercomm_type& mapper)
 	  context.clear();
 	  tokens_type::const_iterator titer_end = tokens.end() - 1;
 	  for (tokens_type::const_iterator titer = tokens.begin(); titer != titer_end; ++ titer)
-	    context.push_back(atol(titer->c_str()));
+	    context.push_back(boost::lexical_cast<id_type>(*titer));
 	  
 	  std::pair<context_type::const_iterator, size_type> result = ngram.index.traverse(mpi_rank, context.begin(), context.end());
 	  if (result.first != context.end() || result.second == size_type(-1))
 	    throw std::runtime_error("no ngram?");
 	  
 	  logprob_type& bound = logbounds[result.second - offset];
-	  bound = std::max(bound, logprob_type(atof(tokens.back().c_str())));
+	  bound = std::max(bound, utils::decode_base64<logprob_type>(tokens.back()));
 	  
 	} else {
 	  stream[rank].reset();

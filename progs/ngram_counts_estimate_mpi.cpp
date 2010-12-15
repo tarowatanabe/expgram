@@ -29,6 +29,8 @@
 #include <utils/tempfile.hpp>
 #include <utils/resource.hpp>
 #include <utils/space_separator.hpp>
+#include <utils/lexical_cast.hpp>
+#include <utils/base64.hpp>
 
 #include <utils/mpi.hpp>
 #include <utils/mpi_device.hpp>
