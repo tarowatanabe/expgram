@@ -222,6 +222,29 @@ AC_LINK_IFELSE([AC_LANG_PROGRAM([#if defined(__GNUC__) && (defined(__i386__) || 
 AC_CHECK_HEADERS([malloc.h malloc/malloc.h sys/resource.h])
 
 if test "x$ac_enable_jemalloc" = "xyes"; then
+  save_LDFLAGS="$LDFLAGS"
+  save_CXXFLAGS="$CXXFLAGS"
+  LDFLAGS="$LDFLAGS $JEMALLOC_LDFLAGS"
+  CXXFLAGS="$CXXFLAGS $JEMALLOC_CPPFLAGS"
+
+  AC_CHECK_HEADERS([jemalloc/jemalloc.h])
+
+  AC_MSG_CHECKING(jemalloc_mallctl)
+
+  AC_TRY_LINK([#include <jemalloc/jemalloc.h>],
+              [mallctl("stats.allocated", 0, 0, 0, 0);],
+	       [have_jemalloc_mallctl=yes], [have_jemalloc_mallctl=no])
+  AC_MSG_RESULT($have_jemalloc_mallctl)
+
+  LDFLAGS="$save_LDFLAGS"
+  CXXFLAGS="$save_CXXFLAGS"
+
+  if test "$have_jemalloc_mallctl" = "yes"; then
+    AC_DEFINE(HAVE_JEMALLOC_MALLCTL, 1, [Define if you have mallctl (in non-Mozilla jemalloc)])
+  fi
+fi
+
+if test "x$ac_enable_jemalloc" = "xyes"; then
   save_CXXFLAGS="$CXXFLAGS"
   save_CPPFLAGS="$CPPFLAGS"
   CXXFLAGS="$CXXFLAGS $JEMALLOC_CPPFLAGS"
