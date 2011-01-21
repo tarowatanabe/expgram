@@ -46,7 +46,7 @@ path_type counts_file;
 path_type corpus_list_file;
 path_type counts_list_file;
 
-path_type output_file;
+path_type output_file = "-";
 
 path_type filter_file;
 
@@ -96,9 +96,6 @@ int main(int argc, char** argv)
     if (getoptions(argc, argv) != 0) 
       return 1;
     
-    if (output_file.empty())
-      throw std::runtime_error("no output file");
-
     if (mpi_rank == 0) {
       path_set_type corpus_files;
       path_set_type counts_files;
@@ -724,7 +721,7 @@ int getoptions(int argc, char** argv)
     ("corpus-list",  po::value<path_type>(&corpus_list_file),  "corpus list file")
     ("counts-list",  po::value<path_type>(&counts_list_file),  "counts list file")
     
-    ("output",       po::value<path_type>(&output_file), "output directory")
+    ("output",       po::value<path_type>(&output_file)->defaul_value(output_file), "output directory")
     
     ("filter", po::value<path_type>(&filter_file), "filtering script")
 
