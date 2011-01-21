@@ -47,6 +47,8 @@ path_type counts_file;
 path_type corpus_list_file;
 path_type counts_list_file;
 
+path_type vocab_file;
+
 path_type output_file;
 
 path_type filter_file;
@@ -148,11 +150,36 @@ int main(int argc, char** argv)
       
       if (counts_files.empty() && corpus_files.empty()) 
 	throw std::runtime_error("no corpus files nor counts files");
-      
-      GoogleNGramCounts::preprocess(output_file, max_order);
 
       vocabulary_type vocabulary;
       vocabulary.set_empty_key(std::string());
+      
+      if (! vocab_file.empty()) {
+	if (vocab_file != "-" && ! boost::filesystem::exists(vocab_file))
+	  throw std::runtime_error("no vocabulary file? " + vocab_file.file_string());
+	
+	utils::compress_istream is(vocab_file, 1024 * 1024);
+	
+	std::string word;
+	while (is >> word)
+	  vocabulary.insert(word);
+      }
+      
+      int vocabulary_size = vocabulary.size();
+      MPI::COMM_WORLD.Bcast(&vocabulary_size, 1, MPI::INT, 0);
+      
+      if (vocabulary_size) {
+	boost::iostreams::filtering_ostream os;
+	os.push(boost::iostreams::gzip_compressor());
+	os.push(utils::mpi_device_bcast_sink(0, 1024 * 1024));
+	
+	vocabulary_type::const_iterator viter_end = vocabulary.end();
+	for (vocabulary_type::const_iterator viter = vocabulary.begin(); viter != viter_end; ++ viter)
+	  os << *viter << '\n';
+      }
+
+      
+      GoogleNGramCounts::preprocess(output_file, max_order);
       
       path_map_type paths_counts(max_order);
 
@@ -173,7 +200,19 @@ int main(int argc, char** argv)
     } else {
       vocabulary_type vocabulary;
       vocabulary.set_empty_key(std::string());
-
+      
+      int vocabulary_size = 0;
+      MPI::COMM_WORLD.Bcast(&vocabulary_size, 1, MPI::INT, 0);
+      if (vocabulary_size) {
+	boost::iostreams::filtering_istream is;
+	is.push(boost::iostreams::gzip_decompressor());
+	is.push(utils::mpi_device_bcast_source(0, 1024 * 1024));
+	
+	std::string word;
+	while (is >> word)
+	  vocabulary.insert(word);
+      }
+      
       path_map_type paths_counts(max_order);
 
       int counts_files_size = 0;
@@ -758,6 +797,8 @@ int getoptions(int argc, char** argv)
     
     ("corpus-list",  po::value<path_type>(&corpus_list_file),  "corpus list file")
     ("counts-list",  po::value<path_type>(&counts_list_file),  "counts list file")
+    
+    ("vocab",        po::value<path_type>(&vocab_file),        "vocabulary file (list of words)")
     
     ("output",       po::value<path_type>(&output_file), "output directory")
     
