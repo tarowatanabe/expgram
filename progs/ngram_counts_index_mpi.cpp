@@ -288,6 +288,9 @@ void index_unigram(const path_type& path, const path_type& output, ngram_type& n
     
     vocab.close();
 
+    while (! boost::filesystem::exists(path_vocab))
+      boost::thread::yield();
+
     utils::tempfile::permission(path_vocab);
     
     vocab.open(path_vocab);

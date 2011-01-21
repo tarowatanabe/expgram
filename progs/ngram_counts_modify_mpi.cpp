@@ -350,7 +350,6 @@ void ngram_modify_reducer(ngram_type& ngram, intercomm_type& mapper)
 
   while (! boost::filesystem::exists(path))
     boost::thread::yield();
-	
   
   utils::tempfile::permission(path);
   
