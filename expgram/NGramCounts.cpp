@@ -252,6 +252,9 @@ namespace expgram
 	os.write((char*) &count, sizeof(count_type));
       }
       os.pop();
+      
+      while (! boost::filesystem::exists(path))
+	boost::thread::yield();
 
       utils::tempfile::permission(path);
       
@@ -968,6 +971,11 @@ namespace expgram
       
       dump_file(path_logprob, logprobs[shard]);
       dump_file(path_backoff, backoffs[shard]);
+
+      while (! boost::filesystem::exists(path_logprob))
+	boost::thread::yield();
+      while (! boost::filesystem::exists(path_backoff))
+	boost::thread::yield();
 
       utils::tempfile::permission(path_logprob);
       utils::tempfile::permission(path_backoff);
@@ -2204,6 +2212,9 @@ namespace expgram
 	threads[shard]->join();
 	
 	os_counts[shard].reset();
+
+	while (! boost::filesystem::exists(path_counts[shard]))
+	  boost::thread::yield();
 	
 	utils::tempfile::permission(path_counts[shard]);
 
@@ -2305,6 +2316,9 @@ namespace expgram
       // termination...
       for (int shard = 0; shard < shard_size; ++ shard) {
 	os_counts[shard].reset();
+
+	while (! boost::filesystem::exists(path_counts[shard]))
+	  boost::thread::yield();
 	
 	utils::tempfile::permission(path_counts[shard]);
 

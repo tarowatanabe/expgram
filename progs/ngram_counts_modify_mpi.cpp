@@ -347,6 +347,10 @@ void ngram_modify_reducer(ngram_type& ngram, intercomm_type& mapper)
     os.write((char*) &count, sizeof(count_type));
   }
   os.pop();
+
+  while (! boost::filesystem::exists(path))
+    boost::thread::yield();
+	
   
   utils::tempfile::permission(path);
   
