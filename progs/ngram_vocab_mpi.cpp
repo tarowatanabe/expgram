@@ -721,7 +721,7 @@ int getoptions(int argc, char** argv)
     ("corpus-list",  po::value<path_type>(&corpus_list_file),  "corpus list file")
     ("counts-list",  po::value<path_type>(&counts_list_file),  "counts list file")
     
-    ("output",       po::value<path_type>(&output_file)->defaul_value(output_file), "output directory")
+    ("output",       po::value<path_type>(&output_file)->default_value(output_file), "output directory")
     
     ("filter", po::value<path_type>(&filter_file), "filtering script")
 
