@@ -9,9 +9,15 @@ However, mpi version is not fully tested.
 
 Brief descriptions:
 
+      ngram_vocab
+        Compute vocabulary (unigram with count). From this file, you can create count thresholded word-list, for instance, by
+	 
+        cat [output of ngram_vocab] | gawk '{ if ($12 >= 20) {print $1;}}' > vocab.list
+
       ngram_counts_extract
 	compute ngram counts given  sentence data or ngram counts collection. The output is almost compatible with
 	Google ngram data specification, but differ in that counts are not reduced.
+	If you want to restrict vocabulary, supply word-list via --vocab option.
 
       ngram_counts_index
 	ngram counts indexer from Googles ngram data format.
@@ -54,6 +60,7 @@ Brief descriptions:
 
 For larger data, it is recommended to use mpi-version for scalability.
 
+      ngram_vocab_mpi
       ngram_counts_extract_mpi
       ngram_counts_index_mpi
       ngram_counts_modify_mpi
