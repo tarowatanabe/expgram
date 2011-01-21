@@ -35,6 +35,9 @@ bin_PROGRAMS = \
 	ngram_counts_estimate_mpi \
 	ngram_counts_stat \
 	\
+	ngram_vocab \
+	ngram_vocab_mpi \
+	\
 	expgram_clean \
 	\
 	mpish
@@ -107,6 +110,14 @@ ngram_counts_estimate_mpi_LDADD   = $(MPI_LDFLAGS) $(LIBEXPGRAM) $(LIBUTILS) $(b
 
 ngram_counts_stat_SOURCES = ngram_counts_stat.cpp
 ngram_counts_stat_LDADD   = $(LIBEXPGRAM) $(LIBUTILS) $(boost_LDADD) $(perftools_LDADD)
+
+### ngram vocab
+ngram_vocab_SOURCES = ngram_vocab.cpp
+ngram_vocab_LDADD   = $(LIBEXPGRAM) $(LIBUTILS) $(boost_LDADD) $(perftools_LDADD)
+
+ngram_vocab_mpi_SOURCES = ngram_vocab_mpi.cpp
+ngram_vocab_mpi_CPPFLAGS = $(MPI_CPPFLAGS) $(AM_CPPFLAGS)
+ngram_vocab_mpi_LDADD   = $(MPI_LDFLAGS) $(LIBEXPGRAM) $(LIBUTILS) $(boost_LDADD) $(perftools_LDADD)
 
 ### utilities
 expgram_clean_SOURCES = expgram_clean.cpp
