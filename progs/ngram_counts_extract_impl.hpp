@@ -38,10 +38,13 @@
 #include <utils/subprocess.hpp>
 #include <utils/async_device.hpp>
 #include <utils/malloc_stats.hpp>
+#include <utils/hashmurmur.hpp>
 
 #include <expgram/Word.hpp>
 #include <expgram/Vocab.hpp>
 #include <expgram/Sentence.hpp>
+
+#include <google/dense_hash_set>
 
 struct GoogleNGramCounts
 {
@@ -60,6 +63,18 @@ struct GoogleNGramCounts
   typedef utils::subprocess subprocess_type;
 
 
+  struct string_hash : public utils::hashmurmur<size_t>
+  {
+    typedef utils::hashmurmur<size_t> hasher_type;
+
+    size_t operator()(const std::string& word) const
+    {
+      return hasher_type::operator()(word.begin(), word.end(), 0);
+    }
+  };
+  
+  typedef google::dense_hash_set<std::string, string_hash, std::equal_to<std::string> > vocabulary_type;
+  
   template <typename Task>
   struct TaskLine
   {
@@ -78,27 +93,32 @@ struct GoogleNGramCounts
     
     queue_type&      queue;
     subprocess_type* subprocess;
+    const vocabulary_type& vocabulary;
     path_type        path;
     path_map_type&   paths;
     double           max_malloc;
     
     TaskLine(queue_type&      _queue,
 	     subprocess_type& _subprocess,
+	     const vocabulary_type& _vocabulary,
 	     const path_type& _path,
 	     path_map_type&   _paths,
 	     const double     _max_malloc)
       : queue(_queue),
 	subprocess(&_subprocess),
+	vocabulary(_vocabulary),
 	path(_path),
 	paths(_paths),
 	max_malloc(_max_malloc) {}
 
     TaskLine(queue_type&      _queue,
+	     const vocabulary_type& _vocabulary,
 	     const path_type& _path,
 	     path_map_type&   _paths,
 	     const double     _max_malloc)
       : queue(_queue),
 	subprocess(0),
+	vocabulary(_vocabulary),	
 	path(_path),
 	paths(_paths),
 	max_malloc(_max_malloc) {}
@@ -150,7 +170,7 @@ struct GoogleNGramCounts
 	is.push(boost::iostreams::file_descriptor_source(subprocess->desc_read(), true));
 #endif
 	
-	__task(utils::istream_line_iterator(is), utils::istream_line_iterator(), counts, path, paths, max_malloc);
+	__task(utils::istream_line_iterator(is), utils::istream_line_iterator(), vocabulary, counts, path, paths, max_malloc);
 	
 	thread.join();
       } else {
@@ -158,7 +178,7 @@ struct GoogleNGramCounts
 	  queue.pop_swap(lines);
 	  if (lines.empty()) break;
 	  
-	  __task(lines.begin(), lines.end(), counts, path, paths, max_malloc);
+	  __task(lines.begin(), lines.end(), vocabulary, counts, path, paths, max_malloc);
 	  
 	  if (! counts.empty() && utils::malloc_stats::used() > size_t(max_malloc * 1024 * 1024 * 1024)) {
 	    GoogleNGramCounts::dump_counts(counts, path, paths);
@@ -189,27 +209,32 @@ struct GoogleNGramCounts
     
     queue_type&      queue;
     subprocess_type* subprocess;
+    const vocabulary_type& vocabulary;    
     path_type        path;
     path_map_type&   paths;
     double           max_malloc;
     
     TaskFile(queue_type&      _queue,
 	     subprocess_type& _subprocess,
+	     const vocabulary_type& _vocabulary,
 	     const path_type& _path,
 	     path_map_type&   _paths,
 	     const double     _max_malloc)
       : queue(_queue),
 	subprocess(&_subprocess),
+	vocabulary(_vocabulary),
 	path(_path),
 	paths(_paths),
 	max_malloc(_max_malloc) {}
 
     TaskFile(queue_type&      _queue,
+	     const vocabulary_type& _vocabulary,
 	     const path_type& _path,
 	     path_map_type&   _paths,
 	     const double     _max_malloc)
       : queue(_queue),
 	subprocess(0),
+	vocabulary(_vocabulary),
 	path(_path),
 	paths(_paths),
 	max_malloc(_max_malloc) {}
@@ -271,7 +296,7 @@ struct GoogleNGramCounts
 	is.push(boost::iostreams::file_descriptor_source(subprocess->desc_read(), true));
 #endif
 	
-	__task(utils::istream_line_iterator(is), utils::istream_line_iterator(), counts, path, paths, max_malloc);
+	__task(utils::istream_line_iterator(is), utils::istream_line_iterator(), vocabulary, counts, path, paths, max_malloc);
 	
 	thread.join();
       } else {
@@ -284,7 +309,7 @@ struct GoogleNGramCounts
 
 	  utils::compress_istream is(file, 1024 * 1024);
 	  
-	  __task(utils::istream_line_iterator(is), utils::istream_line_iterator(), counts, path, paths, max_malloc);
+	  __task(utils::istream_line_iterator(is), utils::istream_line_iterator(), vocabulary, counts, path, paths, max_malloc);
 	  
 	  if (! counts.empty() && utils::malloc_stats::used() > size_t(max_malloc * 1024 * 1024 * 1024)) {
 	    GoogleNGramCounts::dump_counts(counts, path, paths);
@@ -657,7 +682,7 @@ struct GoogleNGramCounts
   {
     template <typename Iterator, typename Counts, typename Path, typename Paths>
     inline
-    void operator()(Iterator first, Iterator last, Counts& counts, const Path& path, Paths& paths, const double max_malloc)
+    void operator()(Iterator first, Iterator last, const vocabulary_type& vocabulary, Counts& counts, const Path& path, Paths& paths, const double max_malloc)
     {
       typedef boost::tokenizer<utils::space_separator> tokenizer_type;
       
@@ -670,10 +695,26 @@ struct GoogleNGramCounts
       for (size_t iteration = 0; first != last; ++ first, ++ iteration) {
 	tokenizer_type tokenizer(*first);
 
-	sentence.clear();
-	sentence.push_back(vocab_type::BOS);
-	sentence.insert(sentence.end(), tokenizer.begin(), tokenizer.end());
-	sentence.push_back(vocab_type::EOS);
+	if (! vocabulary.empty()) {
+	  sentence.clear();
+	  sentence.push_back(vocab_type::BOS);
+	  
+	  tokenizer_type::iterator titer_end = tokenizer.end();
+	  for (tokenizer_type::iterator titer = tokenizer.begin(); titer != titer_end; ++ titer) {
+	    const std::string token = *titer;
+	    if (vocabulary.find(token) == vocabulary.end())
+	      sentence.push_back(vocab_type::UNK);
+	    else
+	      sentence.push_back(token);
+	  }
+	  
+	  sentence.push_back(vocab_type::EOS);
+	} else {
+	  sentence.clear();
+	  sentence.push_back(vocab_type::BOS);
+	  sentence.insert(sentence.end(), tokenizer.begin(), tokenizer.end());
+	  sentence.push_back(vocab_type::EOS);
+	}
 	
 	if (sentence.size() == 2) continue;
 	
@@ -717,7 +758,7 @@ struct GoogleNGramCounts
 
     template <typename Iterator, typename Counts, typename Path, typename Paths>
     inline
-    void operator()(Iterator first, Iterator last, Counts& counts, const Path& path, Paths& paths, const double max_malloc)
+    void operator()(Iterator first, Iterator last, const vocabulary_type& vocabulary, Counts& counts, const Path& path, Paths& paths, const double max_malloc)
     {
       typedef std::vector<std::string, std::allocator<std::string> > tokens_type;
       typedef boost::tokenizer<utils::space_separator>               tokenizer_type;
@@ -739,9 +780,18 @@ struct GoogleNGramCounts
 	if (tokens.size() - 1 > max_order) continue;
 	
 	// escaping...
-	tokens_type::iterator titer_end = tokens.end() - 1;
-	for (tokens_type::iterator titer = tokens.begin(); titer != titer_end; ++ titer)
-	  *titer = escape_word(*titer);
+	if (! vocabulary.empty()) {
+	  tokens_type::iterator titer_end = tokens.end() - 1;
+	  for (tokens_type::iterator titer = tokens.begin(); titer != titer_end; ++ titer) {
+	    *titer = escape_word(*titer);
+	    if (vocabulary.find(*titer) == vocabulary.end())
+	      *titer = vocab_type::UNK;
+	  }
+	} else {
+	  tokens_type::iterator titer_end = tokens.end() - 1;
+	  for (tokens_type::iterator titer = tokens.begin(); titer != titer_end; ++ titer)
+	    *titer = escape_word(*titer);
+	}
 	
 	counts[counts.insert(tokens.begin(), tokens.end() - 1)] += atoll(tokens.back().c_str());
 	

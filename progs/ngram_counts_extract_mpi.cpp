@@ -39,11 +39,15 @@ typedef GoogleNGramCounts::word_type     word_type;
 typedef GoogleNGramCounts::vocab_type    vocab_type;
 typedef GoogleNGramCounts::ngram_type    ngram_type;
 
+typedef GoogleNGramCounts::vocabulary_type vocabulary_type;
+
 path_type corpus_file;
 path_type counts_file;
 
 path_type corpus_list_file;
 path_type counts_list_file;
+
+path_type vocab_file;
 
 path_type output_file;
 
@@ -60,22 +64,26 @@ int debug = 0;
 
 void accumulate_counts_root(const path_set_type& paths,
 			    const path_type& path_filter,
+			    const vocabulary_type& vocabulary,
 			    const path_type& output_path,
 			    path_map_type&   paths_counts,
 			    const bool map_line,
 			    const double max_malloc);
 void accumulate_counts_others(const path_type& path_filter,
+			      const vocabulary_type& vocabulary,
 			      const path_type& output_path,
 			      path_map_type&   paths_counts,
 			      const bool map_line,
 			      const double max_malloc);
 void accumulate_corpus_root(const path_set_type& paths,
 			    const path_type& path_filter,
+			    const vocabulary_type& vocabulary,
 			    const path_type& output_path,
 			    path_map_type&   paths_counts,
 			    const bool map_line,
 			    const double max_malloc);
 void accumulate_corpus_others(const path_type& path_filter,
+			      const vocabulary_type& vocabulary,
 			      const path_type& output_path,
 			      path_map_type&   paths_counts,
 			      const bool map_line,
@@ -142,6 +150,34 @@ int main(int argc, char** argv)
       
       if (counts_files.empty() && corpus_files.empty()) 
 	throw std::runtime_error("no corpus files nor counts files");
+
+      vocabulary_type vocabulary;
+      vocabulary.set_empty_key(std::string());
+      
+      if (! vocab_file.empty()) {
+	if (vocab_file != "-" && ! boost::filesystem::exists(vocab_file))
+	  throw std::runtime_error("no vocabulary file? " + vocab_file.file_string());
+	
+	utils::compress_istream is(vocab_file, 1024 * 1024);
+	
+	std::string word;
+	while (is >> word)
+	  vocabulary.insert(word);
+      }
+      
+      int vocabulary_size = vocabulary.size();
+      MPI::COMM_WORLD.Bcast(&vocabulary_size, 1, MPI::INT, 0);
+      
+      if (vocabulary_size) {
+	boost::iostreams::filtering_ostream os;
+	os.push(boost::iostreams::gzip_compressor());
+	os.push(utils::mpi_device_bcast_sink(0, 1024 * 1024));
+	
+	vocabulary_type::const_iterator viter_end = vocabulary.end();
+	for (vocabulary_type::const_iterator viter = vocabulary.begin(); viter != viter_end; ++ viter)
+	  os << *viter << '\n';
+      }
+
       
       GoogleNGramCounts::preprocess(output_file, max_order);
       
@@ -150,29 +186,44 @@ int main(int argc, char** argv)
       int counts_files_size = counts_files.size();
       MPI::COMM_WORLD.Bcast(&counts_files_size, 1, MPI::INT, 0);
       if (! counts_files.empty())
-	accumulate_counts_root(counts_files, filter_file, output_file, paths_counts, map_line, max_malloc);
+	accumulate_counts_root(counts_files, filter_file, vocabulary, output_file, paths_counts, map_line, max_malloc);
       
       int corpus_files_size = corpus_files.size();
       MPI::COMM_WORLD.Bcast(&corpus_files_size, 1, MPI::INT, 0);
       if (! corpus_files.empty())
-	accumulate_corpus_root(corpus_files, filter_file, output_file, paths_counts, map_line, max_malloc);
+	accumulate_corpus_root(corpus_files, filter_file, vocabulary, output_file, paths_counts, map_line, max_malloc);
       
       reduce_counts_root(paths_counts);
       
       GoogleNGramCounts::postprocess(output_file, paths_counts);
       
     } else {
+      vocabulary_type vocabulary;
+      vocabulary.set_empty_key(std::string());
+      
+      int vocabulary_size = 0;
+      MPI::COMM_WORLD.Bcast(&vocabulary_size, 1, MPI::INT, 0);
+      if (vocabulary_size) {
+	boost::iostreams::filtering_istream is;
+	is.push(boost::iostreams::gzip_decompressor());
+	is.push(utils::mpi_device_bcast_source(0, 1024 * 1024));
+	
+	std::string word;
+	while (is >> word)
+	  vocabulary.insert(word);
+      }
+      
       path_map_type paths_counts(max_order);
 
       int counts_files_size = 0;
       MPI::COMM_WORLD.Bcast(&counts_files_size, 1, MPI::INT, 0);
       if (counts_files_size > 0)
-	accumulate_counts_others(filter_file, output_file, paths_counts, map_line, max_malloc);
+	accumulate_counts_others(filter_file, vocabulary, output_file, paths_counts, map_line, max_malloc);
       
       int corpus_files_size = 0;
       MPI::COMM_WORLD.Bcast(&corpus_files_size, 1, MPI::INT, 0);
       if (corpus_files_size > 0)
-	accumulate_corpus_others(filter_file, output_file, paths_counts, map_line, max_malloc);
+	accumulate_corpus_others(filter_file, vocabulary, output_file, paths_counts, map_line, max_malloc);
       
       reduce_counts_others(paths_counts);
     }
@@ -313,6 +364,7 @@ struct MapReduceLine
   static inline
   void mapper_root(const path_set_type& paths,
 		   const path_type& path_filter,
+		   const vocabulary_type& vocabulary,
 		   const path_type& output_path,
 		   path_map_type&   paths_counts,
 		   const double max_malloc,
@@ -336,8 +388,8 @@ struct MapReduceLine
     
     queue_type queue(1);
     std::auto_ptr<thread_type> thread(subprocess.get()
-				      ? new thread_type(task_type(queue, *subprocess, output_path, paths_counts, max_malloc))
-				      : new thread_type(task_type(queue, output_path, paths_counts, max_malloc)));
+				      ? new thread_type(task_type(queue, *subprocess, vocabulary, output_path, paths_counts, max_malloc))
+				      : new thread_type(task_type(queue, vocabulary, output_path, paths_counts, max_malloc)));
   
     std::string line;
     line_set_type lines;
@@ -416,6 +468,7 @@ struct MapReduceLine
   
   static inline
   void mapper_others(const path_type& path_filter,
+		     const vocabulary_type& vocabulary,
 		     const path_type& output_path,
 		     path_map_type&   paths_counts,
 		     const double     max_malloc)
@@ -431,8 +484,8 @@ struct MapReduceLine
     
     queue_type queue(1);
     std::auto_ptr<thread_type> thread(subprocess.get()
-				      ? new thread_type(task_type(queue, *subprocess, output_path, paths_counts, max_malloc))
-				      : new thread_type(task_type(queue, output_path, paths_counts, max_malloc)));
+				      ? new thread_type(task_type(queue, *subprocess, vocabulary, output_path, paths_counts, max_malloc))
+				      : new thread_type(task_type(queue, vocabulary, output_path, paths_counts, max_malloc)));
     
     std::string line;
     line_set_type lines;
@@ -499,6 +552,7 @@ struct MapReduceFile
   static inline
   void mapper_root(const path_set_type& paths,
 		   const path_type& path_filter,
+		   const vocabulary_type& vocabulary,
 		   const path_type& output_path,
 		   path_map_type&   paths_counts,
 		   const double max_malloc,
@@ -521,8 +575,8 @@ struct MapReduceFile
     
     queue_type queue(1);
     std::auto_ptr<thread_type> thread(subprocess.get()
-				      ? new thread_type(task_type(queue, *subprocess, output_path, paths_counts, max_malloc))
-				      : new thread_type(task_type(queue, output_path, paths_counts, max_malloc)));
+				      ? new thread_type(task_type(queue, *subprocess, vocabulary, output_path, paths_counts, max_malloc))
+				      : new thread_type(task_type(queue, vocabulary, output_path, paths_counts, max_malloc)));
     
     int non_found_iter = 0;
 
@@ -604,6 +658,7 @@ struct MapReduceFile
   
   static inline
   void mapper_others(const path_type& path_filter,
+		     const vocabulary_type& vocabulary,
 		     const path_type& output_path,
 		     path_map_type&   paths_counts,
 		     const double     max_malloc)
@@ -617,8 +672,8 @@ struct MapReduceFile
     
     queue_type queue(1);
     std::auto_ptr<thread_type> thread(subprocess.get()
-				      ? new thread_type(task_type(queue, *subprocess, output_path, paths_counts, max_malloc))
-				      : new thread_type(task_type(queue, output_path, paths_counts, max_malloc)));
+				      ? new thread_type(task_type(queue, *subprocess, vocabulary, output_path, paths_counts, max_malloc))
+				      : new thread_type(task_type(queue, vocabulary, output_path, paths_counts, max_malloc)));
     
     int num_file = 0;
     std::string file;
@@ -643,6 +698,7 @@ struct MapReduceFile
 
 void accumulate_corpus_root(const path_set_type& paths,
 			    const path_type& path_filter,
+			    const vocabulary_type& vocabulary,
 			    const path_type& output_path,
 			    path_map_type&   paths_counts,
 			    const bool map_line,
@@ -652,18 +708,19 @@ void accumulate_corpus_root(const path_set_type& paths,
     typedef GoogleNGramCounts::TaskLine<GoogleNGramCounts::TaskCorpus> task_type;
     typedef MapReduceLine<task_type> map_reduce_type;
     
-    map_reduce_type::mapper_root(paths, path_filter, output_path, paths_counts, max_malloc, debug);
+    map_reduce_type::mapper_root(paths, path_filter, vocabulary, output_path, paths_counts, max_malloc, debug);
     
   } else {
     typedef GoogleNGramCounts::TaskFile<GoogleNGramCounts::TaskCorpus> task_type;
     typedef MapReduceFile<task_type> map_reduce_type;
     
-    map_reduce_type::mapper_root(paths, path_filter, output_path, paths_counts, max_malloc, debug);
+    map_reduce_type::mapper_root(paths, path_filter, vocabulary, output_path, paths_counts, max_malloc, debug);
   }
 }
 
 void accumulate_counts_root(const path_set_type& paths,
 			    const path_type& path_filter,
+			    const vocabulary_type& vocabulary,
 			    const path_type& output_path,
 			    path_map_type&   paths_counts,
 			    const bool map_line,
@@ -673,17 +730,18 @@ void accumulate_counts_root(const path_set_type& paths,
     typedef GoogleNGramCounts::TaskLine<GoogleNGramCounts::TaskCounts> task_type;
     typedef MapReduceLine<task_type> map_reduce_type;
     
-    map_reduce_type::mapper_root(paths, path_filter, output_path, paths_counts, max_malloc, debug);
+    map_reduce_type::mapper_root(paths, path_filter, vocabulary, output_path, paths_counts, max_malloc, debug);
     
   } else {
     typedef GoogleNGramCounts::TaskFile<GoogleNGramCounts::TaskCounts> task_type;
     typedef MapReduceFile<task_type> map_reduce_type;
     
-    map_reduce_type::mapper_root(paths, path_filter, output_path, paths_counts, max_malloc, debug);
+    map_reduce_type::mapper_root(paths, path_filter, vocabulary, output_path, paths_counts, max_malloc, debug);
   }
 }
 
 void accumulate_corpus_others(const path_type& path_filter,
+			      const vocabulary_type& vocabulary,
 			      const path_type& output_path,
 			      path_map_type&   paths_counts,
 			      const bool map_line,
@@ -693,17 +751,18 @@ void accumulate_corpus_others(const path_type& path_filter,
     typedef GoogleNGramCounts::TaskLine<GoogleNGramCounts::TaskCorpus> task_type;
     typedef MapReduceLine<task_type> map_reduce_type;
     
-    map_reduce_type::mapper_others(path_filter, output_path, paths_counts, max_malloc);
+    map_reduce_type::mapper_others(path_filter, vocabulary, output_path, paths_counts, max_malloc);
     
   } else {
     typedef GoogleNGramCounts::TaskFile<GoogleNGramCounts::TaskCorpus> task_type;
     typedef MapReduceFile<task_type> map_reduce_type;
     
-    map_reduce_type::mapper_others(path_filter, output_path, paths_counts, max_malloc);
+    map_reduce_type::mapper_others(path_filter, vocabulary, output_path, paths_counts, max_malloc);
   }
 }
 
 void accumulate_counts_others(const path_type& path_filter,
+			      const vocabulary_type& vocabulary,
 			      const path_type& output_path,
 			      path_map_type&   paths_counts,
 			      const bool map_line,
@@ -713,13 +772,13 @@ void accumulate_counts_others(const path_type& path_filter,
     typedef GoogleNGramCounts::TaskLine<GoogleNGramCounts::TaskCounts> task_type;
     typedef MapReduceLine<task_type> map_reduce_type;
     
-    map_reduce_type::mapper_others(path_filter, output_path, paths_counts, max_malloc);
+    map_reduce_type::mapper_others(path_filter, vocabulary, output_path, paths_counts, max_malloc);
     
   } else {
     typedef GoogleNGramCounts::TaskFile<GoogleNGramCounts::TaskCounts> task_type;
     typedef MapReduceFile<task_type> map_reduce_type;
     
-    map_reduce_type::mapper_others(path_filter, output_path, paths_counts, max_malloc);
+    map_reduce_type::mapper_others(path_filter, vocabulary, output_path, paths_counts, max_malloc);
   }
 }
 
@@ -738,6 +797,8 @@ int getoptions(int argc, char** argv)
     
     ("corpus-list",  po::value<path_type>(&corpus_list_file),  "corpus list file")
     ("counts-list",  po::value<path_type>(&counts_list_file),  "counts list file")
+    
+    ("vocab",        po::value<path_type>(&vocab_file),        "vocabulary file (list of words)")
     
     ("output",       po::value<path_type>(&output_file), "output directory")
     
