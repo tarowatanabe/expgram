@@ -199,6 +199,11 @@ int main(int argc, char** argv)
     shard_data.backoffs.clear();
     shard_data_type::logprob_set_type(shard_data.logprobs).swap(shard_data.logprobs);
     shard_data_type::logprob_set_type(shard_data.backoffs).swap(shard_data.backoffs);
+
+    while (! boost::filesystem::exists(path_logprob))
+      boost::thread::yield();
+    while (! boost::filesystem::exists(path_backoff))
+      boost::thread::yield();
     
     utils::tempfile::permission(path_logprob);
     utils::tempfile::permission(path_backoff);

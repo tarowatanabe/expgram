@@ -9,6 +9,7 @@
 #include <sstream>
 
 #include <boost/iostreams/filtering_stream.hpp>
+#include <boost/thread.hpp>
 
 #include <utils/succinct_vector.hpp>
 #include <utils/tempfile.hpp>
@@ -95,6 +96,11 @@ namespace expgram
       os_id.pop();
       positions.write(path_position);
       
+      while (! boost::filesystem::exists(path_id))
+	boost::thread::yield();
+      while (! boost::filesystem::exists(path_position))
+	boost::thread::yield();
+      
       utils::tempfile::permission(path_id);
       utils::tempfile::permission(path_position);
       
@@ -113,6 +119,8 @@ namespace expgram
       }
       
       // new index
+      
+      
       ngram.index[shard].ids.open(path_id);
       ngram.index[shard].positions.open(path_position);
       ngram.index[shard].offsets.push_back(ngram.index[shard].offsets.back() + ids.size());

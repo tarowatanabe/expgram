@@ -180,6 +180,9 @@ int main(int argc, char** argv)
       
       // perform indexing and open
       os_count.pop();
+
+      while (! boost::filesystem::exists(path_count))
+	boost::thread::yield();
       
       utils::tempfile::permission(path_count);
       
