@@ -150,6 +150,9 @@ void ngram_quantize(ngram_type& ngram)
     
     os.pop();
     
+    while (! boost::filesystem::exists(path))
+      boost::thread::yield();
+    
     utils::tempfile::permission(path);
     
     ngram.logprobs[mpi_rank].logprobs.clear();
@@ -183,6 +186,9 @@ void ngram_quantize(ngram_type& ngram)
     }
 	
     os.pop();
+    
+    while (! boost::filesystem::exists(path))
+      boost::thread::yield();
 
     utils::tempfile::permission(path);
 	
@@ -217,6 +223,9 @@ void ngram_quantize(ngram_type& ngram)
     }
     
     os.pop();
+    
+    while (! boost::filesystem::exists(path))
+      boost::thread::yield();
     
     utils::tempfile::permission(path);
     

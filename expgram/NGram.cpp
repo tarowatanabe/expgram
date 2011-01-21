@@ -489,6 +489,9 @@ namespace expgram
 	}
 	
 	os.pop();
+
+	while (! boost::filesystem::exists(path))
+	  boost::thread::yield();
 	
 	utils::tempfile::permission(path);
 
@@ -523,6 +526,9 @@ namespace expgram
 	}
 	
 	os.pop();
+	
+	while (! boost::filesystem::exists(path))
+	  boost::thread::yield();
 
 	utils::tempfile::permission(path);
 	
@@ -557,6 +563,9 @@ namespace expgram
 	}
 	
 	os.pop();
+	
+	while (! boost::filesystem::exists(path))
+	  boost::thread::yield();
 
 	utils::tempfile::permission(path);
 	
@@ -1058,6 +1067,10 @@ namespace expgram
       const path_type path = utils::tempfile::file_name(utils::tempfile::tmp_dir() / "expgram.logbound.XXXXXX");
       utils::tempfile::insert(path);
       dump_file(path, logbounds);
+      
+      while (! boost::filesystem::exists(path))
+	boost::thread::yield();
+
       utils::tempfile::permission(path);
       ngram.logbounds[shard].logprobs.open(path);
       
@@ -1297,6 +1310,11 @@ namespace expgram
       // perform indexing...
       os_id.pop();
       positions.write(path_position);
+
+      while (! boost::filesystem::exists(path_id))
+	boost::thread::yield();
+      while (! boost::filesystem::exists(path_position))
+	boost::thread::yield();
       
       utils::tempfile::permission(path_id);
       utils::tempfile::permission(path_position);
@@ -1695,6 +1713,11 @@ namespace expgram
       
       os_logprobs[shard].reset();
       os_backoffs[shard].reset();
+
+      while (! boost::filesystem::exists(path_logprobs[shard]))
+	boost::thread::yield();
+      while (! boost::filesystem::exists(path_backoffs[shard]))
+	boost::thread::yield();
 
       utils::tempfile::permission(path_logprobs[shard]);
       utils::tempfile::permission(path_backoffs[shard]);

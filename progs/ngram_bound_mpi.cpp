@@ -340,6 +340,10 @@ void ngram_bound_reducer(ngram_type& ngram, intercomm_type& mapper)
   const path_type path = utils::tempfile::file_name(utils::tempfile::tmp_dir() / "expgram.logbound.XXXXXX");
   utils::tempfile::insert(path);
   dump_file(path, logbounds);
+  
+  while (! boost::filesystem::exists(path))
+    boost::thread::yield();
+
   utils::tempfile::permission(path);
   ngram.logbounds[mpi_rank].logprobs.open(path);
 }
