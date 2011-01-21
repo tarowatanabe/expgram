@@ -30,6 +30,8 @@ typedef GoogleNGramCounts::word_type     word_type;
 typedef GoogleNGramCounts::vocab_type    vocab_type;
 typedef GoogleNGramCounts::ngram_type    ngram_type;
 
+typedef GoogleNGramCounts::vocabulary_type vocabulary_type;
+
 path_type corpus_file;
 path_type counts_file;
 
@@ -51,6 +53,7 @@ int debug = 0;
 
 void accumulate_counts(const path_set_type& paths,
 		       const path_type& path_filter,
+		       const vocabulary_type& vocabulary,
 		       const path_type& output_path,
 		       path_map_type&   paths_counts,
 		       const bool map_line,
@@ -58,6 +61,7 @@ void accumulate_counts(const path_set_type& paths,
 		       const int num_threads);
 void accumulate_corpus(const path_set_type& paths,
 		       const path_type& path_filter,
+		       const vocabulary_type& vocabulary,
 		       const path_type& output_path,
 		       path_map_type&   paths_counts,
 		       const bool map_line,
@@ -118,18 +122,21 @@ int main(int argc, char** argv)
     
     GoogleNGramCounts::preprocess(output_file, max_order);
     
+    vocabulary_type vocabulary;
+    vocabulary.set_empty_key(std::string());
+    
     path_map_type paths_counts(max_order);
     
     if (! counts_files.empty()) {
       if (debug)
 	std::cerr << "collect counts from counts" << std::endl;
-      accumulate_counts(counts_files, filter_file, output_file, paths_counts, map_line, max_malloc, threads);
+      accumulate_counts(counts_files, filter_file, vocabulary, output_file, paths_counts, map_line, max_malloc, threads);
     }
     
     if (! corpus_files.empty()) {
       if (debug)
 	std::cerr << "collect counts from corpus" << std::endl;
-      accumulate_corpus(corpus_files, filter_file, output_file, paths_counts, map_line, max_malloc, threads);
+      accumulate_corpus(corpus_files, filter_file, vocabulary, output_file, paths_counts, map_line, max_malloc, threads);
     }
     
     GoogleNGramCounts::postprocess(output_file, paths_counts);
@@ -143,6 +150,7 @@ int main(int argc, char** argv)
 
 void accumulate_counts(const path_set_type& __paths,
 		       const path_type& path_filter,
+		       const vocabulary_type& vocabulary,
 		       const path_type& output_path,
 		       path_map_type&   paths_counts,
 		       const bool map_line,
@@ -188,9 +196,9 @@ void accumulate_counts(const path_set_type& __paths,
     
     for (int shard = 0; shard < num_threads; ++ shard) {
       if (subprocess.empty())
-	threads[shard].reset(new thread_type(task_type(queue, output_path, paths_thread[shard], max_malloc)));
+	threads[shard].reset(new thread_type(task_type(queue, vocabulary, output_path, paths_thread[shard], max_malloc)));
       else
-	threads[shard].reset(new thread_type(task_type(queue, *subprocess[shard], output_path, paths_thread[shard], max_malloc)));
+	threads[shard].reset(new thread_type(task_type(queue, *subprocess[shard], vocabulary, output_path, paths_thread[shard], max_malloc)));
     }
     
     line_set_type lines;
@@ -250,9 +258,9 @@ void accumulate_counts(const path_set_type& __paths,
     
     for (int shard = 0; shard < num_threads; ++ shard) {
       if (subprocess.empty())
-	threads[shard].reset(new thread_type(task_type(queue, output_path, paths_thread[shard], max_malloc)));
+	threads[shard].reset(new thread_type(task_type(queue, vocabulary, output_path, paths_thread[shard], max_malloc)));
       else
-	threads[shard].reset(new thread_type(task_type(queue, *subprocess[shard], output_path, paths_thread[shard], max_malloc)));
+	threads[shard].reset(new thread_type(task_type(queue, *subprocess[shard], vocabulary, output_path, paths_thread[shard], max_malloc)));
     }
   
     path_set_type::const_iterator piter_end = paths.end();
@@ -282,6 +290,7 @@ void accumulate_counts(const path_set_type& __paths,
 
 void accumulate_corpus(const path_set_type& paths,
 		       const path_type& path_filter,
+		       const vocabulary_type& vocabulary,
 		       const path_type& output_path,
 		       path_map_type&   paths_counts,
 		       const bool map_line,
@@ -311,9 +320,9 @@ void accumulate_corpus(const path_set_type& paths,
     
     for (int shard = 0; shard < num_threads; ++ shard) {
       if (subprocess.empty())
-	threads[shard].reset(new thread_type(task_type(queue, output_path, paths_thread[shard], max_malloc)));
+	threads[shard].reset(new thread_type(task_type(queue, vocabulary, output_path, paths_thread[shard], max_malloc)));
       else
-	threads[shard].reset(new thread_type(task_type(queue, *subprocess[shard], output_path, paths_thread[shard], max_malloc)));
+	threads[shard].reset(new thread_type(task_type(queue, *subprocess[shard], vocabulary, output_path, paths_thread[shard], max_malloc)));
     }
 
     line_set_type lines;
@@ -372,9 +381,9 @@ void accumulate_corpus(const path_set_type& paths,
     
     for (int shard = 0; shard < num_threads; ++ shard) {
       if (subprocess.empty())
-	threads[shard].reset(new thread_type(task_type(queue, output_path, paths_thread[shard], max_malloc)));
+	threads[shard].reset(new thread_type(task_type(queue, vocabulary, output_path, paths_thread[shard], max_malloc)));
       else
-	threads[shard].reset(new thread_type(task_type(queue, *subprocess[shard], output_path, paths_thread[shard], max_malloc)));
+	threads[shard].reset(new thread_type(task_type(queue, *subprocess[shard], vocabulary, output_path, paths_thread[shard], max_malloc)));
     }
     
     path_set_type::const_iterator piter_end = paths.end();
