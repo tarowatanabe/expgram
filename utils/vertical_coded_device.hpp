@@ -1,4 +1,7 @@
 // -*- mode: c++ -*-
+//
+//  Copyright(C) 2009-2011 Taro Watanabe <taro.watanabe@nict.go.jp>
+//
 
 #ifndef __UTILS__VERTICAL_CODED_DEVICE__HPP__
 #define __UTILS__VERTICAL_CODED_DEVICE__HPP__ 1
@@ -122,7 +125,7 @@ namespace utils
 	
 	os_data->write((char*) &value, sizeof(byte_type));
 	
-	if (inverted.empty() || inverted.size() - 1 != invert)
+	if (inverted.empty() || value_type(inverted.size() - 1) != invert)
 	  inverted.resize(invert + 1, size);
       }
       
@@ -154,7 +157,7 @@ namespace utils
 	  
 	  os_data->write((char*) &value, sizeof(byte_type));
 	  
-	  if (inverted.empty() || inverted.size() - 1 != invert)
+	  if (inverted.empty() || value_type(inverted.size() - 1) != invert)
 	    inverted.resize(invert + 1, size);
 	}
       }
@@ -162,7 +165,8 @@ namespace utils
       repository_type rep(path, repository_type::read);
       os_off.reset(new boost::iostreams::filtering_ostream());
       os_off->push(boost::iostreams::file_sink(rep.path("offsets").file_string()));
-
+      os_off->exceptions(std::ostream::eofbit | std::ostream::failbit | std::ostream::badbit);
+      
       off_type off(0);
       os_off->write((char*) &off, sizeof(off_type));
       os_off->write((char*) &size, sizeof(off_type));
@@ -180,7 +184,7 @@ namespace utils
 	  
 	  os_data->write((char*) &value, sizeof(byte_type));
 	  
-	  if (inverted_new.empty() || inverted_new.size() - 1 != invert)
+	  if (inverted_new.empty() || value_type(inverted_new.size() - 1) != invert)
 	    inverted_new.resize(invert + 1, i);
 	}
 	
@@ -240,6 +244,7 @@ namespace utils
     
     os_data.reset(new boost::iostreams::filtering_ostream());
     os_data->push(boost::iostreams::file_sink(rep.path("data").file_string()), buffer_size);
+    os_data->exceptions(std::ostream::eofbit | std::ostream::failbit | std::ostream::badbit);
     
     const size_type buffer_size_new = ((buffer_size + sizeof(value_type) - 1) / sizeof(value_type)) * sizeof(value_type);
     

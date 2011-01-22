@@ -1,6 +1,6 @@
 // -*- mode: c++ -*-
 //
-//  Copyright(C) 2009-2010 Taro Watanabe <taro.watanabe@nict.go.jp>
+//  Copyright(C) 2009-2011 Taro Watanabe <taro.watanabe@nict.go.jp>
 //
 
 #ifndef __SUCCINCT_DB__SUCCINCT_HASH__HPP__
@@ -231,6 +231,16 @@ namespace succinctdb
       keys.clear();
       offs.clear();
     }
+
+    static bool exists(const path_type& path)
+    {
+      if (! utils::repository::exists(path)) return false;
+      if (! bin_set_type::exists(path / "bins")) return false;
+      if (! next_set_type::exists(path / "nexts")) return false;
+      if (! key_set_type::exists(path / "keys")) return false;
+      if (! off_set_type::exists(path / "offs")) return false;
+      return true;
+    }
     
     void open(const path_type& path)
     {
@@ -393,6 +403,8 @@ namespace succinctdb
       os_nexts->push(utils::packed_sink<pos_type, pos_alloc_type>(rep.path("nexts")));
       os_keys->push(boost::iostreams::file_sink(rep.path("keys").file_string()), 1024 * 1024);
       os_offs->push(utils::vertical_coded_sink<off_type, off_alloc_type>(rep.path("offs")));
+      
+      os_keys->exceptions(std::ostream::eofbit | std::ostream::failbit | std::ostream::badbit);
       
       // initial offset...
       os_offs->write((char*) &__offset, sizeof(__offset));

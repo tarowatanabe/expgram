@@ -1,6 +1,6 @@
 // -*- mode: c++ -*-
 //
-//  Copyright(C) 2009-2010 Taro Watanabe <taro.watanabe@nict.go.jp>
+//  Copyright(C) 2009-2011 Taro Watanabe <taro.watanabe@nict.go.jp>
 //
 
 #ifndef __SUCCINCT_DB__SUCCINCT_TRIE__HPP__
@@ -128,6 +128,7 @@ namespace succinctdb
   }
   
   template <typename Key, typename Alloc>
+  inline
   bool operator!=(const __succinct_trie_iterator_node<Key,Alloc>& x, const __succinct_trie_iterator_node<Key,Alloc>& y)
   {
     return ! (x == y);
@@ -634,6 +635,16 @@ namespace succinctdb
     const_cursor cend() const { return cursor(); }
     
   public:
+    static bool exists(const path_type& path)
+    {
+      if (! utils::repository::exists(path)) return false;
+      if (! position_set_type::exists(path / "positions")) return false;
+      if (! index_map_type::exists(path / "index-map")) return false;
+      if (! index_set_type::impl_type::exists(path / "index")) return false;
+      if (! mapped_set_type::impl_type::exists(path / "mapped")) return false;
+      return true;
+    }
+
     void read(const path_type& path) { open(path); }
     void open(const path_type& path)
     {
@@ -835,6 +846,7 @@ namespace succinctdb
     {
       boost::iostreams::filtering_ostream os;
       os.push(boost::iostreams::file_sink(path.file_string()), 1024 * 1024);
+      os.exceptions(std::ostream::eofbit | std::ostream::failbit | std::ostream::badbit);
       
       const int64_t file_size = sizeof(Key) * __mapped.size();
       for (int64_t offset = 0; offset < file_size; offset += 1024 * 1024)
@@ -915,6 +927,7 @@ namespace succinctdb
     {
       boost::iostreams::filtering_ostream os;
       os.push(boost::iostreams::file_sink(path.file_string()), 1024 * 1024);
+      os.exceptions(std::ostream::eofbit | std::ostream::failbit | std::ostream::badbit);
       
       const int64_t file_size = sizeof(Data) * __mapped.size();
       for (int64_t offset = 0; offset < file_size; offset += 1024 * 1024)

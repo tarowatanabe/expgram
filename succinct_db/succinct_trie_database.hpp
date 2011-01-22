@@ -1,6 +1,6 @@
 // -*- mode: c++ -*-
 //
-//  Copyright(C) 2009-2010 Taro Watanabe <taro.watanabe@nict.go.jp>
+//  Copyright(C) 2009-2011 Taro Watanabe <taro.watanabe@nict.go.jp>
 //
 
 #ifndef __SUCCINCT_DB__SUCCINCT_TRIE_DATABASE__HPP__
@@ -118,16 +118,18 @@ namespace succinctdb
       __size = 0;
       
       __os_key_data.reset(new boost::iostreams::filtering_ostream());
-      __os_key_size.reset(new boost::iostreams::filtering_ostream());
-      
-      __os_data.reset(new boost::iostreams::filtering_ostream());
-      __os_data_off.reset(new boost::iostreams::filtering_ostream());
-      
       __os_key_data->push(boost::iostreams::file_sink(path_key_data.file_string(), std::ios_base::out | std::ios_base::trunc), 1024 * 1024);
+      __os_key_data->exceptions(std::ostream::eofbit | std::ostream::failbit | std::ostream::badbit);
+      
+      __os_key_size.reset(new boost::iostreams::filtering_ostream());
       __os_key_size->push(boost::iostreams::zlib_compressor());
       __os_key_size->push(boost::iostreams::file_sink(path_size.file_string(), std::ios_base::out | std::ios_base::trunc), 1024 * 1024);
+      __os_key_size->exceptions(std::ostream::eofbit | std::ostream::failbit | std::ostream::badbit);
       
+      __os_data.reset(new boost::iostreams::filtering_ostream());
       __os_data->push(boost::iostreams::file_sink(rep.path("mapped").file_string(), std::ios_base::out | std::ios_base::trunc), 1024 * 1024);
+      
+      __os_data_off.reset(new boost::iostreams::filtering_ostream());
       __os_data_off->push(utils::vertical_coded_sink<off_type, off_alloc_type>(rep.path("offset"), 1024 * 1024));
       
       // initial data offset...
@@ -344,6 +346,15 @@ namespace succinctdb
 	return __succinct_writer->path();
       else
 	return path_type();
+    }
+
+    static bool exists(const path_type& path)
+    {
+      if (! utils::repository::exists(path)) return false;
+      if (! succinct_trie_type::exists(path / "index")) return false;
+      if (! data_set_type::exists(path / "mapped")) return false;
+      if (! off_set_type::exists(path / "offset")) return false;
+      return true;
     }
 
     // methods supported by both read/write mode

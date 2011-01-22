@@ -58,6 +58,10 @@ int main(int argc, char** argv)
     succinct_trie_type succinct_trie_stream;
     succinct_trie_stream.build("tmptmp.trie.stream", months.begin(), months.end(), extract_key());
   }
+
+  std::cerr << "trie exists? " << succinct_trie_mapped_type::exists("tmptmp.trie") << std::endl;
+  std::cerr << "trie exists? " << succinct_trie_mapped_type::exists("tmptmp.trie.stream") << std::endl;
+  std::cerr << "trie exists? " << succinct_trie_mapped_type::exists("tmptmp.trie.no") << std::endl;
   
   succinct_trie_mapped_type succinct_trie_mapped("tmptmp.trie");
   succinct_trie_mapped_type succinct_trie_mapped_stream("tmptmp.trie.stream");

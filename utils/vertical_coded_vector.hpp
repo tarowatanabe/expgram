@@ -1,4 +1,7 @@
 // -*- mode: c++ -*-
+//
+//  Copyright(C) 2009-2011 Taro Watanabe <taro.watanabe@nict.go.jp>
+//
 
 #ifndef __UTILS__VERTICAL_CODED_VECTOR__HPP__
 #define __UTILS__VERTICAL_CODED_VECTOR__HPP__ 1
@@ -308,6 +311,15 @@ namespace utils
     }
     
   public:
+    static bool exists(const path_type& path)
+    {
+      if (! utils::repository::exists(path)) return false;
+      if (! compressed_vector_type::exists(path / "data")) return false;
+      if (! off_vector_type::exists(path / "offsets")) return false;
+      
+      return true;
+    }
+
     void open(const path_type& path)
     {
       typedef utils::repository repository_type;
@@ -503,7 +515,7 @@ namespace utils
 	
 	compressed.push_back(value);
 	
-	if (inverted.empty() || inverted.size() - 1 != invert)
+	if (inverted.empty() || value_type(inverted.size() - 1) != invert)
 	  inverted.resize(invert + 1, i);
       }
       off.push_back(0);
@@ -520,7 +532,7 @@ namespace utils
 	  
 	  compressed.push_back(value);
 	  
-	  if (inverted_new.empty() || inverted_new.size() - 1 != invert)
+	  if (inverted_new.empty() || value_type(inverted_new.size() - 1) != invert)
 	    inverted_new.resize(invert + 1, i);
 	}
 	

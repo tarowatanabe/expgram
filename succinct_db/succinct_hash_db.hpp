@@ -1,6 +1,6 @@
 // -*- mode: c++ -*-
 //
-//  Copyright(C) 2009-2010 Taro Watanabe <taro.watanabe@nict.go.jp>
+//  Copyright(C) 2009-2011 Taro Watanabe <taro.watanabe@nict.go.jp>
 //
 
 #ifndef __SUCCINCT_DB__SUCCINCT_HASH_DB__HPP__
@@ -130,6 +130,14 @@ namespace succinctdb
       __succinct_hash->reset(new succinct_hash_type(bin_size));
       __data->reset(new data_set_type());
     }
+
+    static bool exists(const path_type& path)
+    {
+      if (! utils::repository::exists(path)) return false;
+      if (! succinct_hash_mapped_type::exists(path / "index")) return false;
+      if (! data_set_mapped_type::exists(path / "data")) return false;
+      return true;
+    }
     
     void open(const path_type& path, size_type bin_size=0)
     {
@@ -145,7 +153,7 @@ namespace succinctdb
 	__succinct_hash_stream.reset(new succinct_hash_stream_type(rep.path("index"), bin_size));
 	__data_stream.reset(new boost::iostreams::filtering_ostream());
 	__data_stream->push(boost::iostreams::file_sink(rep.path("data").file_string()), 1024 * 1024);
-	
+	__data_stream->exceptions(std::ostream::eofbit | std::ostream::failbit | std::ostream::badbit);
       } else {
 	// read-only open
 	repository_type rep(path, repository_type::read);

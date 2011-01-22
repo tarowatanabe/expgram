@@ -1,6 +1,6 @@
 // -*- mode: c++ -*-
 //
-//  Copyright(C) 2009-2010 Taro Watanabe <taro.watanabe@nict.go.jp>
+//  Copyright(C) 2009-2011 Taro Watanabe <taro.watanabe@nict.go.jp>
 //
 
 #ifndef __SUCCINCT_DB__SUCCINCT_TRIE_DB__HPP__
@@ -101,12 +101,13 @@ namespace succinctdb
       utils::tempfile::insert(path_size);
       
       __os_key_data.reset(new boost::iostreams::filtering_ostream());
-      __os_size.reset(new boost::iostreams::filtering_ostream());
-      
       __os_key_data->push(boost::iostreams::file_sink(path_key_data.file_string(), std::ios_base::out | std::ios_base::trunc), 1024 * 1024);
+      __os_key_data->exceptions(std::ostream::eofbit | std::ostream::failbit | std::ostream::badbit);
       
+      __os_size.reset(new boost::iostreams::filtering_ostream());
       __os_size->push(boost::iostreams::zlib_compressor());
       __os_size->push(boost::iostreams::file_sink(path_size.file_string(), std::ios_base::out | std::ios_base::trunc), 1024 * 1024);
+      __os_size->exceptions(std::ostream::eofbit | std::ostream::failbit | std::ostream::badbit);
       
       __size = 0;
     }
@@ -164,7 +165,7 @@ namespace succinctdb
       __os_size.reset();
 
       if (boost::filesystem::exists(path_key_data) && boost::filesystem::exists(path_size) && ! path_output.empty()) {
-
+	
 	::sync();
 	
 	map_file_type map_key_data(path_key_data);
@@ -251,6 +252,11 @@ namespace succinctdb
     ~succinct_trie_db() { close(); }
     
   public:
+    static bool exists(const path_type& path)
+    {
+      return succinct_trie_type::exists(path);
+    }
+
     // methods supported by both read/write mode
     void open(const path_type& path, const mode_type mode=READ)
     {
