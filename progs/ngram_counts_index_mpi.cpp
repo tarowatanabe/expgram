@@ -113,19 +113,18 @@ int main(int argc, char** argv)
       {
 	typedef utils::repository repository_type;
 	
-	while (! boost::filesystem::exists(output_file))
+	while (! repository_type::exists(output_file))
 	  boost::thread::yield();
 	repository_type repository(output_file, repository_type::read);
 	
-	while (! boost::filesystem::exists(repository.path("index")))
+	while (! repository_type::exists(repository.path("index")))
 	  boost::thread::yield();
 	repository_type rep(repository.path("index"), repository_type::read);
 	
-	while (! boost::filesystem::exists(rep.path("vocab")))
+	while (! vocab_type::exists(rep.path("vocab")))
 	  boost::thread::yield();
 	
-	vocab_type& vocab = ngram.index.vocab();
-	vocab.open(rep.path("vocab"));
+	ngram.index.vocab().open(rep.path("vocab"));
       }
       
       // perform mapping!
@@ -181,7 +180,7 @@ int main(int argc, char** argv)
       // perform indexing and open
       os_count.pop();
 
-      while (! boost::filesystem::exists(path_count))
+      while (! ngram_type::shard_data_type::count_set_type::exists(path_count))
 	boost::thread::yield();
       
       utils::tempfile::permission(path_count);
@@ -288,9 +287,9 @@ void index_unigram(const path_type& path, const path_type& output, ngram_type& n
     
     vocab.close();
 
-    while (! boost::filesystem::exists(path_vocab))
+    while (! vocab_type::exists(path_vocab))
       boost::thread::yield();
-
+    
     utils::tempfile::permission(path_vocab);
     
     vocab.open(path_vocab);
@@ -320,19 +319,18 @@ void index_unigram(const path_type& path, const path_type& output, ngram_type& n
     
     ngram.counts[mpi_rank].offset = unigram_size;
     
-    while (! boost::filesystem::exists(output))
+    while (! repository_type::exists(output))
       boost::thread::yield();
     repository_type repository(output, repository_type::read);
     
-    while (! boost::filesystem::exists(repository.path("index")))
+    while (! repository_type::exists(repository.path("index")))
       boost::thread::yield();
     repository_type rep(repository.path("index"), repository_type::read);
     
-    while (! boost::filesystem::exists(rep.path("vocab")))
+    while (! vocab_type::exists(rep.path("vocab")))
       boost::thread::yield();
     
-    vocab_type& vocab = ngram.index.vocab();
-    vocab.open(rep.path("vocab"));
+    ngram.index.vocab().open(rep.path("vocab"));
   }
 }
 

@@ -253,7 +253,7 @@ namespace expgram
       }
       os.pop();
       
-      while (! boost::filesystem::exists(path))
+      while (! ngram_type::shard_data_type::count_set_type::exists(path))
 	boost::thread::yield();
 
       utils::tempfile::permission(path);
@@ -2317,7 +2317,7 @@ namespace expgram
       for (int shard = 0; shard < shard_size; ++ shard) {
 	os_counts[shard].reset();
 
-	while (! boost::filesystem::exists(path_counts[shard]))
+	while (! shard_data_type::count_set_type::exists(path_counts[shard]))
 	  boost::thread::yield();
 	
 	utils::tempfile::permission(path_counts[shard]);

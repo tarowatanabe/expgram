@@ -341,7 +341,7 @@ void ngram_bound_reducer(ngram_type& ngram, intercomm_type& mapper)
   utils::tempfile::insert(path);
   dump_file(path, logbounds);
   
-  while (! boost::filesystem::exists(path))
+  while (! ngram_type::shard_data_type::logprob_set_type::exists(path))
     boost::thread::yield();
 
   utils::tempfile::permission(path);
