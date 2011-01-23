@@ -2099,11 +2099,14 @@ namespace expgram
       
       vocab.close();
       
+      ::sync();
+      while (! vocab_type::exists(path_vocab))
+	boost::thread::yield();
+      
       utils::tempfile::permission(path_vocab);
       
       vocab.open(path_vocab);
       unigram_size = word_id;
-      
       
       vocab_map_type(vocab_map).swap(vocab_map);
     }
