@@ -253,6 +253,7 @@ namespace expgram
       }
       os.pop();
       
+      ::sync();
       while (! ngram_type::shard_data_type::count_set_type::exists(path))
 	boost::thread::yield();
 
@@ -971,7 +972,9 @@ namespace expgram
       
       dump_file(path_logprob, logprobs[shard]);
       dump_file(path_backoff, backoffs[shard]);
-
+      
+      ::sync();
+      
       while (! boost::filesystem::exists(path_logprob))
 	boost::thread::yield();
       while (! boost::filesystem::exists(path_backoff))
@@ -1259,9 +1262,7 @@ namespace expgram
     if (counts.is_open())
       counts.write(rep.path("counts"));
     
-    std::ostringstream stream_offset;
-    stream_offset << offset;
-    rep["offset"] = stream_offset.str();
+    rep["offset"] = boost::lexical_cast<std::string>(offset);
   }
   
   template <typename Path, typename Shards>
@@ -1320,10 +1321,8 @@ namespace expgram
     typedef utils::repository repository_type;
     
     repository_type rep(path, repository_type::write);
-    
-    std::ostringstream stream_shard;
-    stream_shard << shards.size();
-    rep["shard"] = stream_shard.str();
+      
+    rep["shard"] = boost::lexical_cast<std::string>(shards.size());
   }
 
   template <typename Path, typename Shards>
@@ -1332,7 +1331,7 @@ namespace expgram
   {
     typedef utils::repository repository_type;
     
-    while (! boost::filesystem::exists(path))
+    while (! repository_type::exists(path))
       boost::thread::yield();
     
     repository_type rep(path, repository_type::read);
@@ -1377,10 +1376,10 @@ namespace expgram
     {
       repository_type rep(path, repository_type::write);
       
-      std::ostringstream stream_shard;
-      stream_shard << shards.size();
-      rep["shard"] = stream_shard.str();
+      rep["shard"] = boost::lexical_cast<std::string>(shards.size());
     }
+    
+    ::sync();
     
     thread_ptr_set_type threads(shards.size());
     
@@ -1427,11 +1426,15 @@ namespace expgram
     
     if (path() == file) return;
     
-    repository_type rep(file, repository_type::write);
+    {
+      repository_type rep(file, repository_type::write);
+      
+      index.write_prepare(rep.path("index"));
+      if (! counts.empty())
+	write_shards_prepare(rep.path("count"), counts);
+    }
     
-    index.write_prepare(rep.path("index"));
-    if (! counts.empty())
-      write_shards_prepare(rep.path("count"), counts);
+    ::sync();
   }
 
   void NGramCounts::write_shard(const path_type& file, int shard) const
@@ -1440,7 +1443,7 @@ namespace expgram
     
     if (path() == file) return;
     
-    while (! boost::filesystem::exists(file))
+    while (! repository_type::exists(file))
       boost::thread::yield();
     
     repository_type rep(file, repository_type::read);
@@ -2207,17 +2210,20 @@ namespace expgram
       // termination...
       for (int shard = 0; shard < index.size(); ++ shard)
 	queues[shard]->push(std::make_pair(context_type(), count_type(0)));
-      
+
       for (int shard = 0; shard < index.size(); ++ shard) {
 	threads[shard]->join();
-	
 	os_counts[shard].reset();
+      }
 
-	while (! boost::filesystem::exists(path_counts[shard]))
+      ::sync();
+      
+      for (int shard = 0; shard < index.size(); ++ shard) {
+	while (! shard_data_type::count_set_type::exists(path_counts[shard]))
 	  boost::thread::yield();
 	
 	utils::tempfile::permission(path_counts[shard]);
-
+	
 	counts[shard].counts.open(path_counts[shard]);
       }
       threads.clear();
@@ -2314,14 +2320,18 @@ namespace expgram
       }
       
       // termination...
-      for (int shard = 0; shard < shard_size; ++ shard) {
+      for (int shard = 0; shard < shard_size; ++ shard)
 	os_counts[shard].reset();
 
+      ::sync();
+      
+      for (int shard = 0; shard < shard_size; ++ shard) {
+	
 	while (! shard_data_type::count_set_type::exists(path_counts[shard]))
 	  boost::thread::yield();
 	
 	utils::tempfile::permission(path_counts[shard]);
-
+	
 	counts[shard].counts.open(path_counts[shard]);
       }
     }

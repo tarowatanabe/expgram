@@ -348,6 +348,8 @@ void ngram_modify_reducer(ngram_type& ngram, intercomm_type& mapper)
   }
   os.pop();
 
+  ::sync();
+
   while (! ngram_type::shard_data_type::count_set_type::exists(path))
     boost::thread::yield();
   

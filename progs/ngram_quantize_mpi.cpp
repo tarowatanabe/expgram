@@ -149,6 +149,7 @@ void ngram_quantize(ngram_type& ngram)
     }
     
     os.pop();
+    ::sync();
     
     while (! ngram_type::shard_data_type::quantized_set_type::exists(path))
       boost::thread::yield();
@@ -186,6 +187,7 @@ void ngram_quantize(ngram_type& ngram)
     }
 	
     os.pop();
+    ::sync();
     
     while (! ngram_type::shard_data_type::quantized_set_type::exists(path))
       boost::thread::yield();
@@ -223,6 +225,7 @@ void ngram_quantize(ngram_type& ngram)
     }
     
     os.pop();
+    ::sync();
     
     while (! ngram_type::shard_data_type::quantized_set_type::exists(path))
       boost::thread::yield();

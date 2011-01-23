@@ -286,6 +286,7 @@ void index_unigram(const path_type& path, const path_type& output, ngram_type& n
     word_set_type(words).swap(words);
     
     vocab.close();
+    ::sync();
 
     while (! vocab_type::exists(path_vocab))
       boost::thread::yield();

@@ -199,6 +199,8 @@ int main(int argc, char** argv)
     shard_data.backoffs.clear();
     shard_data_type::logprob_set_type(shard_data.logprobs).swap(shard_data.logprobs);
     shard_data_type::logprob_set_type(shard_data.backoffs).swap(shard_data.backoffs);
+    
+    ::sync();
 
     while (! ngram_type::shard_data_type::logprob_set_type::exists(path_logprob))
       boost::thread::yield();
