@@ -3,6 +3,7 @@
 #ifndef __EXPGRAM__NGRAM_COUTNS_INDEXER__HPP__
 #define __EXPGRAM__NGRAM_COUTNS_INDEXER__HPP__ 1
 
+#include <unistd.h>
 #include <stdint.h>
 
 #include <stdexcept>
@@ -96,9 +97,12 @@ namespace expgram
       os_id.pop();
       positions.write(path_position);
       
-      while (! boost::filesystem::exists(path_id))
+      ::sync();
+      
+      while (! ngram_type::shard_index_type::shard_type::id_set_type::exists(path_id))
 	boost::thread::yield();
-      while (! boost::filesystem::exists(path_position))
+      
+      while (! ngram_type::shard_index_type::shard_type::position_set_type::exists(path_position))
 	boost::thread::yield();
       
       utils::tempfile::permission(path_id);

@@ -18,6 +18,10 @@ int main(int argc, char** argv)
     // empty...
     succinct_db_type succinct_db("tmptmp.database", succinct_db_type::WRITE);
     succinct_db.close();
+    
+    std::cerr << "exists? " << succinct_db_type::exists("tmptmp.database") << std::endl;
+    std::cerr << "exists? " << succinct_db_type::exists("tmptmp.database.none") << std::endl;
+
     succinct_db.open("tmptmp.database");
     
     std::cerr << "db size: " << succinct_db.size() << std::endl;
@@ -43,6 +47,9 @@ int main(int argc, char** argv)
       map_db.insert(std::make_pair(str_key, str_data));
     }
     succinct_db.close();
+
+    std::cerr << "exists? " << succinct_db_type::exists("tmptmp.database") << std::endl;
+    
     succinct_db.open("tmptmp.database", succinct_db_type::READ);
 
     std::cerr << "db size: " << succinct_db.size() << std::endl;

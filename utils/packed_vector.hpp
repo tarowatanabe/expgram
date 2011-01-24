@@ -1,4 +1,7 @@
 // -*- mode: c++ -*-
+//
+//  Copyright(C) 2009-2011 Taro Watanabe <taro.watanabe@nict.go.jp>
+//
 
 #ifndef __UTILS__PACKED_VECTOR__HPP__
 #define __UTILS__PACKED_VECTOR__HPP__ 1
@@ -81,6 +84,9 @@ namespace utils
 	case 1: return data[pos_byte] & 0x0f;
 	}
       }
+      
+      // we will never reach here...
+      return 0;
     }
   };
   
@@ -103,7 +109,6 @@ namespace utils
     {
       const size_type value_size = byte_size(value);
       const size_type pos_first = data.size();
-      const uvalue_type mask = 0xff;
       
       data.resize(data.size() + value_size);
       
@@ -163,7 +168,6 @@ namespace utils
     {
       const size_type value_size = byte_size(value);
       const size_type pos_first = data.size();
-      const uvalue_type mask = 0xff;
       
       data.resize(data.size() + value_size);
       
@@ -231,7 +235,6 @@ namespace utils
     {
       const size_type value_size = byte_size(value);
       const size_type pos_first = data.size();
-      const uvalue_type mask = 0xff;
       
       data.resize(data.size() + value_size);
       
@@ -433,6 +436,15 @@ namespace utils
       __data.clear();
       __index.clear();
       __size = 0;
+    }
+
+    static bool exists(const path_type& path)
+    {
+      if (! utils::repository::exists(path)) return false;
+      if (! index_vector_type::exists(path / "index")) return false;
+      if (! data_vector_type::exists(path / "data")) return false;
+      
+      return true;
     }
     
     void open(const path_type& path)

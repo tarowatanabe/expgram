@@ -64,7 +64,7 @@ namespace utils
 	throw std::runtime_error("map_file::open() open()");
       
       const size_t page_size = getpagesize();
-      mmap_size = static_cast<off_type>(((filesize + page_size - 1) / page_size) * page_size);
+      mmap_size = static_cast<off_type>(std::max(off_type((filesize + page_size - 1) / page_size), off_type(1)) * page_size);
 	
       // First, try map_shared
       byte_type* x = static_cast<byte_type*>(::mmap(0, mmap_size, writable ? PROT_WRITE : PROT_READ, MAP_SHARED, fd, 0));
@@ -80,7 +80,7 @@ namespace utils
       if (x + 1)
 	mmapped = x;
       else
-	throw std::runtime_error("map_file::open() mmap()");
+	throw std::runtime_error(std::string("map_file::open() mmap()") + strerror(errno));
     }
 
     void close()
@@ -152,6 +152,11 @@ namespace utils
     uint64_t size_cache() const { return 0; }
     
     path_type path() const { return pimpl->path(); }
+
+    static bool exists(const path_type& path)
+    {
+      return boost::filesystem::exists(path);
+    }
     
     void open(const std::string& file, const bool writable=false) { pimpl.reset(new impl_type(file, writable)); }
     void open(const path_type& file, const bool writable=false) { pimpl.reset(new impl_type(file, writable)); }

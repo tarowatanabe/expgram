@@ -26,6 +26,9 @@ int main(int argc, char** argv)
       std::cerr << "NOT FOUND?" << std::endl;
 
   succinct_hash.write("tmpmtp.hash");
+
+  std::cerr << "exists? " << succinctdb::succinct_hash_mapped<char>::exists("tmpmtp.hash") << std::endl;
+  std::cerr << "exists? " << succinctdb::succinct_hash_mapped<char>::exists("tmpmtp.hash.none") << std::endl;
   
   succinctdb::succinct_hash_mapped<char> succinct_hash_mapped("tmpmtp.hash");
   for (int i = 0; i < strings.size(); ++ i)

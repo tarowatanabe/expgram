@@ -5,3 +5,5 @@
 * Implement --min-ngram to perform filtering duing indexing (for bigrams and upward)
 
 * Implement mini-expgram, which supports only loading.
+
+* Use Boost.Spirit for faster parsing/generation of various data-structs for exchange between MPI ranks

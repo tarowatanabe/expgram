@@ -90,9 +90,7 @@ namespace expgram
     if (logprobs.is_open())
       logprobs.write(rep.path("logprob"));
     
-    std::ostringstream stream_offset;
-    stream_offset << offset;
-    rep["offset"] = stream_offset.str();
+    rep["offset"] = boost::lexical_cast<std::string>(offset);
   }
   
   template <typename Path, typename Shards>
@@ -179,10 +177,10 @@ namespace expgram
     {
       repository_type rep(path, repository_type::write);
       
-      std::ostringstream stream_shard;
-      stream_shard << shards.size();
-      rep["shard"] = stream_shard.str();
+      rep["shard"] = boost::lexical_cast<std::string>(shards.size());
     }
+    
+    ::sync();
     
     thread_ptr_set_type threads(shards.size());
     
@@ -232,9 +230,7 @@ namespace expgram
     
     repository_type rep(path, repository_type::write);
     
-    std::ostringstream stream_shard;
-    stream_shard << shards.size();
-    rep["shard"] = stream_shard.str();
+    rep["shard"] = boost::lexical_cast<std::string>(shards.size());
   }
 
 
@@ -244,22 +240,23 @@ namespace expgram
     
     if (path() == file) return;
     
-    repository_type rep(file, repository_type::write);
+    {
+      repository_type rep(file, repository_type::write);
+      
+      index.write_prepare(rep.path("index"));
+      
+      if (! logprobs.empty())
+	write_shards_prepare(rep.path("logprob"), logprobs);
+      if (! backoffs.empty())
+	write_shards_prepare(rep.path("backoff"), backoffs);
+      if (! logbounds.empty())
+	write_shards_prepare(rep.path("logbound"), logbounds);
+      
+      rep["smooth"] = boost::lexical_cast<std::string>(smooth);
+      rep["bound-exact"] = utils::lexical_cast<std::string>(bound_exact);
+    }
     
-    index.write_prepare(rep.path("index"));
-    
-    if (! logprobs.empty())
-      write_shards_prepare(rep.path("logprob"), logprobs);
-    if (! backoffs.empty())
-      write_shards_prepare(rep.path("backoff"), backoffs);
-    if (! logbounds.empty())
-      write_shards_prepare(rep.path("logbound"), logbounds);
-    
-    std::ostringstream stream_smooth;
-    stream_smooth.precision(20);
-    stream_smooth << smooth;
-    rep["smooth"] = stream_smooth.str();
-    rep["bound-exact"] = utils::lexical_cast<std::string>(bound_exact);
+    ::sync();
   }
 
   void NGram::write_shard(const path_type& file, int shard) const
@@ -299,10 +296,7 @@ namespace expgram
     if (! logbounds.empty())
       write_shards(rep.path("logbound"), logbounds);
     
-    std::ostringstream stream_smooth;
-    stream_smooth.precision(20);
-    stream_smooth << smooth;
-    rep["smooth"] = stream_smooth.str();
+    rep["smooth"] = boost::lexical_cast<std::string>(smooth);
     rep["bound-exact"] = utils::lexical_cast<std::string>(bound_exact);
   }
   

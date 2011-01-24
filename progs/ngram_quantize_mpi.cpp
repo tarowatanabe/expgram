@@ -149,8 +149,9 @@ void ngram_quantize(ngram_type& ngram)
     }
     
     os.pop();
+    ::sync();
     
-    while (! boost::filesystem::exists(path))
+    while (! ngram_type::shard_data_type::quantized_set_type::exists(path))
       boost::thread::yield();
     
     utils::tempfile::permission(path);
@@ -186,8 +187,9 @@ void ngram_quantize(ngram_type& ngram)
     }
 	
     os.pop();
+    ::sync();
     
-    while (! boost::filesystem::exists(path))
+    while (! ngram_type::shard_data_type::quantized_set_type::exists(path))
       boost::thread::yield();
 
     utils::tempfile::permission(path);
@@ -223,8 +225,9 @@ void ngram_quantize(ngram_type& ngram)
     }
     
     os.pop();
+    ::sync();
     
-    while (! boost::filesystem::exists(path))
+    while (! ngram_type::shard_data_type::quantized_set_type::exists(path))
       boost::thread::yield();
     
     utils::tempfile::permission(path);
