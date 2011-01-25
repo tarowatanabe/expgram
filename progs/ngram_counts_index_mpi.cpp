@@ -407,10 +407,11 @@ void index_ngram_mapper(intercomm_type& reducer, const PathSet& paths, ngram_typ
   typedef std::deque<context_count_type, std::allocator<context_count_type> > context_count_set_type;
   
   typedef std::pair<context_count_set_type, istream_type*> context_count_stream_type;
-  typedef boost::shared_ptr<context_count_stream_type>     context_count_stream_ptr_type;
   
-  typedef std::vector<context_count_stream_ptr_type, std::allocator<context_count_stream_ptr_type> > pqueue_base_type;
-  typedef std::priority_queue<context_count_stream_ptr_type, pqueue_base_type, greater_ngram<context_count_stream_type> > pqueue_type;
+  typedef std::vector<context_count_stream_type, std::allocator<context_count_stream_type> > context_count_stream_set_type;
+  
+  typedef std::vector<context_count_stream_type*, std::allocator<context_count_stream_type*> > pqueue_base_type;
+  typedef std::priority_queue<context_count_stream_type*, pqueue_base_type, greater_ngram<context_count_stream_type> > pqueue_type;
 
   typedef std::vector<std::string, std::allocator<std::string> > tokens_type;
   typedef boost::tokenizer<utils::space_separator>               tokenizer_type;
@@ -430,22 +431,21 @@ void index_ngram_mapper(intercomm_type& reducer, const PathSet& paths, ngram_typ
 
   pqueue_type pqueue;
   
-  istream_ptr_set_type istreams;
-  istreams.reserve(paths.size());
+  istream_ptr_set_type          istreams(paths.size());
+  context_count_stream_set_type context_counts(paths.size());
   
   std::string line;
   tokens_type tokens;
   
   // any faster merging...?
 
-  for (int i = 0; i < paths.size(); ++ i) {
+  for (size_t i = 0; i != paths.size(); ++ i) {
+    istreams[i].reset(new utils::compress_istream(paths[i], 1024 * 1024));
     
-    istreams.push_back(istream_ptr_type(new utils::compress_istream(paths[i], 1024 * 1024)));
-
-    context_count_stream_ptr_type context_stream(new context_count_stream_type());
-    context_stream->second = &(*istreams.back());
+    context_count_stream_type* context_stream = &context_counts[i];
+    context_stream->second = &(*istreams[i]);
     
-    while (context_stream->first.size() < 256 && std::getline(*istreams.back(), line)) {
+    while (context_stream->first.size() < 256 && std::getline(*context_stream->second, line)) {
       tokenizer_type tokenizer(line);
       tokens.clear();
       tokens.insert(tokens.end(), tokenizer.begin(), tokenizer.end());
@@ -468,7 +468,7 @@ void index_ngram_mapper(intercomm_type& reducer, const PathSet& paths, ngram_typ
   
   const size_t iteration_mask = (1 << 13) - 1;
   for (size_t iteration = 0; ! pqueue.empty(); ++ iteration) {
-    context_count_stream_ptr_type context_stream(pqueue.top());
+    context_count_stream_type* context_stream(pqueue.top());
     pqueue.pop();
     
     if (context != context_stream->first.front().first) {
