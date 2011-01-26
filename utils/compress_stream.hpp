@@ -1,4 +1,7 @@
-// -*- Mode: C++ -*-
+// -*- mode: c++ -*-
+//
+//  Copyright(C) 2009-2011 Taro Watanabe <taro.watanabe@nict.go.jp>
+//
 
 #ifndef __UTILS__COMPRESS_STREAM__HPP__
 #define __UTILS__COMPRESS_STREAM__HPP__ 1
@@ -33,13 +36,13 @@ namespace utils
     {
       char buffer[8];
       
-      ::memset(buffer, 0, sizeof(char)*3);
       std::ifstream ifs(filename.c_str());
       ifs.read((char*) buffer, sizeof(char)*3);
+      const size_t gcount = ifs.gcount();
       
-      if (buffer[0] == '\037' && buffer[1] == '\213')
+      if (gcount >= 2 && buffer[0] == '\037' && buffer[1] == '\213')
 	return COMPRESS_STREAM_GZIP;
-      else if (buffer[0] == 'B' && buffer[1] == 'Z' && buffer[2] == 'h')
+      else if (gcount >= 3 && buffer[0] == 'B' && buffer[1] == 'Z' && buffer[2] == 'h')
 	return COMPRESS_STREAM_BZIP;
       else
 	return COMPRESS_STREAM_UNKNOWN;
@@ -79,6 +82,7 @@ namespace utils
       case impl::COMPRESS_STREAM_BZIP:
 	os.push(boost::iostreams::bzip2_compressor());
 	break;
+      default: break;
       }
       os.push(boost::iostreams::file_sink(path.file_string(), std::ios_base::out | std::ios_base::trunc), buffer_size);
     }
@@ -106,6 +110,7 @@ namespace utils
 	case impl::COMPRESS_STREAM_BZIP:
 	  is.push(boost::iostreams::bzip2_decompressor());
 	  break;
+	default: break;
 	}
       }
       is.push(boost::iostreams::file_source(path.file_string()), buffer_size);
