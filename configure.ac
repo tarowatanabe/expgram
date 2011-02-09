@@ -3,12 +3,15 @@
 
 AC_PREREQ(2.61)
 
-AC_INIT(expgram, 0.0.1, taro.wtnb@gmail.com)
+AC_INIT(expgram, 0.0.1, taro.watanabe@nict.go.jp)
 
 AC_CONFIG_AUX_DIR(config)
 AC_CONFIG_MACRO_DIR(config)
 
 AM_INIT_AUTOMAKE(expgram, 0.0.1)
+
+EXPGRAM_LTVERSION=0:1:0
+AC_SUBST(EXPGRAM_LTVERSION)
 
 AC_CONFIG_HEADER(utils/config.h)
 
@@ -148,7 +151,7 @@ AC_SUBST(PROFILER_CPPFLAGS)
 AC_SUBST(PROFILER_LDFLAGS)
 
 # Boost libraries...
-BOOST_REQUIRE([1.38])
+BOOST_REQUIRE([1.42])
 BOOST_PROGRAM_OPTIONS
 BOOST_THREADS
 BOOST_FILESYSTEM
@@ -352,7 +355,6 @@ AC_CHECK_FUNCS([dup2 gethostname gettimeofday select sqrt])
 AC_CHECK_FUNCS([posix_memalign memalign])
 
 AC_CONFIG_FILES([Makefile
-		 codec/Makefile
                  expgram/Makefile
 		 progs/Makefile
 		 sample/Makefile

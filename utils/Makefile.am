@@ -16,6 +16,8 @@ libutils_la_SOURCES = \
 	map_file_allocator.cpp \
 	tempfile.cpp
 
+libutils_la_LDFLAGS = -version-info $(EXPGRAM_LTVERSION)
+
 libutils_la_LIBADD = \
 	$(BOOST_THREAD_LDFLAGS) $(BOOST_THREAD_LIBS) \
 	$(BOOST_IOSTREAMS_LDFLAGS) $(BOOST_IOSTREAMS_LIBS) \
@@ -30,6 +32,7 @@ alloc_vector.hpp \
 allocinfo_allocator.hpp \
 arc_list.hpp \
 array_power2.hpp \
+async_device.hpp \
 atomicop.hpp \
 base64.hpp \
 bithack.hpp \
@@ -49,6 +52,7 @@ indexed_hashtable.hpp \
 indexed_map.hpp \
 indexed_set.hpp \
 istream_line_iterator.hpp \
+lexical_cast.hpp \
 lockfree_list_queue.hpp \
 lockfree_queue.hpp \
 malloc_stats.hpp \
@@ -61,11 +65,11 @@ mpi_allocator.hpp \
 mpi_device.hpp \
 mpi_device_bcast.hpp \
 mpi_stream.hpp \
+mpi_stream_simple.hpp \
 mpi_traits.hpp \
 packed_device.hpp \
 packed_vector.hpp \
-pfor_device.hpp \
-pfor_vector.hpp \
+piece.hpp \
 program_options.hpp \
 regex_group.hpp \
 repository.hpp \
@@ -76,10 +80,13 @@ simple_vector.hpp \
 space_separator.hpp \
 spinlock.hpp \
 static_allocator.hpp \
+subprocess.hpp \
 succinct_vector.hpp \
 tempfile.hpp \
 vector2.hpp \
 vector3.hpp \
+vector2_aligned.hpp \
+vector3_aligned.hpp \
 vertical_coded_device.hpp \
 vertical_coded_vector.hpp
 
@@ -97,7 +104,6 @@ sample_lockfree_list_queue \
 sample_lockfree_queue \
 sample_map_file_allocator \
 sample_packed_vector \
-sample_pfor_vector \
 sample_simple_vector \
 sample_static_allocator \
 sample_subprocess \
@@ -106,9 +112,12 @@ sample_tempfile \
 sample_vector2 \
 sample_vertical_coded_vector
 
-noinst_SCRIPTS = \
+dist_noinst_SCRIPTS = \
 bitpack_gen.py \
 group_aligned_code_offsets.py
+
+noinst_HEADERS = \
+bitpack_impl.hpp
 
 bitpack8.cpp  : bitpack_impl.hpp bitpack8_impl.hpp
 bitpack16.cpp  : bitpack_impl.hpp bitpack16_impl.hpp
@@ -169,11 +178,6 @@ sample_lockfree_queue_LDADD = $(BOOST_THREAD_LIBS) $(BOOST_SYSTEM_LIBS)
 sample_map_file_allocator_SOURCES = sample_map_file_allocator.cpp
 sample_map_file_allocator_LDFLAGS = $(BOOST_THREAD_LDFLAGS)
 sample_map_file_allocator_LDADD = $(BOOST_FILESYSTEM_LIBS) $(BOOST_IOSTREAMS_LIBS) $(BOOST_SYSTEM_LIBS) $(BOOST_THREAD_LIBS) $(LIBUTILS) $(perftools_LDADD)
-
-sample_pfor_vector_SOURCES = sample_pfor_vector.cpp
-sample_pfor_vector_LDFLAGS = $(BOOST_FILESYSTEM_LDFLAGS) $(BOOST_THREAD_LDFLAGS)
-sample_pfor_vector_LDADD = $(BOOST_FILESYSTEM_LIBS) $(BOOST_IOSTREAMS_LIBS) $(BOOST_SYSTEM_LIBS) $(BOOST_THREAD_LIBS) $(LIBUTILS)
-
 
 sample_packed_vector_SOURCES = sample_packed_vector.cpp
 sample_packed_vector_LDFLAGS = $(BOOST_FILESYSTEM_LDFLAGS) $(BOOST_THREAD_LDFLAGS)
