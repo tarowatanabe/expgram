@@ -3,7 +3,7 @@
 
 AC_PREREQ(2.61)
 
-AC_INIT(expgram, 0.0.1, taro.wtnb@gmail.com)
+AC_INIT(expgram, 0.0.1, taro.watanabe@nict.go.jp)
 
 AC_CONFIG_AUX_DIR(config)
 AC_CONFIG_MACRO_DIR(config)
