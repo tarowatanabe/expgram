@@ -270,8 +270,8 @@ void ngram_modify_reducer(ngram_type& ngram, intercomm_type& mapper)
   
   typedef std::vector<id_type, std::allocator<id_type> > context_type;
   
-  typedef std::vector<std::string, std::allocator<std::string> > tokens_type;
-  typedef boost::tokenizer<utils::space_separator>               tokenizer_type;
+  typedef std::vector<utils::piece, std::allocator<utils::piece> > tokens_type;
+  typedef boost::tokenizer<utils::space_separator, utils::piece::const_iterator, utils::piece> tokenizer_type;
 
   const int mpi_rank = MPI::COMM_WORLD.Get_rank();
   const int mpi_size = MPI::COMM_WORLD.Get_size();
@@ -302,7 +302,8 @@ void ngram_modify_reducer(ngram_type& ngram, intercomm_type& mapper)
       while (stream[rank] && device[rank] && device[rank]->test()) {
 	
 	if (std::getline(*stream[rank], line)) {
-	  tokenizer_type tokenizer(line);
+	  utils::piece line_piece(line);
+	  tokenizer_type tokenizer(line_piece);
 	  tokens.clear();
 	  tokens.insert(tokens.end(), tokenizer.begin(), tokenizer.end());
 	  

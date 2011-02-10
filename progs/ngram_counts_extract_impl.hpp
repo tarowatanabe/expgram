@@ -39,6 +39,7 @@
 #include <utils/async_device.hpp>
 #include <utils/malloc_stats.hpp>
 #include <utils/hashmurmur.hpp>
+#include <utils/piece.hpp>
 
 #include <expgram/Word.hpp>
 #include <expgram/Vocab.hpp>
@@ -471,8 +472,8 @@ struct GoogleNGramCounts
     typedef Path path_type;
     typedef typename PathMap::value_type path_set_type;
     
-    typedef std::vector<std::string, std::allocator<std::string> > tokens_type;
-    typedef boost::tokenizer<utils::space_separator>               tokenizer_type;
+    typedef std::vector<utils::piece, std::allocator<utils::piece> > tokens_type;
+    typedef boost::tokenizer<utils::space_separator, utils::piece::const_iterator, utils::piece> tokenizer_type;
     
     if (paths_counts.empty())
       throw std::runtime_error("no counts?");
@@ -503,14 +504,15 @@ struct GoogleNGramCounts
 	std::string line;
 	tokens_type tokens;
 	while (std::getline(is, line)) {
-	  tokenizer_type tokenizer(line);
+	  utils::piece line_piece(line);
+	  tokenizer_type tokenizer(line_piece);
 	  
 	  tokens.clear();
 	  tokens.insert(tokens.end(), tokenizer.begin(), tokenizer.end());
 	  
 	  if (tokens.size() != 2) continue;
 	  
-	  words[tokens.front()] += atoll(tokens.back().c_str());
+	  words[static_cast<std::string>(tokens.front())] += atoll(tokens.back().c_str());
 	}
 	
 	boost::filesystem::remove(*piter);
@@ -576,7 +578,8 @@ struct GoogleNGramCounts
 	
 	tokens.clear();
 	while (std::getline(is, line)) {
-	  tokenizer_type tokenizer(line);
+	  utils::piece line_piece(line);
+	  tokenizer_type tokenizer(line_piece);
 	  
 	  tokens.clear();
 	  tokens.insert(tokens.end(), tokenizer.begin(), tokenizer.end());
@@ -591,7 +594,7 @@ struct GoogleNGramCounts
 
 	if (! tokens.empty()) {
 	  os << piter->leaf() << '\t';
-	  std::copy(tokens.begin(), tokens.end() - 2, std::ostream_iterator<std::string>(os, " "));
+	  std::copy(tokens.begin(), tokens.end() - 2, std::ostream_iterator<utils::piece>(os, " "));
 	  os << *(tokens.end() - 2) << '\n';
 	  
 	  utils::tempfile::erase(*piter);
@@ -612,9 +615,9 @@ struct GoogleNGramCounts
 	      const int max_order)
   {
     typedef Path path_type;
-
-    typedef std::vector<std::string, std::allocator<std::string> > tokens_type;
-    typedef boost::tokenizer<utils::space_separator>               tokenizer_type;
+    
+    typedef std::vector<utils::piece, std::allocator<utils::piece> > tokens_type;
+    typedef boost::tokenizer<utils::space_separator, utils::piece::const_iterator, utils::piece> tokenizer_type;
 
     if (! boost::filesystem::exists(path))
       throw std::runtime_error(std::string("no file? ") + path.file_string());
@@ -656,7 +659,8 @@ struct GoogleNGramCounts
 	tokens_type tokens;
       
 	while (std::getline(is, line)) {
-	  tokenizer_type tokenizer(line);
+	  utils::piece line_piece(line);
+	  tokenizer_type tokenizer(line_piece);
 	
 	  tokens.clear();
 	  tokens.insert(tokens.end(), tokenizer.begin(), tokenizer.end());
@@ -666,7 +670,7 @@ struct GoogleNGramCounts
 	  if (tokens.size() != order + 1)
 	    throw std::runtime_error(std::string("invalid google ngram format...") + index_file.file_string());
 	
-	  const path_type path_ngram = ngram_dir / tokens.front();
+	  const path_type path_ngram = ngram_dir / static_cast<std::string>(tokens.front());
 	
 	  if (! boost::filesystem::exists(path_ngram))
 	    throw std::runtime_error(std::string("invalid google ngram format... no file: ") + path_ngram.file_string());
@@ -684,7 +688,7 @@ struct GoogleNGramCounts
     inline
     void operator()(Iterator first, Iterator last, const vocabulary_type& vocabulary, Counts& counts, const Path& path, Paths& paths, const double max_malloc)
     {
-      typedef boost::tokenizer<utils::space_separator> tokenizer_type;
+      typedef boost::tokenizer<utils::space_separator, utils::piece::const_iterator, utils::piece> tokenizer_type;
       
       ngram_type sentence;
       
@@ -693,8 +697,9 @@ struct GoogleNGramCounts
       // every 4096 iterations, we will check for memory boundary
       const size_t iteration_mask = (1 << 13) - 1;
       for (size_t iteration = 0; first != last; ++ first, ++ iteration) {
-	tokenizer_type tokenizer(*first);
-
+	utils::piece line_piece(*first);
+	tokenizer_type tokenizer(line_piece);
+	
 	if (! vocabulary.empty()) {
 	  sentence.clear();
 	  sentence.push_back(vocab_type::BOS);
@@ -740,28 +745,30 @@ struct GoogleNGramCounts
   struct TaskCounts
   {
     
-    const std::string& escape_word(const std::string& word)
+    expgram::Word escape_word(const utils::piece& __word)
     {
       static const std::string& __BOS = static_cast<const std::string&>(vocab_type::BOS);
       static const std::string& __EOS = static_cast<const std::string&>(vocab_type::EOS);
       static const std::string& __UNK = static_cast<const std::string&>(vocab_type::UNK);
       
-      if (strcasecmp(word.c_str(), __BOS.c_str()) == 0)
-	return __BOS;
-      else if (strcasecmp(word.c_str(), __EOS.c_str()) == 0)
-	return __EOS;
-      else if (strcasecmp(word.c_str(), __UNK.c_str()) == 0)
-	return __UNK;
+      const utils::ipiece word(__word);
+      
+      if (word == __BOS)
+	return vocab_type::BOS;
+      else if (word == __EOS)
+	return vocab_type::EOS;
+      else if (word == __UNK)
+	return vocab_type::UNK;
       else
-	return word;
+	return __word;
     }
 
     template <typename Iterator, typename Counts, typename Path, typename Paths>
     inline
     void operator()(Iterator first, Iterator last, const vocabulary_type& vocabulary, Counts& counts, const Path& path, Paths& paths, const double max_malloc)
     {
-      typedef std::vector<std::string, std::allocator<std::string> > tokens_type;
-      typedef boost::tokenizer<utils::space_separator>               tokenizer_type;
+      typedef std::vector<utils::piece, std::allocator<utils::piece> > tokens_type;
+      typedef boost::tokenizer<utils::space_separator, utils::piece::const_iterator, utils::piece> tokenizer_type;
       
       tokens_type    tokens;
       
@@ -771,7 +778,8 @@ struct GoogleNGramCounts
       const size_t iteration_mask = (1 << 13) - 1;
       
       for (size_t iteration = 0; first != last; ++ first, ++ iteration) {
-	tokenizer_type tokenizer(*first);
+	utils::piece line_piece(*first);
+	tokenizer_type tokenizer(line_piece);
 	
 	tokens.clear();
 	tokens.insert(tokens.end(), tokenizer.begin(), tokenizer.end());
@@ -779,21 +787,24 @@ struct GoogleNGramCounts
 	if (tokens.size() < 2) continue;
 	if (tokens.size() - 1 > max_order) continue;
 	
-	// escaping...
+	
+	ngram_count_set_type::id_type id = counts.root();
+	
 	if (! vocabulary.empty()) {
 	  tokens_type::iterator titer_end = tokens.end() - 1;
 	  for (tokens_type::iterator titer = tokens.begin(); titer != titer_end; ++ titer) {
-	    *titer = escape_word(*titer);
-	    if (vocabulary.find(*titer) == vocabulary.end())
-	      *titer = vocab_type::UNK;
+	    expgram::Word word = escape_word(*titer);
+	    if (vocabulary.find(word) == vocabulary.end())
+	      word = vocab_type::UNK;
+	    id = counts.insert(id, word);
 	  }
 	} else {
 	  tokens_type::iterator titer_end = tokens.end() - 1;
 	  for (tokens_type::iterator titer = tokens.begin(); titer != titer_end; ++ titer)
-	    *titer = escape_word(*titer);
+	    id = counts.insert(id, escape_word(*titer));
 	}
 	
-	counts[counts.insert(tokens.begin(), tokens.end() - 1)] += atoll(tokens.back().c_str());
+	counts[id] += atoll(tokens.back().c_str());
 	
 	if ((iteration & iteration_mask) == iteration_mask && utils::malloc_stats::used() > size_t(max_malloc * 1024 * 1024 * 1024)) {
 	  GoogleNGramCounts::dump_counts(counts, path, paths);

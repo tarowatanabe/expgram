@@ -274,8 +274,8 @@ void estimate_discounts(const ngram_counts_type& ngram,
 	  stream << order << '\t' << citer->first << ' ' << citer->second << '\n';
       }
     } else {
-      typedef std::vector<std::string, std::allocator<std::string> > tokens_type;
-      typedef boost::tokenizer<utils::space_separator> tokenizer_type;
+      typedef std::vector<utils::piece, std::allocator<utils::piece> > tokens_type;
+      typedef boost::tokenizer<utils::space_separator, utils::piece::const_iterator, utils::piece> tokenizer_type;
 
       boost::iostreams::filtering_istream stream;
       stream.push(boost::iostreams::gzip_decompressor());
@@ -285,7 +285,8 @@ void estimate_discounts(const ngram_counts_type& ngram,
       tokens_type tokens;
       
       while (std::getline(stream, line)) {
-	tokenizer_type tokenizer(line);
+	utils::piece line_piece(line);
+	tokenizer_type tokenizer(line_piece);
 	tokens.clear();
 	tokens.insert(tokens.end(), tokenizer.begin(), tokenizer.end());
 	
@@ -1667,9 +1668,10 @@ void estimate_ngram(const ngram_counts_type& ngram,
 	  
 	  std::string line;
 	  while (std::getline(stream, line)) {
-	    typedef boost::tokenizer<utils::space_separator> tokenizer_type;
+	    typedef boost::tokenizer<utils::space_separator, utils::piece::const_iterator, utils::piece> tokenizer_type;
 	    
-	    tokenizer_type tokenizer(line);
+	    utils::piece line_piece(line);
+	    tokenizer_type tokenizer(line_piece);
 	    
 	    context_logprob.first.clear();
 	    for (tokenizer_type::iterator iter = tokenizer.begin(); iter != tokenizer.end(); ++ iter)

@@ -19,7 +19,7 @@ namespace expgram
   const Vocab::word_type Vocab::EOS  = Vocab::word_type("</s>");
   
   
-  Word::id_type Vocab::insert(const std::string& word)
+  Word::id_type Vocab::insert(const utils::piece& word)
   {
     if (__succinct_hash_stream)
       return __succinct_hash_stream->insert(word.c_str(), word.size(), __hasher(word.begin(), word.end(), 0));

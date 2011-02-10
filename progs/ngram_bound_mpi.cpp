@@ -269,8 +269,8 @@ void ngram_bound_reducer(ngram_type& ngram, intercomm_type& mapper)
   
   typedef std::vector<id_type, std::allocator<id_type> > context_type;
   
-  typedef std::vector<std::string, std::allocator<std::string> > tokens_type;
-  typedef boost::tokenizer<utils::space_separator>               tokenizer_type;
+  typedef std::vector<utils::piece, std::allocator<utils::piece> > tokens_type;
+  typedef boost::tokenizer<utils::space_separator, utils::piece::const_iterator, utils::piece> tokenizer_type;
 
   const int mpi_rank = MPI::COMM_WORLD.Get_rank();
   const int mpi_size = MPI::COMM_WORLD.Get_size();
@@ -304,7 +304,8 @@ void ngram_bound_reducer(ngram_type& ngram, intercomm_type& mapper)
       while (stream[rank] && device[rank] && device[rank]->test()) {
 	
 	if (std::getline(*stream[rank], line)) {
-	  tokenizer_type tokenizer(line);
+	  utils::piece line_piece(line);
+	  tokenizer_type tokenizer(line_piece);
 	  tokens.clear();
 	  tokens.insert(tokens.end(), tokenizer.begin(), tokenizer.end());
 	  
@@ -313,7 +314,7 @@ void ngram_bound_reducer(ngram_type& ngram, intercomm_type& mapper)
 	  context.clear();
 	  tokens_type::const_iterator titer_end = tokens.end() - 1;
 	  for (tokens_type::const_iterator titer = tokens.begin(); titer != titer_end; ++ titer)
-	    context.push_back(boost::lexical_cast<id_type>(*titer));
+	    context.push_back(atol(titer->c_str()));
 	  
 	  std::pair<context_type::const_iterator, size_type> result = ngram.index.traverse(mpi_rank, context.begin(), context.end());
 	  if (result.first != context.end() || result.second == size_type(-1))

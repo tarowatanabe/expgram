@@ -205,8 +205,8 @@ enum {
 
 void reduce_counts_root(count_set_type& counts)
 {
-  typedef boost::tokenizer<utils::space_separator> tokenizer_type;
-  typedef std::vector<std::string, std::allocator<std::string> > tokens_type;
+  typedef std::vector<utils::piece, std::allocator<utils::piece> > tokens_type;
+  typedef boost::tokenizer<utils::space_separator, utils::piece::const_iterator, utils::piece> tokenizer_type;
   
   typedef boost::iostreams::filtering_istream istream_type;
   typedef utils::mpi_device_source            idevice_type;
@@ -225,7 +225,8 @@ void reduce_counts_root(count_set_type& counts)
     while (std::getline(is, line)) {
       if (line.empty()) continue;
       
-      tokenizer_type tokenizer(line);
+      utils::piece line_piece(line);
+      tokenizer_type tokenizer(line_piece);
       
       tokens.clear();
       tokens.insert(tokens.end(), tokenizer.begin(), tokenizer.end());
