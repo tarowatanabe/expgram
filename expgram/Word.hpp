@@ -117,7 +117,7 @@ namespace expgram
     typedef std::vector<const word_type*, std::allocator<const word_type*> > word_map_type;
     
   public:
-    static bool exists(const word_type& x)
+    static bool exists(const piece_type& x)
     {
       lock_type lock(__mutex_index);
       
@@ -157,7 +157,7 @@ namespace expgram
       return __id;
     }
     
-    static id_type __allocate(const word_type& x)
+    static id_type __allocate(const piece_type& x)
     {
       lock_type lock(__mutex_index);
 
