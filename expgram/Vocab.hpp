@@ -88,8 +88,7 @@ namespace expgram
     void close() { clear(); }
     
     // insert a word as a vocabulary
-    word_type::id_type insert(const word_type& word) { return insert(static_cast<const std::string&>(word)); }
-    word_type::id_type insert(const std::string& word);
+    word_type::id_type insert(const utils::piece& word);
     
     // dump the vocabularies content, inserted so-forth...
     // we will perform vocabulary merging...
@@ -137,7 +136,7 @@ namespace expgram
       return find(word) != word_type::id_type(-1);
     }
     
-    bool exists(const std::string& word) const
+    bool exists(const utils::piece& word) const
     {
       const hash_value_type hash_value = __hasher(word.begin(), word.end(), 0);
       
@@ -184,12 +183,12 @@ namespace expgram
 	  return __find(id);
 	} else if (__succinct_hash && id - __succinct_hash_mapped->size() < __succinct_hash->size()) {
 	  succinct_hash_type::const_iterator iter = (__succinct_hash->begin() + id - __succinct_hash_mapped->size());
-	  return word_type(std::string(iter.begin(), iter.end()));
+	  return word_type(iter.begin(), iter.end());
 	} else
 	  return UNK;
       } else if (__succinct_hash && id < __succinct_hash->size()) {
 	succinct_hash_type::const_iterator iter = (__succinct_hash->begin() + id);
-	return word_type(std::string(iter.begin(), iter.end()));
+	return word_type(iter.begin(), iter.end());
       } else
 	return UNK;
     }
@@ -237,7 +236,7 @@ namespace expgram
 	return word_type(__word);
       
       succinct_hash_mapped_type::const_iterator iter = (__succinct_hash_mapped->begin() + id);
-      __word = word_type(std::string(iter.begin(), iter.end())).id();
+      __word = word_type(iter.begin(), iter.end()).id();
       
       cache_new.value = (uint64_t(__word) << 32) | (uint64_t(id) & 0xffffffff);
       

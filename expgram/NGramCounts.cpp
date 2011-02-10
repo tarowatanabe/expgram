@@ -1497,16 +1497,18 @@ namespace expgram
   static const std::string& __UNK = static_cast<const std::string&>(Vocab::UNK);
   
   inline
-  NGramCounts::word_type escape_word(const std::string& word)
+  NGramCounts::word_type escape_word(const utils::piece& __word)
   {
-    if (strcasecmp(word.c_str(), __BOS.c_str()) == 0)
+    const utils::ipiece word(__word);
+    
+    if (word == __BOS)
       return Vocab::BOS;
-    else if (strcasecmp(word.c_str(), __EOS.c_str()) == 0)
+    else if (word == __EOS)
       return Vocab::EOS;
-    else if (strcasecmp(word.c_str(), __UNK.c_str()) == 0)
+    else if (word == __UNK)
       return Vocab::UNK;
     else
-      return word;
+      return __word;
   }
   
   struct NGramCountsIndexUniqueMapReduce
@@ -1769,8 +1771,8 @@ namespace expgram
       typedef std::vector<context_count_stream_ptr_type, std::allocator<context_count_stream_ptr_type> > pqueue_base_type;
       typedef std::priority_queue<context_count_stream_ptr_type, pqueue_base_type, greater_ngram<context_count_stream_type> > pqueue_type;
       
-      typedef std::vector<std::string, std::allocator<std::string> > tokens_type;
-      typedef boost::tokenizer<utils::space_separator>               tokenizer_type;
+      typedef std::vector<utils::piece, std::allocator<utils::piece> > tokens_type;
+      typedef boost::tokenizer<utils::space_separator, utils::piece::const_iterator, utils::piece> tokenizer_type;
 
       if (! paths.empty()) {
 	
@@ -1788,7 +1790,8 @@ namespace expgram
 	  context_stream->second = &(*streams[i]);
 	  
 	  while (context_stream->first.size() < 256 && std::getline(*streams[i], line)) {
-	    tokenizer_type tokenizer(line);
+	    utils::piece line_piece(line);
+	    tokenizer_type tokenizer(line_piece);
 	    tokens.clear();
 	    tokens.insert(tokens.end(), tokenizer.begin(), tokenizer.end());
 	    if (tokens.size() < 3)
@@ -1835,7 +1838,8 @@ namespace expgram
 	  
 	  if (context_stream->first.empty())
 	    while (context_stream->first.size() < 256 && std::getline(*(context_stream->second), line)) {
-	      tokenizer_type tokenizer(line);
+	      utils::piece line_piece(line);
+	      tokenizer_type tokenizer(line_piece);
 	      tokens.clear();
 	      tokens.insert(tokens.end(), tokenizer.begin(), tokenizer.end());
 	      if (tokens.size() < 3)
@@ -2013,8 +2017,8 @@ namespace expgram
     
     typedef std::vector<path_type, std::allocator<path_type> >               path_set_type;
     
-    typedef std::vector<std::string, std::allocator<std::string> > tokens_type;
-    typedef boost::tokenizer<utils::space_separator> tokenizer_type;
+    typedef std::vector<utils::piece, std::allocator<utils::piece> > tokens_type;
+    typedef boost::tokenizer<utils::space_separator, utils::piece::const_iterator, utils::piece> tokenizer_type;
     
     typedef NGramCountsIndexMapReduce::vocab_map_type vocab_map_type;
     
@@ -2062,7 +2066,9 @@ namespace expgram
       std::string line;
       tokens_type tokens;
       while (std::getline(is, line)) {
-	tokenizer_type tokenizer(line);
+	utils::piece line_piece(line);
+	tokenizer_type tokenizer(line_piece);
+	
 	tokens.clear();
 	tokens.insert(tokens.end(), tokenizer.begin(), tokenizer.end());
 	
@@ -2165,7 +2171,8 @@ namespace expgram
 	tokens_type tokens;
 	context_type context;
 	while (std::getline(is_index, line)) {
-	  tokenizer_type tokenizer(line);
+	  utils::piece line_piece(line);
+	  tokenizer_type tokenizer(line_piece);
 	  
 	  tokens.clear();
 	  tokens.insert(tokens.end(), tokenizer.begin(), tokenizer.end());
@@ -2173,7 +2180,7 @@ namespace expgram
 	  if (tokens.size() != order + 1)
 	    throw std::runtime_error(std::string("invalid google ngram format...") + index_file.file_string());
 	  
-	  const path_type path_ngram = ngram_dir / tokens.front();
+	  const path_type path_ngram = ngram_dir / static_cast<std::string>(tokens.front());
 	  
 	  if (! boost::filesystem::exists(path_ngram))
 	    throw std::runtime_error(std::string("invalid google ngram format... no file: ") + path_ngram.file_string());
@@ -2184,7 +2191,8 @@ namespace expgram
 	  utils::compress_istream is(path_ngram, 1024 * 1024);
 	  
 	  while (std::getline(is, line)) {
-	    tokenizer_type tokenizer(line);
+	    utils::piece line_piece(line);
+	    tokenizer_type tokenizer(line_piece);
 	    
 	    tokens.clear();
 	    tokens.insert(tokens.end(), tokenizer.begin(), tokenizer.end());
@@ -2264,7 +2272,8 @@ namespace expgram
 	  std::string line;
 	  tokens_type tokens;
 	  while (std::getline(is_index, line)) {
-	    tokenizer_type tokenizer(line);
+	    utils::piece line_piece(line);
+	    tokenizer_type tokenizer(line_piece);
 	    
 	    tokens.clear();
 	    tokens.insert(tokens.end(), tokenizer.begin(), tokenizer.end());
@@ -2274,7 +2283,7 @@ namespace expgram
 	    if (tokens.size() != order + 1)
 	      throw std::runtime_error(std::string("invalid google ngram format...") + index_file.file_string());
 	    
-	    const path_type path_ngram = ngram_dir / tokens.front();
+	    const path_type path_ngram = ngram_dir / static_cast<std::string>(tokens.front());
 	    
 	    if (debug >= 2)
 	      std::cerr << "\tfile: " << path_ngram.file_string() << std::endl;

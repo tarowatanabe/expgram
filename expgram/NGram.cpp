@@ -1125,16 +1125,18 @@ namespace expgram
   static const std::string& __UNK = static_cast<const std::string&>(Vocab::UNK);
   
   inline
-  NGram::word_type escape_word(const std::string& word)
+  NGram::word_type escape_word(const utils::piece& __word)
   {
-    if (strcasecmp(word.c_str(), __BOS.c_str()) == 0)
+    const utils::ipiece word(__word);
+    
+    if (word == __BOS)
       return Vocab::BOS;
-    else if (strcasecmp(word.c_str(), __EOS.c_str()) == 0)
+    else if (word == __EOS)
       return Vocab::EOS;
-    else if (strcasecmp(word.c_str(), __UNK.c_str()) == 0)
+    else if (word == __UNK)
       return Vocab::UNK;
     else
-      return word;
+      return __word;
   }
   
   // we define map-reduce object, but no mapper.... since mapper will be managed by main thread...
@@ -1457,8 +1459,8 @@ namespace expgram
     typedef map_reduce_type::context_type         context_type;
     
     
-    typedef boost::tokenizer<utils::space_separator>               tokenizer_type;
-    typedef std::vector<std::string, std::allocator<std::string> > tokens_type;
+    typedef std::vector<utils::piece, std::allocator<utils::piece> > tokens_type;
+    typedef boost::tokenizer<utils::space_separator, utils::piece::const_iterator, utils::piece> tokenizer_type;
     
     typedef std::pair<logprob_type, logprob_type>                                        logprob_pair_type;
     typedef std::pair<word_type, logprob_pair_type>                                      word_logprob_pair_type;
@@ -1522,7 +1524,8 @@ namespace expgram
     word_logprob_pair_set_type unigrams;
     
     while (std::getline(is, line)) {
-      tokenizer_type tokenized(line);
+      utils::piece line_piece(line);
+      tokenizer_type tokenized(line_piece);
       
       tokens.clear();
       tokens.insert(tokens.end(), tokenized.begin(), tokenized.end());
@@ -1648,7 +1651,8 @@ namespace expgram
     context_type context;
     
     while (std::getline(is, line)) {
-      tokenizer_type tokenized(line);
+      utils::piece line_piece(line);
+      tokenizer_type tokenized(line_piece);
       
       tokens.clear();
       tokens.insert(tokens.end(), tokenized.begin(), tokenized.end());

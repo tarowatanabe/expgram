@@ -200,20 +200,22 @@ int main(int argc, char** argv)
 }
   
 inline
-word_type escape_word(const std::string& word)
+word_type escape_word(const utils::piece& __word)
 {
   static const std::string& __BOS = static_cast<const std::string&>(vocab_type::BOS);
   static const std::string& __EOS = static_cast<const std::string&>(vocab_type::EOS);
   static const std::string& __UNK = static_cast<const std::string&>(vocab_type::UNK);
   
-  if (strcasecmp(word.c_str(), __BOS.c_str()) == 0)
+  const utils::ipiece word(__word);
+      
+  if (word == __BOS)
     return vocab_type::BOS;
-  else if (strcasecmp(word.c_str(), __EOS.c_str()) == 0)
+  else if (word == __EOS)
     return vocab_type::EOS;
-  else if (strcasecmp(word.c_str(), __UNK.c_str()) == 0)
+  else if (word == __UNK)
     return vocab_type::UNK;
   else
-    return word;
+    return __word;
 }
 
 template <typename Stream>
@@ -224,8 +226,8 @@ void index_unigram(const path_type& path, const path_type& output, ngram_type& n
   typedef ngram_type::count_type count_type;
   typedef ngram_type::id_type    id_type;
   
-  typedef std::vector<std::string, std::allocator<std::string> > tokens_type;
-  typedef boost::tokenizer<utils::space_separator>               tokenizer_type;
+  typedef std::vector<utils::piece, std::allocator<utils::piece> > tokens_type;
+  typedef boost::tokenizer<utils::space_separator, utils::piece::const_iterator, utils::piece> tokenizer_type;
   
   const int mpi_rank = MPI::COMM_WORLD.Get_rank();
   const int mpi_size = MPI::COMM_WORLD.Get_size();
@@ -256,7 +258,8 @@ void index_unigram(const path_type& path, const path_type& output, ngram_type& n
     std::string line;
     tokens_type tokens;
     while (std::getline(is, line)) {
-      tokenizer_type tokenizer(line);
+      utils::piece line_piece(line);
+      tokenizer_type tokenizer(line_piece);
       tokens.clear();
       tokens.insert(tokens.end(), tokenizer.begin(), tokenizer.end());
       
@@ -377,7 +380,7 @@ int shard_index(const NGram& ngram, VocabMap& vocab_map, const Context& context)
   id[0] = vocab_map[escape_word(context[0])];
   id[1] = vocab_map[escape_word(context[1])];
   
-  return ngram.index.shard_index(id, id + 2);;
+  return ngram.index.shard_index(id, id + 2);
 }
 
 template <typename PathSet, typename VocabMap>
@@ -413,8 +416,8 @@ void index_ngram_mapper(intercomm_type& reducer, const PathSet& paths, ngram_typ
   typedef std::vector<context_count_stream_type*, std::allocator<context_count_stream_type*> > pqueue_base_type;
   typedef std::priority_queue<context_count_stream_type*, pqueue_base_type, greater_ngram<context_count_stream_type> > pqueue_type;
 
-  typedef std::vector<std::string, std::allocator<std::string> > tokens_type;
-  typedef boost::tokenizer<utils::space_separator>               tokenizer_type;
+  typedef std::vector<utils::piece, std::allocator<utils::piece> > tokens_type;
+  typedef boost::tokenizer<utils::space_separator, utils::piece::const_iterator, utils::piece> tokenizer_type;
 
   const int mpi_rank = MPI::COMM_WORLD.Get_rank();
   const int mpi_size = MPI::COMM_WORLD.Get_size();
@@ -446,7 +449,8 @@ void index_ngram_mapper(intercomm_type& reducer, const PathSet& paths, ngram_typ
     context_stream->second = &(*istreams[i]);
     
     while (context_stream->first.size() < 256 && std::getline(*context_stream->second, line)) {
-      tokenizer_type tokenizer(line);
+      utils::piece line_piece(line);
+      tokenizer_type tokenizer(line_piece);
       tokens.clear();
       tokens.insert(tokens.end(), tokenizer.begin(), tokenizer.end());
       
@@ -495,7 +499,8 @@ void index_ngram_mapper(intercomm_type& reducer, const PathSet& paths, ngram_typ
     
     if (context_stream->first.empty())
       while (context_stream->first.size() < 256 && std::getline(*(context_stream->second), line)) {
-	tokenizer_type tokenizer(line);
+	utils::piece line_piece(line);
+	tokenizer_type tokenizer(line_piece);
 	tokens.clear();
 	tokens.insert(tokens.end(), tokenizer.begin(), tokenizer.end());
 	
@@ -549,8 +554,9 @@ void index_ngram_mapper_root(intercomm_type& reducer, const path_type& path, ngr
   typedef std::vector<ostream_ptr_type, std::allocator<ostream_ptr_type> > ostream_ptr_set_type;
   
   typedef std::vector<path_type, std::allocator<path_type> >     path_set_type;
-  typedef std::vector<std::string, std::allocator<std::string> > tokens_type;
-  typedef boost::tokenizer<utils::space_separator>               tokenizer_type;
+  
+  typedef std::vector<utils::piece, std::allocator<utils::piece> > tokens_type;
+  typedef boost::tokenizer<utils::space_separator, utils::piece::const_iterator, utils::piece> tokenizer_type;
   
   typedef VocabMap vocab_map_type;
   
@@ -576,7 +582,8 @@ void index_ngram_mapper_root(intercomm_type& reducer, const path_type& path, ngr
       std::string line;
       tokens_type tokens;
       while (std::getline(is_index, line)) {
-	tokenizer_type tokenizer(line);
+	utils::piece line_piece(line);
+	tokenizer_type tokenizer(line_piece);
 	
 	tokens.clear();
 	tokens.insert(tokens.end(), tokenizer.begin(), tokenizer.end());
@@ -586,7 +593,7 @@ void index_ngram_mapper_root(intercomm_type& reducer, const path_type& path, ngr
 	if (tokens.size() != order + 1)
 	  throw std::runtime_error(std::string("invalid google ngram format...") + index_file.file_string());
 
-	const path_type path_ngram = ngram_dir / tokens.front();
+	const path_type path_ngram = ngram_dir / static_cast<std::string>(tokens.front());
 	
 	if (! boost::filesystem::exists(path_ngram))
 	  throw std::runtime_error(std::string("invalid google ngram format... no file: ") + path_ngram.file_string());
@@ -797,8 +804,8 @@ void index_ngram_reducer(intercomm_type& mapper, ngram_type& ngram, Stream& os_c
   typedef std::vector<context_count_stream_ptr_type, std::allocator<context_count_stream_ptr_type> > pqueue_base_type;
   typedef std::priority_queue<context_count_stream_ptr_type, pqueue_base_type, greater_ngram<context_count_stream_type> > pqueue_type;
   
-  typedef std::vector<std::string, std::allocator<std::string> > tokens_type;
-  typedef boost::tokenizer<utils::space_separator>               tokenizer_type;
+  typedef std::vector<utils::piece, std::allocator<utils::piece> > tokens_type;
+  typedef boost::tokenizer<utils::space_separator, utils::piece::const_iterator, utils::piece> tokenizer_type;
   
   typedef IndexNGramMapReduce map_reduce_type;
   typedef IndexNGramReducer   reducer_type;
@@ -834,7 +841,8 @@ void index_ngram_reducer(intercomm_type& mapper, ngram_type& ngram, Stream& os_c
     context_stream->second = &(*stream[rank]);
     
     while (context_stream->first.size() < 256 && std::getline(*stream[rank], line)) {
-      tokenizer_type tokenizer(line);
+      utils::piece line_piece(line);
+      tokenizer_type tokenizer(line_piece);
       tokens.clear();
       tokens.insert(tokens.end(), tokenizer.begin(), tokenizer.end());
       
@@ -878,7 +886,8 @@ void index_ngram_reducer(intercomm_type& mapper, ngram_type& ngram, Stream& os_c
     
     if (context_stream->first.empty())
       while (context_stream->first.size() < 256 && std::getline(*(context_stream->second), line)) {
-	tokenizer_type tokenizer(line);
+	utils::piece line_piece(line);
+	tokenizer_type tokenizer(line_piece);
 	tokens.clear();
 	tokens.insert(tokens.end(), tokenizer.begin(), tokenizer.end());
       
@@ -936,8 +945,8 @@ void index_ngram_unique(const path_type& path, ngram_type& ngram, Stream& os_cou
 {
   typedef std::vector<std::string, std::allocator<std::string> > ngram_context_type;
 
-  typedef std::vector<std::string, std::allocator<std::string> > tokens_type;
-  typedef boost::tokenizer<utils::space_separator>               tokenizer_type;
+  typedef std::vector<utils::piece, std::allocator<utils::piece> > tokens_type;
+  typedef boost::tokenizer<utils::space_separator, utils::piece::const_iterator, utils::piece> tokenizer_type;
   
   typedef IndexNGramMapReduce map_reduce_type;
   typedef IndexNGramReducer   reducer_type;
@@ -986,7 +995,8 @@ void index_ngram_unique(const path_type& path, ngram_type& ngram, Stream& os_cou
     tokens_type tokens;
     
     while (std::getline(is_index, line)) {
-      tokenizer_type tokenizer(line);
+      utils::piece line_piece(line);
+      tokenizer_type tokenizer(line_piece);
       
       tokens.clear();
       tokens.insert(tokens.end(), tokenizer.begin(), tokenizer.end());
@@ -994,7 +1004,7 @@ void index_ngram_unique(const path_type& path, ngram_type& ngram, Stream& os_cou
       if (tokens.size() != order + 1)
 	throw std::runtime_error(std::string("invalid google ngram format...") + index_file.file_string());
       
-      const path_type path_ngram = ngram_dir / tokens.front();
+      const path_type path_ngram = ngram_dir / static_cast<std::string>(tokens.front());
       
       if (! boost::filesystem::exists(path_ngram))
 	throw std::runtime_error(std::string("invalid google ngram format... no file: ") + path_ngram.file_string());
@@ -1005,7 +1015,8 @@ void index_ngram_unique(const path_type& path, ngram_type& ngram, Stream& os_cou
       utils::compress_istream is(path_ngram, 1024 * 1024);
       
       while (std::getline(is, line)) {
-	tokenizer_type tokenizer(line);
+	utils::piece line_piece(line);
+	tokenizer_type tokenizer(line_piece);
 	
 	tokens.clear();
 	tokens.insert(tokens.end(), tokenizer.begin(), tokenizer.end());

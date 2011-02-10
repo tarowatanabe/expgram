@@ -261,13 +261,14 @@ struct GoogleNGramCounts
     inline
     void operator()(Iterator first, Iterator last, Counts& counts)
     {
-      typedef boost::tokenizer<utils::space_separator> tokenizer_type;
+      typedef boost::tokenizer<utils::space_separator, utils::piece::const_iterator, utils::piece> tokenizer_type;
       
       ngram_type sentence;
       
       // every 4096 iterations, we will check for memory boundary
       for (/**/; first != last; ++ first) {
-	tokenizer_type tokenizer(*first);
+	utils::piece line_piece(*first);
+	tokenizer_type tokenizer(line_piece);
 	
 	sentence.clear();
 	sentence.push_back(vocab_type::BOS);
@@ -311,13 +312,14 @@ struct GoogleNGramCounts
     inline
     void operator()(Iterator first, Iterator last, Counts& counts)
     {
-      typedef std::vector<std::string, std::allocator<std::string> > tokens_type;
-      typedef boost::tokenizer<utils::space_separator>               tokenizer_type;
+      typedef std::vector<utils::piece, std::allocator<utils::piece> > tokens_type;
+      typedef boost::tokenizer<utils::space_separator, utils::piece::const_iterator, utils::piece> tokenizer_type;
       
       tokens_type    tokens;
       
       for (/**/; first != last; ++ first) {
-	tokenizer_type tokenizer(*first);
+	utils::piece line_piece(*first);
+	tokenizer_type tokenizer(line_piece);
 	
 	tokens.clear();
 	tokens.insert(tokens.end(), tokenizer.begin(), tokenizer.end());
