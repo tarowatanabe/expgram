@@ -238,7 +238,7 @@ void reduce_counts_root(count_set_type& counts)
       if (word.id() >= counts.size())
 	counts.resize(word.id() + 1, 0);
       
-      counts[word.id()] += atoll(tokens.back().c_str());
+      counts[word.id()] += utils::lexical_cast<count_type>(tokens.back());
     }
   }
 }

@@ -38,6 +38,7 @@
 #include <utils/subprocess.hpp>
 #include <utils/async_device.hpp>
 #include <utils/malloc_stats.hpp>
+#include <utils/lexical_cast.hpp>
 
 #include <expgram/Word.hpp>
 #include <expgram/Vocab.hpp>
@@ -331,7 +332,7 @@ struct GoogleNGramCounts
 	if (word.id() >= counts.size())
 	  counts.resize(word.id() + 1, 0);
 	
-	counts[word.id()] += atoll(tokens.back().c_str());
+	counts[word.id()] += utils::lexical_cast<count_type>(tokens.back());
       }
     }
   };

@@ -40,6 +40,7 @@
 #include <utils/malloc_stats.hpp>
 #include <utils/hashmurmur.hpp>
 #include <utils/piece.hpp>
+#include <utils/lexical_cast.hpp>
 
 #include <expgram/Word.hpp>
 #include <expgram/Vocab.hpp>
@@ -512,7 +513,7 @@ struct GoogleNGramCounts
 	  
 	  if (tokens.size() != 2) continue;
 	  
-	  words[static_cast<std::string>(tokens.front())] += atoll(tokens.back().c_str());
+	  words[static_cast<std::string>(tokens.front())] += utils::lexical_cast<count_type>(tokens.back());
 	}
 	
 	boost::filesystem::remove(*piter);
@@ -804,7 +805,7 @@ struct GoogleNGramCounts
 	    id = counts.insert(id, escape_word(*titer));
 	}
 	
-	counts[id] += atoll(tokens.back().c_str());
+	counts[id] += utils::lexical_cast<count_type>(tokens.back());
 	
 	if ((iteration & iteration_mask) == iteration_mask && utils::malloc_stats::used() > size_t(max_malloc * 1024 * 1024 * 1024)) {
 	  GoogleNGramCounts::dump_counts(counts, path, paths);

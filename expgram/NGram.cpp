@@ -44,7 +44,7 @@ namespace expgram
     repository_type::const_iterator oiter = rep.find("offset");
     if (oiter == rep.end())
       throw std::runtime_error("no offset?");
-    offset = atoll(oiter->second.c_str());
+    offset = utils::lexical_cast<size_type>(oiter->second);
     
     if (boost::filesystem::exists(rep.path("quantized"))) {
       quantized.open(rep.path("quantized"));
@@ -90,7 +90,7 @@ namespace expgram
     if (logprobs.is_open())
       logprobs.write(rep.path("logprob"));
     
-    rep["offset"] = boost::lexical_cast<std::string>(offset);
+    rep["offset"] = utils::lexical_cast<std::string>(offset);
   }
   
   template <typename Path, typename Shards>
@@ -106,8 +106,8 @@ namespace expgram
       throw std::runtime_error("no shard size...");
     
     shards.clear();
-    shards.reserve(atoi(siter->second.c_str()));
-    shards.resize(atoi(siter->second.c_str()));
+    shards.reserve(utils::lexical_cast<size_t>(siter->second));
+    shards.resize(utils::lexical_cast<size_t>(siter->second));
     
     if (shard >= shards.size())
       throw std::runtime_error("shard is out of range");
@@ -131,8 +131,8 @@ namespace expgram
       throw std::runtime_error("no shard size...");
 
     shards.clear();
-    shards.reserve(atoi(siter->second.c_str()));
-    shards.resize(atoi(siter->second.c_str()));
+    shards.reserve(utils::lexical_cast<size_t>(siter->second));
+    shards.resize(utils::lexical_cast<size_t>(siter->second));
     
     for (int shard = 0; shard < shards.size(); ++ shard) {
       std::ostringstream stream_shard;
@@ -177,7 +177,7 @@ namespace expgram
     {
       repository_type rep(path, repository_type::write);
       
-      rep["shard"] = boost::lexical_cast<std::string>(shards.size());
+      rep["shard"] = utils::lexical_cast<std::string>(shards.size());
     }
     
     ::sync();
@@ -230,7 +230,7 @@ namespace expgram
     
     repository_type rep(path, repository_type::write);
     
-    rep["shard"] = boost::lexical_cast<std::string>(shards.size());
+    rep["shard"] = utils::lexical_cast<std::string>(shards.size());
   }
 
 
@@ -252,7 +252,7 @@ namespace expgram
       if (! logbounds.empty())
 	write_shards_prepare(rep.path("logbound"), logbounds);
       
-      rep["smooth"] = boost::lexical_cast<std::string>(smooth);
+      rep["smooth"] = utils::lexical_cast<std::string>(smooth);
       rep["bound-exact"] = utils::lexical_cast<std::string>(bound_exact);
     }
     
@@ -296,7 +296,7 @@ namespace expgram
     if (! logbounds.empty())
       write_shards(rep.path("logbound"), logbounds);
     
-    rep["smooth"] = boost::lexical_cast<std::string>(smooth);
+    rep["smooth"] = utils::lexical_cast<std::string>(smooth);
     rep["bound-exact"] = utils::lexical_cast<std::string>(bound_exact);
   }
   
@@ -330,7 +330,7 @@ namespace expgram
     repository_type::const_iterator siter = rep.find("smooth");
     if (siter == rep.end())
       throw std::runtime_error("no smoothing parameter...?");
-    smooth = atof(siter->second.c_str());
+    smooth = utils::lexical_cast<double>(siter->second);
     
     repository_type::const_iterator biter = rep.find("bound-exact");
     if (biter != rep.end())
@@ -359,7 +359,7 @@ namespace expgram
     repository_type::const_iterator siter = rep.find("smooth");
     if (siter == rep.end())
       throw std::runtime_error("no smoothing parameter...?");
-    smooth = atof(siter->second.c_str());
+    smooth = utils::lexical_cast<double>(siter->second);
     
     repository_type::const_iterator biter = rep.find("bound-exact");
     if (biter != rep.end())
@@ -1555,15 +1555,15 @@ namespace expgram
       if (mode == DATA && tokens.size() == 2 && tokens[0] == "ngram") {
 	std::string::size_type pos = tokens[1].find('=');
 	if (pos != std::string::npos)
-	  max_order = std::max(max_order, atoi(tokens[1].substr(0, pos).c_str()));
+	  max_order = std::max(max_order, utils::lexical_cast<int>(tokens[1].substr(0, pos)));
       }
       
       if (order == 0 || mode != NGRAMS) continue;
 
       if (tokens.size() < 2) continue;
       
-      const logprob_type logprob = atof(tokens.front().c_str()) * log_10;
-      const logprob_type logbackoff = (tokens.size() == order + 2 ? (atof(tokens.back().c_str()) * log_10) : 0.0);
+      const logprob_type logprob = utils::lexical_cast<double>(tokens.front()) * log_10;
+      const logprob_type logbackoff = (tokens.size() == order + 2 ? (utils::lexical_cast<double>(tokens.back()) * log_10) : 0.0);
       
       
       unigrams.push_back(std::make_pair(escape_word(tokens[1]), std::make_pair(logprob, logbackoff)));
@@ -1681,8 +1681,8 @@ namespace expgram
 
       if (tokens.size() < order + 1) continue;
       
-      const logprob_type logprob = atof(tokens.front().c_str()) * log_10;
-      const logprob_type logbackoff = (tokens.size() == order + 2 ? (atof(tokens.back().c_str()) * log_10) : 0.0);
+      const logprob_type logprob = utils::lexical_cast<double>(tokens.front()) * log_10;
+      const logprob_type logbackoff = (tokens.size() == order + 2 ? (utils::lexical_cast<double>(tokens.back()) * log_10) : 0.0);
       
       context.clear();
       

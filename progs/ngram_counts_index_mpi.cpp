@@ -24,6 +24,7 @@
 #include <utils/tempfile.hpp>
 #include <utils/resource.hpp>
 #include <utils/repository.hpp>
+#include <utils/lexical_cast.hpp>
 #include <utils/mpi.hpp>
 #include <utils/mpi_device.hpp>
 #include <utils/mpi_device_bcast.hpp>
@@ -266,7 +267,7 @@ void index_unigram(const path_type& path, const path_type& output, ngram_type& n
       if (tokens.size() != 2) continue;
       
       const word_type word = escape_word(tokens.front());
-      const count_type count = atoll(tokens.back().c_str());
+      const count_type count = utils::lexical_cast<count_type>(tokens.back());
       
       os_counts.write((char*) &count, sizeof(count_type));
       
@@ -457,7 +458,7 @@ void index_ngram_mapper(intercomm_type& reducer, const PathSet& paths, ngram_typ
       if (tokens.size() < 2) continue;
       
       context_stream->first.push_back(std::make_pair(ngram_context_type(tokens.begin(), tokens.end() - 1),
-						     atoll(tokens.back().c_str())));
+						     utils::lexical_cast<count_type>(tokens.back())));
     }
     
     if (! context_stream->first.empty())
@@ -507,7 +508,7 @@ void index_ngram_mapper(intercomm_type& reducer, const PathSet& paths, ngram_typ
 	if (tokens.size() < 2) continue;
 	
 	context_stream->first.push_back(std::make_pair(ngram_context_type(tokens.begin(), tokens.end() - 1),
-						       atoll(tokens.back().c_str())));
+						       utils::lexical_cast<count_type>(tokens.back())));
       }
     
     if (! context_stream->first.empty())
@@ -849,7 +850,7 @@ void index_ngram_reducer(intercomm_type& mapper, ngram_type& ngram, Stream& os_c
       if (tokens.size() < 2) continue;
       
       context_stream->first.push_back(std::make_pair(ngram_context_type(tokens.begin(), tokens.end() - 1),
-						     atoll(tokens.back().c_str())));
+						     utils::lexical_cast<count_type>(tokens.back())));
     }
     
     if (! context_stream->first.empty())
@@ -894,7 +895,7 @@ void index_ngram_reducer(intercomm_type& mapper, ngram_type& ngram, Stream& os_c
 	if (tokens.size() < 2) continue;
       
 	context_stream->first.push_back(std::make_pair(ngram_context_type(tokens.begin(), tokens.end() - 1),
-						       atoll(tokens.back().c_str())));
+						       utils::lexical_cast<count_type>(tokens.back())));
       }
     
     if (! context_stream->first.empty())
@@ -1033,7 +1034,7 @@ void index_ngram_unique(const path_type& path, ngram_type& ngram, Stream& os_cou
 	    context_count.first.push_back(vocab_map[escape_word(*titer)]);
 	  
 	  if (ngram.index.shard_index(context_count.first.begin(), context_count.first.end()) == mpi_rank) {
-	    context_count.second = atoll(tokens.back().c_str());
+	    context_count.second = utils::lexical_cast<count_type>(tokens.back());
 	    
 	    queue.push_swap(context_count);
 	  }
@@ -1053,7 +1054,7 @@ void index_ngram_unique(const path_type& path, ngram_type& ngram, Stream& os_cou
 	    for (tokens_type::const_iterator titer = tokens.begin(); titer != titer_end; ++ titer)
 	      context_count.first.push_back(vocab_map[escape_word(*titer)]);
 	    
-	    context_count.second = atoll(tokens.back().c_str());
+	    context_count.second = utils::lexical_cast<count_type>(tokens.back());
 	    
 	    queue.push_swap(context_count);
 	  }

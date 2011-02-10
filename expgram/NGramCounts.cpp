@@ -18,6 +18,7 @@
 #include "utils/space_separator.hpp"
 #include "utils/tempfile.hpp"
 #include "utils/vector2.hpp"
+#include "utils/lexical_cast.hpp"
 
 namespace expgram
 {
@@ -1240,7 +1241,7 @@ namespace expgram
     repository_type::const_iterator oiter = rep.find("offset");
     if (oiter == rep.end())
       throw std::runtime_error("no offset?");
-    offset = atoll(oiter->second.c_str());
+    offset = utils::lexical_cast<size_type>(oiter->second);
     
     if (boost::filesystem::exists(rep.path("modified")))
       modified.open(rep.path("modified"));
@@ -1262,7 +1263,7 @@ namespace expgram
     if (counts.is_open())
       counts.write(rep.path("counts"));
     
-    rep["offset"] = boost::lexical_cast<std::string>(offset);
+    rep["offset"] = utils::lexical_cast<std::string>(offset);
   }
   
   template <typename Path, typename Shards>
@@ -1278,8 +1279,8 @@ namespace expgram
       throw std::runtime_error("no shard size...");
     
     shards.clear();
-    shards.reserve(atoi(siter->second.c_str()));
-    shards.resize(atoi(siter->second.c_str()));
+    shards.reserve(utils::lexical_cast<size_t>(siter->second));
+    shards.resize(utils::lexical_cast<size_t>(siter->second));
 
     if (shard >= shards.size())
       throw std::runtime_error("shard is out of range");
@@ -1303,8 +1304,8 @@ namespace expgram
       throw std::runtime_error("no shard size...");
 
     shards.clear();
-    shards.reserve(atoi(siter->second.c_str()));
-    shards.resize(atoi(siter->second.c_str()));
+    shards.reserve(utils::lexical_cast<size_t>(siter->second));
+    shards.resize(utils::lexical_cast<size_t>(siter->second));
     
     for (int shard = 0; shard < shards.size(); ++ shard) {
       std::ostringstream stream_shard;
@@ -1322,7 +1323,7 @@ namespace expgram
     
     repository_type rep(path, repository_type::write);
       
-    rep["shard"] = boost::lexical_cast<std::string>(shards.size());
+    rep["shard"] = utils::lexical_cast<std::string>(shards.size());
   }
 
   template <typename Path, typename Shards>
@@ -1376,7 +1377,7 @@ namespace expgram
     {
       repository_type rep(path, repository_type::write);
       
-      rep["shard"] = boost::lexical_cast<std::string>(shards.size());
+      rep["shard"] = utils::lexical_cast<std::string>(shards.size());
     }
     
     ::sync();
@@ -1798,7 +1799,7 @@ namespace expgram
 	      continue;
 
 	    context_stream->first.push_back(std::make_pair(ngram_context_type(tokens.begin(), tokens.end() - 1),
-							   atoll(tokens.back().c_str())));
+							   utils::lexical_cast<count_type>(tokens.back())));
 	  }
 	  
 	  if (! context_stream->first.empty())
@@ -1846,7 +1847,7 @@ namespace expgram
 		continue;
 	      
 	      context_stream->first.push_back(std::make_pair(ngram_context_type(tokens.begin(), tokens.end() - 1),
-							     atoll(tokens.back().c_str())));
+							     utils::lexical_cast<count_type>(tokens.back())));
 	    }
 	  
 	  if (! context_stream->first.empty())
@@ -2075,7 +2076,7 @@ namespace expgram
 	if (tokens.size() != 2) continue;
 	
 	const word_type word = escape_word(tokens.front());
-	const count_type count = atoll(tokens.back().c_str());
+	const count_type count = utils::lexical_cast<count_type>(tokens.back());
 	
 	if (word.id() >= vocab_map.size())
 	  vocab_map.resize(word.id() + 1, id_type(-1));
@@ -2213,7 +2214,7 @@ namespace expgram
 	    }
 	    
 	    const size_type shard = index.shard_index(context.begin(), context.end());
-	    queues[shard]->push(std::make_pair(context, atoll(tokens.back().c_str())));
+	    queues[shard]->push(std::make_pair(context, utils::lexical_cast<count_type>(tokens.back())));
 	  }	  
 	}
       }

@@ -7,6 +7,8 @@
 
 #include <boost/thread.hpp>
 
+#include "utils/lexical_cast.hpp"
+
 namespace expgram
 {
 
@@ -24,7 +26,7 @@ namespace expgram
     repository_type::const_iterator oiter = rep.find("order");
     if (oiter == rep.end())
       throw std::runtime_error("no order");
-    const int order = atol(oiter->second.c_str());
+    const int order = utils::lexical_cast<int>(oiter->second);
       
     offsets.push_back(0);
     for (int n = 1; n <= order; ++ n) {
@@ -35,7 +37,7 @@ namespace expgram
       if (iter == rep.end())
 	throw std::runtime_error(std::string("no ngram offset? ") + stream_ngram.str());
 	
-      offsets.push_back(atoll(iter->second.c_str()));
+      offsets.push_back(utils::lexical_cast<size_type>(iter->second));
     }
   }
 
@@ -115,13 +117,13 @@ namespace expgram
     repository_type::const_iterator siter = rep.find("shard");
     if (siter == rep.end())
       throw std::runtime_error("no shard size...");
-    __shards.resize(atoi(siter->second.c_str()));
+    __shards.resize(utils::lexical_cast<size_t>(siter->second));
     
     // order
     repository_type::const_iterator oiter = rep.find("order");
     if (oiter == rep.end())
       throw std::runtime_error("no order");
-    __order = atoi(oiter->second.c_str());
+    __order = utils::lexical_cast<int>(oiter->second);
     
     // vocabulary...
     __vocab.open(rep.path("vocab"));
@@ -211,7 +213,7 @@ namespace expgram
     repository_type::const_iterator siter = rep.find("shard");
     if (siter == rep.end())
       throw std::runtime_error("no shard size...");
-    __shards.resize(atoi(siter->second.c_str()));
+    __shards.resize(utils::lexical_cast<size_t>(siter->second));
 
     if (shard >= __shards.size())
       throw std::runtime_error("shard is out of range...");
@@ -220,7 +222,7 @@ namespace expgram
     repository_type::const_iterator oiter = rep.find("order");
     if (oiter == rep.end())
       throw std::runtime_error("no order");
-    __order = atoi(oiter->second.c_str());
+    __order = utils::lexical_cast<int>(oiter->second);
     
     // vocabulary...
     __vocab.open(rep.path("vocab"));

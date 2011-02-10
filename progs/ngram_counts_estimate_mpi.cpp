@@ -292,9 +292,9 @@ void estimate_discounts(const ngram_counts_type& ngram,
 	
 	if (tokens.size() != 3) continue;
 	
-	const int order = atoi(tokens[0].c_str());
-	const count_type count = atoll(tokens[1].c_str());
-	const count_type count_count = atoll(tokens[2].c_str());
+	const int order = utils::lexical_cast<int>(tokens[0]);
+	const count_type count = utils::lexical_cast<count_type>(tokens[1]);
+	const count_type count_count = utils::lexical_cast<count_type>(tokens[2]);
 	
 	count_of_counts[order][count] += count_count;
       }
@@ -1675,7 +1675,7 @@ void estimate_ngram(const ngram_counts_type& ngram,
 	    
 	    context_logprob.first.clear();
 	    for (tokenizer_type::iterator iter = tokenizer.begin(); iter != tokenizer.end(); ++ iter)
-	      context_logprob.first.push_back(atol((*iter).c_str()));
+	      context_logprob.first.push_back(utils::lexical_cast<id_type>(*iter));
 	    
 	    context_logprob.second = logprob_event_type(0.0);
 	    
