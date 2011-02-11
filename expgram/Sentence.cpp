@@ -4,6 +4,7 @@
 #include "Sentence.hpp"
 
 #include "utils/space_separator.hpp"
+#include "utils/piece.hpp"
 
 #include <boost/tokenizer.hpp>
 
@@ -21,12 +22,14 @@ namespace expgram
   
   std::istream& operator>>(std::istream& is, Sentence& x)
   {
-    typedef boost::tokenizer<utils::space_separator> tokenizer_type;
+    typedef std::vector<utils::piece, std::allocator<utils::piece> > tokens_type;
+    typedef boost::tokenizer<utils::space_separator, utils::piece::const_iterator, utils::piece> tokenizer_type;
     
     std::string line;
     x.clear();
     if (std::getline(is, line)) {
-      tokenizer_type tokenizer(line);
+      utils::piece line_piece(line);
+      tokenizer_type tokenizer(line_piece);
       x.__sent.assign(tokenizer.begin(), tokenizer.end());
     }
     
