@@ -203,10 +203,16 @@ namespace utils
       const difference_type __y = x.size();
       
       const int __result = traits_type::compare(data(), x.data(), utils::bithack::min(__x, __y));
+      const int __mask = int(__result != 0) - 1;
+      
+      return ((~__mask) & __result) | (__mask & int(__x - __y));
+      
+#if 0
       if (__result)
 	return __result;
       else
 	return __x - __y;
+#endif
     }
     
   private:
@@ -449,6 +455,14 @@ namespace utils
 
   template <typename _T>
   inline
+  std::string operator+(const char x, const basic_piece<_T>& y)
+  {
+    return x + static_cast<std::string>(y);
+  }
+
+
+  template <typename _T>
+  inline
   std::string operator+(const basic_piece<_T>& x, const std::string& y)
   {
     return static_cast<std::string>(x) + y;
@@ -460,6 +474,21 @@ namespace utils
   {
     return static_cast<std::string>(x) + y;
   }
+
+  template <typename _T>
+  inline
+  std::string operator+(const basic_piece<_T>& x, const char y)
+  {
+    return static_cast<std::string>(x) + y;
+  }
+  
+  template <typename _T>
+  inline
+  std::string operator+(const basic_piece<_T>& x, const basic_piece<_T>& y)
+  {
+    return static_cast<std::string>(x) + y;
+  }
+
   
   template <typename _T>
   inline

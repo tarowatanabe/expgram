@@ -314,7 +314,7 @@ void ngram_bound_reducer(ngram_type& ngram, intercomm_type& mapper)
 	  context.clear();
 	  tokens_type::const_iterator titer_end = tokens.end() - 1;
 	  for (tokens_type::const_iterator titer = tokens.begin(); titer != titer_end; ++ titer)
-	    context.push_back(atol(titer->c_str()));
+	    context.push_back(utils::lexical_cast<id_type>(*titer));
 	  
 	  std::pair<context_type::const_iterator, size_type> result = ngram.index.traverse(mpi_rank, context.begin(), context.end());
 	  if (result.first != context.end() || result.second == size_type(-1))

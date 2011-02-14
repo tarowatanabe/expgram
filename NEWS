@@ -1,3 +1,10 @@
+2011-2-14
+	* Added ngram_vocab{,_mpi} for computing vocabulary, then
+	  use it to restrict vocabulary in ngram_counts_extract{,_mpi}
+	* Internal change:
+	  - Faster vocabulary lookup by eliminating temporary buffer
+	  - (Potentially) faster integer conversion by boost.spirit
+
 2010-5-7
 	* Better caching for child-node traversal
 	* Better caching for backoff traversal
