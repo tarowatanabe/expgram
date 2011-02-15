@@ -661,7 +661,7 @@ if options.corpus and not os.path.exists(options.corpus):
 if options.corpus_list and not os.path.exists(options.corpus_list):
     raise ValueError, "no corpus list? %s" %(options.corpus_list)
 
-if options.tokenizer and not os.path.exists(tokenizer):
+if options.tokenizer and not os.path.exists(options.tokenizer):
     raise ValueError, "no tokenizer? %s" %(options.tokenizer)
 
 expgram = Expgram(options.expgram_dir)
