@@ -296,8 +296,6 @@ class Vocab:
         
         if tokenizer:
             command += " --filter \"%s\"" %(tokenizer)
-        
-        command += " --max-malloc %g" %(max_malloc)
 
         if mpi:
             command += " --prog %s" %(expgram.ngram_vocab_mpi)
