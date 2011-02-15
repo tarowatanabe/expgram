@@ -7,6 +7,7 @@
 import threading
 import multiprocessing
 
+import shutil
 import time
 import sys
 import os, os.path
@@ -34,6 +35,9 @@ opt_parser = OptionParser(
                     help="tokenizer applied to data"),
         make_option("--remove-unk", default=None, action="store_true",
                     help="remove unk from lm estimation"),
+
+        make_option("--erase-temporary", default=None, action="store_true",
+                    help="erase temporary allocated disk space"),
         
         # expgram Expgram directory
         make_option("--expgram-dir", default="", action="store", type="string",
@@ -769,3 +773,8 @@ print "quantization started  @", time.ctime()
 quantize.run()
 print "quantization finished @", time.ctime()
 print "quantized language model:", quantize.ngram
+
+if options.erase_temporary:
+    shutil.rmtree(index.ngram)
+    shutil.rmtree(modify.ngram)
+    shutil.rmtree(estimate.ngram)
