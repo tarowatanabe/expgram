@@ -277,7 +277,7 @@ class Vocab:
         self.threads = threads
         self.pbs = pbs
         
-        self.max_mallox = max_malloc
+        self.max_malloc = max_malloc
 
         command = ""
         if mpi:
