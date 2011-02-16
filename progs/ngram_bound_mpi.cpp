@@ -45,13 +45,12 @@ path_type prog_name;
 
 int debug = 0;
 
-enum {
-  bound_tag = 1000,
-  sync_tag,
-};
-
 void ngram_bound_mapper(const ngram_type& ngram, intercomm_type& reducer);
 void ngram_bound_reducer(ngram_type& ngram, intercomm_type& mapper);
+
+void synchronize_mapper(intercomm_type& reducer);
+void synchronize_reducer(intercomm_type& mapper);
+
 
 int getoptions(int argc, char** argv);
 
@@ -86,7 +85,7 @@ int main(int argc, char** argv)
       MPI::COMM_WORLD.Barrier();
       ngram.write_shard(output_file, mpi_rank);
       
-      // perform synchronization here...?
+      synchronize_reducer(comm_parent);
       
     } else {
       std::vector<const char*, std::allocator<const char*> > args;
@@ -117,8 +116,8 @@ int main(int argc, char** argv)
 	throw std::runtime_error("MPI universe size do not match with ngram shard size");
       
       ngram_bound_mapper(ngram, comm_child);
-
-      // do we synchronize here...?
+      
+      synchronize_mapper(comm_child);
     }
     
   }
@@ -130,7 +129,84 @@ int main(int argc, char** argv)
   return 0;
 }
 
+enum {
+  bound_tag = 1000,
+  notify_tag,
+};
 
+inline
+int loop_sleep(bool found, int non_found_iter)
+{
+  if (! found) {
+    boost::thread::yield();
+    ++ non_found_iter;
+  } else
+    non_found_iter = 0;
+  
+  if (non_found_iter >= 50) {
+    struct timespec tm;
+    tm.tv_sec = 0;
+    tm.tv_nsec = 2000001;
+    nanosleep(&tm, NULL);
+    
+    non_found_iter = 0;
+  }
+  return non_found_iter;
+}
+
+void synchronize_mapper(intercomm_type& reducer)
+{
+  const int mpi_rank = MPI::COMM_WORLD.Get_rank();
+  const int mpi_size = MPI::COMM_WORLD.Get_size();
+
+  std::vector<MPI::Request, std::allocator<MPI::Request> > request(mpi_size);
+  std::vector<bool, std::allocator<bool> > terminated(mpi_size, false);
+  
+  for (int rank = 0; rank != mpi_size; ++ rank)
+    request[rank] = reducer.comm.Irecv(0, 0, MPI::INT, rank, notify_tag);
+  
+  int non_found_iter = 0;
+  for (;;) {
+    bool found = false;
+    
+    for (int rank = 0; rank != mpi_size; ++ rank)
+      if (! terminated[rank] && request[rank].Test()) {
+	terminated[rank] = true;
+	found = true;
+      }
+    
+    if (std::count(terminated.begin(), terminated.end(), true) == mpi_size) break;
+    
+    non_found_iter = loop_sleep(found, non_found_iter);
+  }
+}
+
+void synchronize_reducer(intercomm_type& mapper)
+{
+  const int mpi_rank = MPI::COMM_WORLD.Get_rank();
+  const int mpi_size = MPI::COMM_WORLD.Get_size();
+  
+  std::vector<MPI::Request, std::allocator<MPI::Request> > request(mpi_size);
+  std::vector<bool, std::allocator<bool> > terminated(mpi_size, false);
+  
+  for (int rank = 0; rank != mpi_size; ++ rank)
+    request[rank] = mapper.comm.Isend(0, 0, MPI::INT, rank, notify_tag);
+  
+  int non_found_iter = 0;
+  for (;;) {
+    bool found = false;
+    
+    for (int rank = 0; rank != mpi_size; ++ rank)
+      if (! terminated[rank] && request[rank].Test()) {
+	terminated[rank] = true;
+	found = true;
+      }
+    
+    if (std::count(terminated.begin(), terminated.end(), true) == mpi_size) break;
+    
+    non_found_iter = loop_sleep(found, non_found_iter);
+  }
+}
 
 void ngram_bound_mapper(const ngram_type& ngram, intercomm_type& reducer)
 {
