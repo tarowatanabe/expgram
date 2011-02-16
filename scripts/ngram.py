@@ -232,13 +232,13 @@ class Expgram:
                         'ngram_vocab', 'ngram_vocab_mpi',
                         
                         ## counts...
-                        'ngram_counts_extract', 'ngram_counts_extract_mpi',
-                        'ngram_counts_index', 'ngram_counts_index_mpi',
-                        'ngram_counts_modify', 'ngram_counts_modify_mpi',
+                        'ngram_counts_extract',  'ngram_counts_extract_mpi',
+                        'ngram_counts_index',    'ngram_counts_index_mpi',
+                        'ngram_counts_modify',   'ngram_counts_modify_mpi',
                         'ngram_counts_estimate', 'ngram_counts_estimate_mpi',
                         
                         ## final post-processing
-                        'ngram_bound', 'ngram_bound_mpi',
+                        'ngram_bound',    'ngram_bound_mpi',
                         'ngram_quantize', 'ngram_quantize_mpi',):
 	    
 	    for bindir in self.bindirs:
