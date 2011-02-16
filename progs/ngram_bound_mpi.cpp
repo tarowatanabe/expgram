@@ -199,7 +199,8 @@ void ngram_bound_mapper(const ngram_type& ngram, intercomm_type& reducer)
 	    const int shard = ngram.index.shard_index(citer_begin, citer_end);
 	    
 	    std::copy(citer_begin, citer_end, std::ostream_iterator<id_type>(*stream[shard], " "));
-	    *stream[shard] << utils::encode_base64(logprob) << '\n';
+	    utils::encode_base64(logprob, std::ostream_iterator<char>(*stream[shard]));
+	    *stream[shard] << '\n';
 	  }
 #endif	  
 #if 1
@@ -211,7 +212,8 @@ void ngram_bound_mapper(const ngram_type& ngram, intercomm_type& reducer)
 	      const int shard = ngram.index.shard_index(citer, citer_end);
 	      
 	      std::copy(citer, citer_end, std::ostream_iterator<id_type>(*stream[shard], " "));
-	      *stream[shard] << utils::encode_base64(logprob) << '\n';
+	      utils::encode_base64(logprob, std::ostream_iterator<char>(*stream[shard]));
+	      *stream[shard] << '\n';
 	    }
 	  }
 #endif
@@ -224,8 +226,11 @@ void ngram_bound_mapper(const ngram_type& ngram, intercomm_type& reducer)
   }
   
   for (id_type id = 0; id < unigrams.size(); ++ id)
-    if (unigrams[id] > ngram.logprob_min())
-      *stream[0] << id << ' ' << utils::encode_base64(unigrams[id]) << '\n';
+    if (unigrams[id] > ngram.logprob_min()) {
+      *stream[0] << id << ' ';
+      utils::encode_base64(unigrams[id], std::ostream_iterator<char>(*stream[0]));
+      *stream[0] << '\n';
+    }
 
   
   for (int rank = 0; rank < mpi_size; ++ rank) {
