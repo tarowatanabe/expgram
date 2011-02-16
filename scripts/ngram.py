@@ -4,15 +4,10 @@
 #  a wrapper script for expgram!
 #
 
-import threading
-import multiprocessing
-
 import shutil
 import time
 import sys
 import os, os.path
-import string
-import re
 import subprocess
 
 from optparse import OptionParser, make_option
