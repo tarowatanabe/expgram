@@ -185,9 +185,9 @@ class MPI:
 	
         for binprog in ['mpirun']:
             if self.bindir:
-                prog = os.path.join(self.bindir, binprog)
+                prog = os.path.join(self.bindir, 'bin', binprog)
                 if not os.path.exists(prog):
-                    prog = os.path.join(self.bindir, 'bin', binprog)
+                    prog = os.path.join(self.bindir, binprog)
                     if not os.path.exists(prog):
                         raise ValueError, prog + " does not exist at " + self.bindir
                     
@@ -220,14 +220,13 @@ class Expgram:
 	
 	self.dir = os.path.realpath(self.dir)
         
-	self.bindirs = [self.dir]
+	self.bindirs = []
 	for dir in ('bin', 'progs', 'scripts'): 
 	    bindir = os.path.join(self.dir, dir)
 	    if os.path.exists(bindir) and os.path.isdir(bindir):
 		self.bindirs.append(bindir)
-
-	if not self.bindirs:
-	    raise ValueError, str(self.bindirs) + "  does not exist"
+        self.bindirs.append(self.dir)
+        
 	
         for binprog in (## vocabulary
                         'ngram_vocab', 'ngram_vocab_mpi',
