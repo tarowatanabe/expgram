@@ -10,6 +10,7 @@
 #include <boost/filesystem.hpp>
 #include <boost/program_options.hpp>
 #include <boost/shared_ptr.hpp>
+#include <boost/range.hpp>
 
 #include <boost/iostreams/filtering_stream.hpp>
 #include <boost/iostreams/filter/gzip.hpp>
@@ -239,6 +240,11 @@ void ngram_bound_mapper(const ngram_type& ngram, intercomm_type& reducer)
   
   logprob_set_type unigrams(ngram.index[mpi_rank].offsets[1], ngram.logprob_min());
   context_type     context;
+
+  namespace karma = boost::spirit::karma;
+  namespace standard = boost::spirit::standard;
+  
+  karma::uint_generator<id_type>    id_generator;
   
   for (int order_prev = 1; order_prev < ngram.index.order(); ++ order_prev) {
     const size_type pos_context_first = ngram.index[mpi_rank].offsets[order_prev - 1];
@@ -273,8 +279,13 @@ void ngram_bound_mapper(const ngram_type& ngram, intercomm_type& reducer)
 	    unigrams[*citer_begin] = std::max(unigrams[*citer_begin], logprob);
 	  else {
 	    const int shard = ngram.index.shard_index(citer_begin, citer_end);
+
+	    std::ostream_iterator<char> iter(*stream[shard]);
 	    
-	    std::copy(citer_begin, citer_end, std::ostream_iterator<id_type>(*stream[shard], " "));
+	    if (! karma::generate(iter, (id_generator % ' ') << ' ', boost::make_iterator_range(citer_begin, citer_end)))
+	      throw std::runtime_error("failed generation");
+	    
+	    //std::copy(citer_begin, citer_end, std::ostream_iterator<id_type>(*stream[shard], " "));
 	    utils::encode_base64(logprob, std::ostream_iterator<char>(*stream[shard]));
 	    *stream[shard] << '\n';
 	  }
@@ -287,7 +298,12 @@ void ngram_bound_mapper(const ngram_type& ngram, intercomm_type& reducer)
 	    else {
 	      const int shard = ngram.index.shard_index(citer, citer_end);
 	      
-	      std::copy(citer, citer_end, std::ostream_iterator<id_type>(*stream[shard], " "));
+	      std::ostream_iterator<char> iter(*stream[shard]);
+	      
+	      if (! karma::generate(iter, (id_generator % ' ') << ' ', boost::make_iterator_range(citer, citer_end)))
+		throw std::runtime_error("failed generation");
+	      
+	      //std::copy(citer, citer_end, std::ostream_iterator<id_type>(*stream[shard], " "));
 	      utils::encode_base64(logprob, std::ostream_iterator<char>(*stream[shard]));
 	      *stream[shard] << '\n';
 	    }
