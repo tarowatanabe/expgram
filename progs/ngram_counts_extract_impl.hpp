@@ -393,7 +393,7 @@ struct GoogleNGramCounts
 	std::ostream_iterator<char> streamiter(*(*stream_iter));
 	
 	if (! karma::generate(streamiter,
-			      -(standard::string % ' ') << ' ' << standard::string << '\t' << count_generator << '\n',
+			      *(standard::string << ' ') << standard::string << '\t' << count_generator << '\n',
 			      prefix,
 			      (*iter)->first,
 			      count))
