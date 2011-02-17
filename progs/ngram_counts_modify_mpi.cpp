@@ -10,6 +10,7 @@
 #include <boost/filesystem.hpp>
 #include <boost/program_options.hpp>
 #include <boost/shared_ptr.hpp>
+#include <boost/range.hpp>
 
 #include <boost/iostreams/filtering_stream.hpp>
 #include <boost/iostreams/filter/gzip.hpp>
@@ -237,6 +238,12 @@ void ngram_modify_mapper(const ngram_type& ngram, intercomm_type& reducer)
   
   count_set_type unigrams(ngram.index[mpi_rank].offsets[1], count_type(0));
   context_type   context;
+
+  namespace karma = boost::spirit::karma;
+  namespace standard = boost::spirit::standard;
+  
+  karma::uint_generator<id_type>    id_generator;
+  karma::uint_generator<count_type> count_generator;
   
   for (int order_prev = 1; order_prev < ngram.index.order(); ++ order_prev) {
     
@@ -271,14 +278,20 @@ void ngram_modify_mapper(const ngram_type& ngram, intercomm_type& reducer)
 	  ++ unigrams[context.back()];
 	else {
 	  const int shard = ngram.index.shard_index(context.begin() + 1, context.end());
-	  std::copy(context.begin() + 1, context.end(), std::ostream_iterator<id_type>(*stream[shard], " "));
-	  *stream[shard] << 1 << '\n';
+	  
+	  std::ostream_iterator<char> iter(*stream[shard]);
+	  
+	  if (! karma::generate(iter, (id_generator % ' ') << " 1\n", boost::make_iterator_range(context.begin() + 1, context.end())))
+	    throw std::runtime_error("failed generation");
 	}
 	
 	if (context.front() == bos_id && order_prev + 1 != max_order) {
 	  const int shard = ngram.index.shard_index(context.begin(), context.end());
-	  std::copy(context.begin(), context.end(), std::ostream_iterator<id_type>(*stream[shard], " "));
-	  *stream[shard] << ngram.counts[mpi_rank][pos] << '\n';
+	  
+	  std::ostream_iterator<char> iter(*stream[shard]);
+	  
+	  if (! karma::generate(iter, (id_generator % ' ') << ' ' << count_generator << '\n', context, ngram.counts[mpi_rank][pos]))
+	    throw std::runtime_error("failed generation");
 	}
       }
       
