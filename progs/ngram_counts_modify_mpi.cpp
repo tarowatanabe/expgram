@@ -281,7 +281,7 @@ void ngram_modify_mapper(const ngram_type& ngram, intercomm_type& reducer)
 	  
 	  std::ostream_iterator<char> iter(*stream[shard]);
 	  
-	  if (! karma::generate(iter, (id_generator % ' ') << " 1\n", boost::make_iterator_range(context.begin() + 1, context.end())))
+	  if (! karma::generate(iter, +(id_generator << ' ') << "1\n", boost::make_iterator_range(context.begin() + 1, context.end())))
 	    throw std::runtime_error("failed generation");
 	}
 	
@@ -290,7 +290,7 @@ void ngram_modify_mapper(const ngram_type& ngram, intercomm_type& reducer)
 	  
 	  std::ostream_iterator<char> iter(*stream[shard]);
 	  
-	  if (! karma::generate(iter, (id_generator % ' ') << ' ' << count_generator << '\n', context, ngram.counts[mpi_rank][pos]))
+	  if (! karma::generate(iter, +(id_generator << ' ') << count_generator << '\n', context, ngram.counts[mpi_rank][pos]))
 	    throw std::runtime_error("failed generation");
 	}
       }
