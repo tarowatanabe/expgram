@@ -282,7 +282,7 @@ void ngram_bound_mapper(const ngram_type& ngram, intercomm_type& reducer)
 
 	    std::ostream_iterator<char> iter(*stream[shard]);
 	    
-	    if (! karma::generate(iter, (id_generator % ' ') << ' ', boost::make_iterator_range(citer_begin, citer_end)))
+	    if (! karma::generate(iter, +(id_generator << ' '), boost::make_iterator_range(citer_begin, citer_end)))
 	      throw std::runtime_error("failed generation");
 	    
 	    //std::copy(citer_begin, citer_end, std::ostream_iterator<id_type>(*stream[shard], " "));
@@ -300,7 +300,7 @@ void ngram_bound_mapper(const ngram_type& ngram, intercomm_type& reducer)
 	      
 	      std::ostream_iterator<char> iter(*stream[shard]);
 	      
-	      if (! karma::generate(iter, (id_generator % ' ') << ' ', boost::make_iterator_range(citer, citer_end)))
+	      if (! karma::generate(iter, +(id_generator << ' '), boost::make_iterator_range(citer, citer_end)))
 		throw std::runtime_error("failed generation");
 	      
 	      //std::copy(citer, citer_end, std::ostream_iterator<id_type>(*stream[shard], " "));

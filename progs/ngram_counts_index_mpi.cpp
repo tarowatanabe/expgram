@@ -13,6 +13,7 @@
 #include <boost/filesystem.hpp>
 #include <boost/program_options.hpp>
 #include <boost/shared_ptr.hpp>
+#include <boost/range.hpp>
 
 #include <boost/iostreams/filtering_stream.hpp>
 #include <boost/iostreams/filter/gzip.hpp>
@@ -464,6 +465,11 @@ void index_ngram_mapper(intercomm_type& reducer, const PathSet& paths, ngram_typ
     if (! context_stream->first.empty())
       pqueue.push(context_stream);
   }
+
+  namespace karma = boost::spirit::karma;
+  namespace standard = boost::spirit::standard;
+  
+  karma::uint_generator<count_type> count_generator;
   
   ngram_context_type context;
   count_type         count = 0;
@@ -486,9 +492,13 @@ void index_ngram_mapper(intercomm_type& reducer, const PathSet& paths, ngram_typ
 	  prefix_shard.clear();
 	  prefix_shard.insert(prefix_shard.end(), context.begin(), context.begin() + 2);
 	}
+
+	std::ostream_iterator<char> streamiter(*stream[ngram_shard]);
+	if (! karma::generate(steramiter, +(standard::string << ' ') << count_generator << '\n', context, count))
+	  throw std::runtime_error("generation failed");
 	
-	std::copy(context.begin(), context.end(), std::ostream_iterator<std::string>(*stream[ngram_shard], " "));
-	*stream[ngram_shard] << count << '\n';
+	//std::copy(context.begin(), context.end(), std::ostream_iterator<std::string>(*stream[ngram_shard], " "));
+	//*stream[ngram_shard] << count << '\n';
       }
       
       context.swap(context_stream->first.front().first);
@@ -529,8 +539,12 @@ void index_ngram_mapper(intercomm_type& reducer, const PathSet& paths, ngram_typ
       prefix_shard.insert(prefix_shard.end(), context.begin(), context.begin() + 2);
     }
     
-    std::copy(context.begin(), context.end(), std::ostream_iterator<std::string>(*stream[ngram_shard], " "));
-    *stream[ngram_shard] << count << '\n';
+    std::ostream_iterator<char> streamiter(*stream[ngram_shard]);
+    if (! karma::generate(steramiter, +(standard::string << ' ') << count_generator << '\n', context, count))
+      throw std::runtime_error("generation failed");
+    
+    //std::copy(context.begin(), context.end(), std::ostream_iterator<std::string>(*stream[ngram_shard], " "));
+    //*stream[ngram_shard] << count << '\n';
   }
   
   istreams.clear();
