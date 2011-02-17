@@ -494,7 +494,7 @@ void index_ngram_mapper(intercomm_type& reducer, const PathSet& paths, ngram_typ
 	}
 
 	std::ostream_iterator<char> streamiter(*stream[ngram_shard]);
-	if (! karma::generate(steramiter, +(standard::string << ' ') << count_generator << '\n', context, count))
+	if (! karma::generate(streamiter, +(standard::string << ' ') << count_generator << '\n', context, count))
 	  throw std::runtime_error("generation failed");
 	
 	//std::copy(context.begin(), context.end(), std::ostream_iterator<std::string>(*stream[ngram_shard], " "));
@@ -540,7 +540,7 @@ void index_ngram_mapper(intercomm_type& reducer, const PathSet& paths, ngram_typ
     }
     
     std::ostream_iterator<char> streamiter(*stream[ngram_shard]);
-    if (! karma::generate(steramiter, +(standard::string << ' ') << count_generator << '\n', context, count))
+    if (! karma::generate(streamiter, +(standard::string << ' ') << count_generator << '\n', context, count))
       throw std::runtime_error("generation failed");
     
     //std::copy(context.begin(), context.end(), std::ostream_iterator<std::string>(*stream[ngram_shard], " "));
