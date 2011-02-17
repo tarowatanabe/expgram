@@ -27,6 +27,7 @@
 #include <boost/iostreams/filtering_stream.hpp>
 #include <boost/iostreams/device/file_descriptor.hpp>
 
+#include <utils/lexical_cast.hpp>
 #include <utils/space_separator.hpp>
 #include <utils/compress_stream.hpp>
 #include <utils/compact_trie.hpp>
@@ -40,7 +41,6 @@
 #include <utils/malloc_stats.hpp>
 #include <utils/hashmurmur.hpp>
 #include <utils/piece.hpp>
-#include <utils/lexical_cast.hpp>
 
 #include <expgram/Word.hpp>
 #include <expgram/Vocab.hpp>
@@ -338,7 +338,7 @@ struct GoogleNGramCounts
       return wordx < wordy;
     }
   };
-  
+
   template <typename Prefix, typename Counts, typename Iterator, typename Path, typename PathIterator, typename StreamIterator>
   static inline
   void dump_counts(const Prefix& prefix,
@@ -347,8 +347,13 @@ struct GoogleNGramCounts
 		   const Path& path,
 		   PathIterator path_iter, StreamIterator stream_iter)
   {
+    namespace karma = boost::spirit::karma;
+    namespace standard = boost::spirit::standard;
+
     typedef typename std::iterator_traits<Iterator>::value_type value_type;
     typedef std::vector<const value_type*, std::allocator<const value_type*> > value_set_type;
+    
+    karma::uint_generator<count_type> count_generator;
     
     value_set_type values;
     for (Iterator iter = first; iter != last; ++ iter)
@@ -385,11 +390,22 @@ struct GoogleNGramCounts
       const count_type count = counts[(*iter)->second];
       
       if (count > 0) {
+	std::ostream_iterator<char> streamiter(*(*stream_iter));
+	
+	if (! karma::generate(streamiter,
+			      (standard::string % ' ') << ' ' << standard::string << '\t' << count_generator << '\n',
+			      prefix,
+			      (*iter)->first,
+			      count))
+	  throw std::runtime_error("generation failed");
+	
+#if 0
 	typename Prefix::const_iterator piter_end = prefix.end();
 	for (typename Prefix::const_iterator piter = prefix.begin(); piter != piter_end ; ++ piter)
 	  *(*stream_iter) << *piter << ' ';
 	
 	*(*stream_iter) << (*iter)->first << '\t' << count << '\n';
+#endif
       }
       
       // recursive call...

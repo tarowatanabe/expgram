@@ -182,16 +182,15 @@ class MPI:
             self.hosts_file = os.path.realpath(hosts_file)
 
         self.bindir = self.dir
-        if self.bindir:
-            self.bindir = os.path.join(self.bindir, 'bin')
-            if not os.path.exists(self.bindir) or not os.path.isdir(self.bindir):
-                raise ValueError, self.bindir + " does not exist"
 	
         for binprog in ['mpirun']:
             if self.bindir:
-                prog = os.path.join(self.bindir, binprog)
+                prog = os.path.join(self.bindir, 'bin', binprog)
                 if not os.path.exists(prog):
-                    raise ValueError, prog + " does not exist at " + self.bindir
+                    prog = os.path.join(self.bindir, binprog)
+                    if not os.path.exists(prog):
+                        raise ValueError, prog + " does not exist at " + self.bindir
+                    
                 setattr(self, binprog, prog)
             else:
                 setattr(self, binprog, binprog)
@@ -226,21 +225,20 @@ class Expgram:
 	    bindir = os.path.join(self.dir, dir)
 	    if os.path.exists(bindir) and os.path.isdir(bindir):
 		self.bindirs.append(bindir)
-
-	if not self.bindirs:
-	    raise ValueError, str(self.bindirs) + "  does not exist"
+        self.bindirs.append(self.dir)
+        
 	
         for binprog in (## vocabulary
                         'ngram_vocab', 'ngram_vocab_mpi',
                         
                         ## counts...
-                        'ngram_counts_extract', 'ngram_counts_extract_mpi',
-                        'ngram_counts_index', 'ngram_counts_index_mpi',
-                        'ngram_counts_modify', 'ngram_counts_modify_mpi',
+                        'ngram_counts_extract',  'ngram_counts_extract_mpi',
+                        'ngram_counts_index',    'ngram_counts_index_mpi',
+                        'ngram_counts_modify',   'ngram_counts_modify_mpi',
                         'ngram_counts_estimate', 'ngram_counts_estimate_mpi',
                         
                         ## final post-processing
-                        'ngram_bound', 'ngram_bound_mpi',
+                        'ngram_bound',    'ngram_bound_mpi',
                         'ngram_quantize', 'ngram_quantize_mpi',):
 	    
 	    for bindir in self.bindirs:

@@ -1653,6 +1653,13 @@ void estimate_ngram(const ngram_counts_type& ngram,
 
   size_type terminated_recv = 0;
   size_type terminated_send = 0;
+
+  namespace qi    = boost::spirit::qi;
+  namespace karma = boost::spirit::karma;
+  namespace standard = boost::spirit::standard;
+  
+  qi::uint_parser<id_type>       id_parser;
+  karma::uint_generator<id_type> id_generator;
   
   int non_found_iter = 0;
   while (1) {
@@ -1663,19 +1670,14 @@ void estimate_ngram(const ngram_counts_type& ngram,
       if (rank != mpi_rank && istream_ngram[rank] && istream_ngram[rank]->test()) {
 	buffer.clear();
 	if (istream_ngram[rank]->read(buffer)) {
-	  boost::iostreams::filtering_istream stream;
-	  stream.push(boost::iostreams::array_source(buffer.c_str(), buffer.size()));
+	  std::string::const_iterator iter = buffer.begin();
+	  std::string::const_iterator iter_end = buffer.end();
 	  
-	  std::string line;
-	  while (std::getline(stream, line)) {
-	    typedef boost::tokenizer<utils::space_separator, utils::piece::const_iterator, utils::piece> tokenizer_type;
-	    
-	    utils::piece line_piece(line);
-	    tokenizer_type tokenizer(line_piece);
-	    
+	  while (iter != iter_end) {
 	    context_logprob.first.clear();
-	    for (tokenizer_type::iterator iter = tokenizer.begin(); iter != tokenizer.end(); ++ iter)
-	      context_logprob.first.push_back(utils::lexical_cast<id_type>(*iter));
+	    
+	    if (! qi::phrase_parse(iter, iter_end, *id_parser >> qi::eol, standard::blank, context_logprob.first))
+	      throw std::runtime_error("failed parsing id-ngram");
 	    
 	    context_logprob.second = logprob_event_type(0.0);
 	    
@@ -1715,19 +1717,17 @@ void estimate_ngram(const ngram_counts_type& ngram,
     for (int rank = 0; rank < mpi_size; ++ rank)
       if (rank != mpi_rank && ostream_ngram[rank] && ostream_ngram[rank]->test()) {
 	buffer.clear();
-	boost::iostreams::filtering_ostream stream;
-	stream.push(boost::iostreams::back_inserter(buffer));
+	std::back_insert_iterator<std::string> iter(buffer);
 	
 	while (queue_ngram[rank]->pop_swap(context_logprob, true)) {
-	  std::copy(context_logprob.first.begin(), context_logprob.first.end(), std::ostream_iterator<id_type>(stream, " "));
-	  stream << '\n';
+	  if (! karma::generate(iter, -(id_generator % ' ') << '\n', context_logprob.first))
+	    throw std::runtime_error("failed generating id-ngram");
 	  
 	  if (! context_logprob.first.empty())
 	    pending_ngram[rank].push_back(context_logprob.second);
 	  else
 	    ++ terminated_send;
 	}
-	stream.pop();
 	
 	if (! buffer.empty()) {
 	  ostream_ngram[rank]->write(buffer);
