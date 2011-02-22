@@ -639,7 +639,7 @@ struct GoogleNGramCounts
     if (! boost::filesystem::exists(path))
       throw std::runtime_error(std::string("no file? ") + path.string());
     if (! boost::filesystem::is_directory(path))
-      throw std::runtime_error(std::string("no a directory? ") + path.directory_string());
+      throw std::runtime_error(std::string("no a directory? ") + path.string());
   
     for (int order = 1; order <= max_order; ++ order) {
     
@@ -654,7 +654,7 @@ struct GoogleNGramCounts
 
       if (! boost::filesystem::exists(ngram_dir)) break;
       if (! boost::filesystem::is_directory(ngram_dir))
-	throw std::runtime_error(std::string("no a directory? ") + ngram_dir.directory_string());
+	throw std::runtime_error(std::string("no a directory? ") + ngram_dir.string());
     
       if (order == 1) {
 	const path_type vocab_file        = ngram_dir / "vocab.gz";

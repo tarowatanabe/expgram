@@ -147,7 +147,7 @@ int main(int argc, char** argv)
 	return 1;
       
       if (ngram_file.empty() || ! boost::filesystem::exists(ngram_file))
-	throw std::runtime_error(std::string("no ngram file? ") + ngram_file.directory_string());
+	throw std::runtime_error(std::string("no ngram file? ") + ngram_file.string());
       if (output_file.empty())
 	throw std::runtime_error(std::string("no output?"));
       if (! prog_name.empty() && ! boost::filesystem::exists(prog_name))

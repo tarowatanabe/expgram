@@ -34,12 +34,21 @@ int main(int argc, char** argv)
     for (boost::filesystem::directory_iterator iter(tmp_dir); iter != iter_end; ++ iter) {
       const path_type path = *iter;
 
+#if BOOST_FILESYSTEM_VERSION == 2
       for (int i = 0; i < 9; ++ i)
-	if (path.filename().find(std::string("expgram.") + expgram_suffix[i]) != std::string::npos)
+	if (path_type(path.filename()).file_string().find(std::string("expgram.") + expgram_suffix[i]) != std::string::npos)
 	  utils::filesystem::remove_all(path);
       for (int i = 0; i < 2; ++ i)
-	if (path.filename().find(std::string("succinct-db.") + succinct_suffix[i]) != std::string::npos)
+	if (path_type(path.filename()).file_string().find(std::string("succinct-db.") + succinct_suffix[i]) != std::string::npos)
 	  utils::filesystem::remove_all(path);
+#else
+      for (int i = 0; i < 9; ++ i)
+	if (path_type(path.filename()).string().find(std::string("expgram.") + expgram_suffix[i]) != std::string::npos)
+	  utils::filesystem::remove_all(path);
+      for (int i = 0; i < 2; ++ i)
+	if (path_type(path.filename()).string().find(std::string("succinct-db.") + succinct_suffix[i]) != std::string::npos)
+	  utils::filesystem::remove_all(path);
+#endif
     }
   }
   catch (const std::exception& err) {

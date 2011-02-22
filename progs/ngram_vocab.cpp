@@ -181,9 +181,9 @@ void accumulate_counts(const path_set_type& __paths,
       const path_type ngram_dir = path / "1gms";
       
       if (! boost::filesystem::exists(ngram_dir))
-	throw std::runtime_error("no directory? " + ngram_dir.directory_string());
+	throw std::runtime_error("no directory? " + ngram_dir.string());
       if (! boost::filesystem::is_directory(ngram_dir))
-	throw std::runtime_error(std::string("no at directory? ") + ngram_dir.directory_string());
+	throw std::runtime_error(std::string("no at directory? ") + ngram_dir.string());
       
       const path_type vocab_file        = ngram_dir / "vocab.gz";
       const path_type vocab_sorted_file = ngram_dir / "vocab_cs.gz";
