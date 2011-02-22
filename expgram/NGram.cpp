@@ -26,7 +26,7 @@ namespace expgram
   void dump_file(const Path& file, const Data& data)
   {
     std::auto_ptr<boost::iostreams::filtering_ostream> os(new boost::iostreams::filtering_ostream());
-    os->push(boost::iostreams::file_sink(file.native_file_string(), std::ios_base::out | std::ios_base::trunc), 1024 * 1024);
+    os->push(boost::iostreams::file_sink(file.string(), std::ios_base::out | std::ios_base::trunc), 1024 * 1024);
     
     const int64_t file_size = sizeof(typename Data::value_type) * data.size();
     for (int64_t offset = 0; offset < file_size; offset += 1024 * 1024)
@@ -59,7 +59,7 @@ namespace expgram
 	
 	if (! boost::filesystem::exists(rep.path(stream_map_file.str()))) break;
 	
-	std::ifstream is(rep.path(stream_map_file.str()).file_string().c_str());
+	std::ifstream is(rep.path(stream_map_file.str()).string().c_str());
 	is.read((char*) &(*logprob_map.begin()), sizeof(logprob_type) * logprob_map.size());
 	maps.push_back(logprob_map);
       }
@@ -82,7 +82,7 @@ namespace expgram
 	std::ostringstream stream_map_file;
 	stream_map_file << n << "-logprob-map";
 	
-	std::ofstream os(rep.path(stream_map_file.str()).file_string().c_str());
+	std::ofstream os(rep.path(stream_map_file.str()).string().c_str());
 	os.write((char*) &(*maps[n].begin()), sizeof(logprob_type) * maps[n].size());
       }
     }
@@ -1495,8 +1495,8 @@ namespace expgram
       
       os_logprobs[shard].reset(new ostream_type());
       os_backoffs[shard].reset(new ostream_type());
-      os_logprobs[shard]->push(boost::iostreams::file_sink(path_logprobs[shard].file_string().c_str()), 1024 * 1024);
-      os_backoffs[shard]->push(boost::iostreams::file_sink(path_backoffs[shard].file_string().c_str()), 1024 * 1024);
+      os_logprobs[shard]->push(boost::iostreams::file_sink(path_logprobs[shard].string().c_str()), 1024 * 1024);
+      os_backoffs[shard]->push(boost::iostreams::file_sink(path_backoffs[shard].string().c_str()), 1024 * 1024);
     }
     
     typedef enum {

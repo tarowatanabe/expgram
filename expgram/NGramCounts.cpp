@@ -27,7 +27,7 @@ namespace expgram
   void dump_file(const Path& file, const Data& data)
   {
     boost::iostreams::filtering_ostream os;
-    os.push(boost::iostreams::file_sink(file.native_file_string(), std::ios_base::out | std::ios_base::trunc), 1024 * 1024);
+    os.push(boost::iostreams::file_sink(file.string(), std::ios_base::out | std::ios_base::trunc), 1024 * 1024);
     
     const int64_t file_size = sizeof(typename Data::value_type) * data.size();
     for (int64_t offset = 0; offset < file_size; offset += 1024 * 1024)
@@ -1408,10 +1408,10 @@ namespace expgram
   void NGramCounts::open(const path_type& path, const size_type shard_size, const bool unique)
   {
     if (! boost::filesystem::exists(path))
-      throw std::runtime_error(std::string("no file: ") + path.file_string());
+      throw std::runtime_error(std::string("no file: ") + path.string());
     
     if (! boost::filesystem::is_directory(path))
-      throw std::runtime_error(std::string("invalid path: ") + path.file_string());
+      throw std::runtime_error(std::string("invalid path: ") + path.string());
 
     clear();
     
@@ -2179,15 +2179,15 @@ namespace expgram
 	  tokens.insert(tokens.end(), tokenizer.begin(), tokenizer.end());
 	  
 	  if (tokens.size() != order + 1)
-	    throw std::runtime_error(std::string("invalid google ngram format...") + index_file.file_string());
+	    throw std::runtime_error(std::string("invalid google ngram format...") + index_file.string());
 	  
 	  const path_type path_ngram = ngram_dir / static_cast<std::string>(tokens.front());
 	  
 	  if (! boost::filesystem::exists(path_ngram))
-	    throw std::runtime_error(std::string("invalid google ngram format... no file: ") + path_ngram.file_string());
+	    throw std::runtime_error(std::string("invalid google ngram format... no file: ") + path_ngram.string());
 
 	  if (debug >= 2)
-	    std::cerr << "\tfile: " << path_ngram.file_string() << std::endl;
+	    std::cerr << "\tfile: " << path_ngram.string() << std::endl;
 	  
 	  utils::compress_istream is(path_ngram, 1024 * 1024);
 	  
@@ -2282,15 +2282,15 @@ namespace expgram
 	    if (tokens.empty()) continue;
 	    
 	    if (tokens.size() != order + 1)
-	      throw std::runtime_error(std::string("invalid google ngram format...") + index_file.file_string());
+	      throw std::runtime_error(std::string("invalid google ngram format...") + index_file.string());
 	    
 	    const path_type path_ngram = ngram_dir / static_cast<std::string>(tokens.front());
 	    
 	    if (debug >= 2)
-	      std::cerr << "\tfile: " << path_ngram.file_string() << std::endl;
+	      std::cerr << "\tfile: " << path_ngram.string() << std::endl;
 	    
 	    if (! boost::filesystem::exists(path_ngram))
-	      throw std::runtime_error(std::string("invalid google ngram format... no file: ") + path_ngram.file_string());
+	      throw std::runtime_error(std::string("invalid google ngram format... no file: ") + path_ngram.string());
 	    
 	    paths_ngram.push_back(path_ngram);
 	  }

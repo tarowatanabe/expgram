@@ -266,7 +266,7 @@ struct GoogleNGramCounts
 	  if (file.empty()) break;
 	  
 	  if (file != "-" && ! boost::filesystem::exists(file))
-	    throw std::runtime_error(std::string("no file? ") + file.file_string());
+	    throw std::runtime_error(std::string("no file? ") + file.string());
 	  
 	  char buffer[4096];
 	  utils::compress_istream is(file, 1024 * 1024);
@@ -307,7 +307,7 @@ struct GoogleNGramCounts
 	  if (file.empty()) break;
 	  
 	  if (file != "-" && ! boost::filesystem::exists(file))
-	    throw std::runtime_error(std::string("no file? ") + file.file_string());
+	    throw std::runtime_error(std::string("no file? ") + file.string());
 
 	  utils::compress_istream is(file, 1024 * 1024);
 	  
@@ -373,7 +373,7 @@ struct GoogleNGramCounts
       const Path ngram_dir = path / stream_dir.str();
       const Path counts_file_tmp = utils::tempfile::file_name(ngram_dir / stream_name.str());
       utils::tempfile::insert(counts_file_tmp);
-      const Path counts_file = counts_file_tmp.file_string() + ".gz";
+      const Path counts_file = counts_file_tmp.string() + ".gz";
       utils::tempfile::insert(counts_file);
       
       stream_iter->reset(new utils::compress_ostream(counts_file, 1024 * 1024));
@@ -515,7 +515,7 @@ struct GoogleNGramCounts
       typename path_set_type::const_iterator piter_end = paths_counts.front().end();
       for (typename path_set_type::const_iterator piter = paths_counts.front().begin(); piter != piter_end; ++ piter) {
 	if (! boost::filesystem::exists(*piter))
-	  throw std::runtime_error(std::string("no unigramcounts? ") + piter->file_string());
+	  throw std::runtime_error(std::string("no unigramcounts? ") + piter->string());
 	
 	utils::compress_istream is(*piter, 1024 * 1024);
 	std::string line;
@@ -589,7 +589,7 @@ struct GoogleNGramCounts
       for (typename path_set_type::const_iterator piter = paths_counts[order - 1].begin(); piter != piter_end; ++ piter) {
 	
 	if (! boost::filesystem::exists(*piter))
-	  throw std::runtime_error(std::string("no unigramcounts? ") + piter->file_string());
+	  throw std::runtime_error(std::string("no unigramcounts? ") + piter->string());
 	
 	utils::compress_istream is(*piter);
 	
@@ -637,7 +637,7 @@ struct GoogleNGramCounts
     typedef boost::tokenizer<utils::space_separator, utils::piece::const_iterator, utils::piece> tokenizer_type;
 
     if (! boost::filesystem::exists(path))
-      throw std::runtime_error(std::string("no file? ") + path.file_string());
+      throw std::runtime_error(std::string("no file? ") + path.string());
     if (! boost::filesystem::is_directory(path))
       throw std::runtime_error(std::string("no a directory? ") + path.directory_string());
   
@@ -661,15 +661,15 @@ struct GoogleNGramCounts
 	const path_type vocab_sorted_file = ngram_dir / "vocab_cs.gz";
       
 	if (! boost::filesystem::exists(vocab_file))
-	  throw std::runtime_error(std::string("no vocab.gz? ") + vocab_file.file_string());
+	  throw std::runtime_error(std::string("no vocab.gz? ") + vocab_file.string());
 	if (! boost::filesystem::exists(vocab_sorted_file))
-	  throw std::runtime_error(std::string("no vocab_cs.gz? ") + vocab_sorted_file.file_string());
+	  throw std::runtime_error(std::string("no vocab_cs.gz? ") + vocab_sorted_file.string());
       
 	paths.push_back(vocab_file);
       } else {
       
 	if (! boost::filesystem::exists(index_file))
-	  throw std::runtime_error(std::string("no index file? ") + index_file.file_string());
+	  throw std::runtime_error(std::string("no index file? ") + index_file.string());
       
 	utils::compress_istream is(index_file);
 	std::string line;
@@ -685,12 +685,12 @@ struct GoogleNGramCounts
 	  if (tokens.empty()) continue;
 	
 	  if (tokens.size() != order + 1)
-	    throw std::runtime_error(std::string("invalid google ngram format...") + index_file.file_string());
+	    throw std::runtime_error(std::string("invalid google ngram format...") + index_file.string());
 	
 	  const path_type path_ngram = ngram_dir / static_cast<std::string>(tokens.front());
 	
 	  if (! boost::filesystem::exists(path_ngram))
-	    throw std::runtime_error(std::string("invalid google ngram format... no file: ") + path_ngram.file_string());
+	    throw std::runtime_error(std::string("invalid google ngram format... no file: ") + path_ngram.string());
 	
 	  paths.push_back(path_ngram);
 	}

@@ -1,3 +1,6 @@
+//
+//  Copyright(C) 2010-2011 Taro Watanabe <taro.watanabe@nict.go.jp>
+//
 
 #include <iostream>
 #include <string>
@@ -28,7 +31,7 @@ struct Task
 
 int main(int argc, char** argv)
 {
-  utils::subprocess run("cat");
+  utils::subprocess run(boost::filesystem::path("cat"));
 
   boost::thread thread(Task(run.desc_write()));
   

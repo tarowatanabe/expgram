@@ -100,7 +100,7 @@ inline
 void dump_file(const Path& file, const Data& data)
 {
   boost::iostreams::filtering_ostream os;
-  os.push(boost::iostreams::file_sink(file.file_string(), std::ios_base::out | std::ios_base::trunc), 1024 * 1024);
+  os.push(boost::iostreams::file_sink(file.string(), std::ios_base::out | std::ios_base::trunc), 1024 * 1024);
   
   const int64_t file_size = sizeof(typename Data::value_type) * data.size();
   for (int64_t offset = 0; offset < file_size; offset += 1024 * 1024)
@@ -113,7 +113,7 @@ void dump(const Path& file, Iterator first, Iterator last)
   typedef typename std::iterator_traits<Iterator>::value_type value_type;
 
   boost::iostreams::filtering_ostream os;
-  os.push(boost::iostreams::file_sink(file.file_string(), std::ios_base::out | std::ios_base::trunc), 1024 * 1024);
+  os.push(boost::iostreams::file_sink(file.string(), std::ios_base::out | std::ios_base::trunc), 1024 * 1024);
   
   while (first != last) {
     const size_type write_size = std::min(size_type(1024 * 1024), size_type(last - first));

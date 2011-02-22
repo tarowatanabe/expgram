@@ -1,4 +1,7 @@
 // -*- mode: c++ -*-
+//
+//  Copyright(C) 2009-2011 Taro Watanabe <taro.watanabe@nict.go.jp>
+//
 
 #ifndef __UTILS__MAP_FILE_ALLOCATOR__HPP__
 #define __UTILS__MAP_FILE_ALLOCATOR__HPP__ 1
@@ -93,16 +96,24 @@ namespace utils
       const size_type alloc_size = ((size + (4096 - 1)) / 4096) * 4096;
       {
 	boost::iostreams::filtering_ostream os;
+#if BOOST_FILESYSTEM_VERSION == 2
 	os.push(boost::iostreams::file_sink(file.file_string()), 1024 * 1024 * 4);
+#else
+	os.push(boost::iostreams::file_sink(file.string()), 1024 * 1024 * 4);
+#endif
 	
 	std::vector<byte_type> buffer(4096, 0);
-	for (int i = 0; i < alloc_size / buffer.size(); ++ i)
+	for (size_type i = 0; i < alloc_size / buffer.size(); ++ i)
 	  os.write(&(*buffer.begin()), buffer.size());
       }
       
       file_size = boost::filesystem::file_size(file);
       
+#if BOOST_FILESYSTEM_VERSION == 2
       int fd = ::open(file.file_string().c_str(), O_RDWR | O_NDELAY);
+#else
+      int fd = ::open(file.string().c_str(), O_RDWR | O_NDELAY);
+#endif
       if (fd < 0) {
 	boost::filesystem::remove(file);
 	utils::tempfile::erase(file);

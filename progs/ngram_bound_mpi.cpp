@@ -105,9 +105,9 @@ int main(int argc, char** argv)
       if (ngram_file == output_file)
 	throw std::runtime_error("dump to the same directory?");
       if (! prog_name.empty() && ! boost::filesystem::exists(prog_name))
-	throw std::runtime_error(std::string("no binary? ") + prog_name.file_string());
+	throw std::runtime_error(std::string("no binary? ") + prog_name.string());
       
-      const std::string name = (boost::filesystem::exists(prog_name) ? prog_name.file_string() : std::string(argv[0]));
+      const std::string name = (boost::filesystem::exists(prog_name) ? prog_name.string() : std::string(argv[0]));
       utils::mpi_intercomm comm_child(MPI::COMM_WORLD.Spawn(name.c_str(), &(*args.begin()), mpi_size, MPI::INFO_NULL, 0));
       
       ngram_type ngram(debug);
@@ -344,7 +344,7 @@ inline
 void dump_file(const Path& file, const Data& data)
 {
   std::auto_ptr<boost::iostreams::filtering_ostream> os(new boost::iostreams::filtering_ostream());
-  os->push(boost::iostreams::file_sink(file.native_file_string(), std::ios_base::out | std::ios_base::trunc), 1024 * 1024);
+  os->push(boost::iostreams::file_sink(file.string(), std::ios_base::out | std::ios_base::trunc), 1024 * 1024);
   
   const int64_t file_size = sizeof(typename Data::value_type) * data.size();
     for (int64_t offset = 0; offset < file_size; offset += 1024 * 1024)

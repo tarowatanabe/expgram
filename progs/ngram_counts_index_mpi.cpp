@@ -151,7 +151,7 @@ int main(int argc, char** argv)
       if (output_file.empty())
 	throw std::runtime_error(std::string("no output?"));
       if (! prog_name.empty() && ! boost::filesystem::exists(prog_name))
-	throw std::runtime_error(std::string("no binary? ") + prog_name.file_string());
+	throw std::runtime_error(std::string("no binary? ") + prog_name.string());
       
       // we are reducers..
       const path_type tmp_dir = utils::tempfile::tmp_dir();
@@ -168,7 +168,7 @@ int main(int argc, char** argv)
       if (unique)
 	index_ngram_unique(ngram_file, ngram, os_count);
       else {
-	const std::string name = (boost::filesystem::exists(prog_name) ? prog_name.file_string() : std::string(argv[0]));
+	const std::string name = (boost::filesystem::exists(prog_name) ? prog_name.string() : std::string(argv[0]));
 	utils::mpi_intercomm comm_child(MPI::COMM_WORLD.Spawn(name.c_str(), &(*args.begin()), mpi_size, MPI::INFO_NULL, 0));
 	
 	if (mpi_rank == 0) {
@@ -606,12 +606,12 @@ void index_ngram_mapper_root(intercomm_type& reducer, const path_type& path, ngr
 	if (tokens.empty()) continue;
 	
 	if (tokens.size() != order + 1)
-	  throw std::runtime_error(std::string("invalid google ngram format...") + index_file.file_string());
+	  throw std::runtime_error(std::string("invalid google ngram format...") + index_file.string());
 
 	const path_type path_ngram = ngram_dir / static_cast<std::string>(tokens.front());
 	
 	if (! boost::filesystem::exists(path_ngram))
-	  throw std::runtime_error(std::string("invalid google ngram format... no file: ") + path_ngram.file_string());
+	  throw std::runtime_error(std::string("invalid google ngram format... no file: ") + path_ngram.string());
 	
 	paths_ngram.push_back(path_ngram);
       }
@@ -645,7 +645,7 @@ void index_ngram_mapper_root(intercomm_type& reducer, const path_type& path, ngr
       if (rank == mpi_rank)
 	paths_map.push_back(paths_ngram[i]);
       else
-	*stream[rank] << paths_ngram[i].file_string() << '\n';
+	*stream[rank] << paths_ngram[i].string() << '\n';
     }
     
     for (int rank = 1; rank < mpi_size; ++ rank) {
@@ -1017,15 +1017,15 @@ void index_ngram_unique(const path_type& path, ngram_type& ngram, Stream& os_cou
       tokens.insert(tokens.end(), tokenizer.begin(), tokenizer.end());
       
       if (tokens.size() != order + 1)
-	throw std::runtime_error(std::string("invalid google ngram format...") + index_file.file_string());
+	throw std::runtime_error(std::string("invalid google ngram format...") + index_file.string());
       
       const path_type path_ngram = ngram_dir / static_cast<std::string>(tokens.front());
       
       if (! boost::filesystem::exists(path_ngram))
-	throw std::runtime_error(std::string("invalid google ngram format... no file: ") + path_ngram.file_string());
+	throw std::runtime_error(std::string("invalid google ngram format... no file: ") + path_ngram.string());
       
       if (debug >= 2)
-	std::cerr << "\tfile: " << path_ngram.file_string() << std::endl;
+	std::cerr << "\tfile: " << path_ngram.string() << std::endl;
       
       utils::compress_istream is(path_ngram, 1024 * 1024);
       

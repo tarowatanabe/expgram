@@ -156,7 +156,7 @@ int main(int argc, char** argv)
       
       if (! vocab_file.empty()) {
 	if (vocab_file != "-" && ! boost::filesystem::exists(vocab_file))
-	  throw std::runtime_error("no vocabulary file? " + vocab_file.file_string());
+	  throw std::runtime_error("no vocabulary file? " + vocab_file.string());
 	
 	utils::compress_istream is(vocab_file, 1024 * 1024);
 	
@@ -292,12 +292,12 @@ void reduce_counts_others(const path_map_type& paths_counts)
       path_set_type::const_iterator piter_end = paths_counts[order - 1].end();
       for (path_set_type::const_iterator piter = paths_counts[order - 1].begin(); piter != piter_end; ++ piter) {
 	if (! boost::filesystem::exists(*piter))
-	  throw std::runtime_error(std::string("no count file? ") + piter->file_string());
+	  throw std::runtime_error(std::string("no count file? ") + piter->string());
 	
 	if (debug >= 2)
-	  std::cerr << "order: " << order << " rank: " << mpi_rank << " file: " << piter->file_string() << std::endl;
+	  std::cerr << "order: " << order << " rank: " << mpi_rank << " file: " << piter->string() << std::endl;
 	
-	os << piter->file_string() << '\n';
+	os << piter->string() << '\n';
       }
       
       os << '\n';
@@ -399,10 +399,10 @@ struct MapReduceLine
     path_set_type::const_iterator piter_end = paths.end();
     for (path_set_type::const_iterator piter = paths.begin(); piter != piter_end; ++ piter) {
       if (*piter != "-" && ! boost::filesystem::exists(*piter))
-	throw std::runtime_error(std::string("no file? ") + piter->file_string());
+	throw std::runtime_error(std::string("no file? ") + piter->string());
       
       if (debug)
-	std::cerr << "file: " << piter->file_string() << std::endl;
+	std::cerr << "file: " << piter->string() << std::endl;
     
       utils::compress_istream is(*piter, 1024 * 1024);
       
@@ -588,22 +588,22 @@ struct MapReduceFile
       for (int rank = 1; rank < mpi_size && piter != piter_end; ++ rank) 
 	if (stream[rank]->test()) {
 	  if (*piter != "-" && ! boost::filesystem::exists(*piter))
-	    throw std::runtime_error(std::string("no file? ") + piter->file_string());
+	    throw std::runtime_error(std::string("no file? ") + piter->string());
 	  
 	  if (debug)
-	    std::cerr << "file: " << piter->file_string() << std::endl;
+	    std::cerr << "file: " << piter->string() << std::endl;
 	  
-	  stream[rank]->write(piter->file_string());
+	  stream[rank]->write(piter->string());
 	  ++ piter;
 	  found = true;
 	}
       
       if (piter != piter_end && queue.empty()) {
 	if (*piter != "-" && ! boost::filesystem::exists(*piter))
-	  throw std::runtime_error(std::string("no file? ") + piter->file_string());
+	  throw std::runtime_error(std::string("no file? ") + piter->string());
 	
 	if (debug)
-	  std::cerr << "file: " << piter->file_string() << std::endl;
+	  std::cerr << "file: " << piter->string() << std::endl;
 	
 	queue.push(*piter);
 	++ num_file[0];

@@ -127,7 +127,7 @@ int main(int argc, char** argv)
 
     if (! vocab_file.empty()) {
       if (vocab_file != "-" && ! boost::filesystem::exists(vocab_file))
-	throw std::runtime_error("no vocabulary file? " + vocab_file.file_string());
+	throw std::runtime_error("no vocabulary file? " + vocab_file.string());
       
       utils::compress_istream is(vocab_file, 1024 * 1024);
       std::string word;
@@ -182,7 +182,7 @@ void accumulate_counts(const path_set_type& __paths,
   path_set_type::const_iterator piter_end = __paths.end();
   for (path_set_type::const_iterator piter = __paths.begin(); piter != piter_end; ++ piter) {
     if (*piter != "-" && ! boost::filesystem::exists(*piter))
-      throw std::runtime_error(std::string("no file? ") + piter->file_string());
+      throw std::runtime_error(std::string("no file? ") + piter->string());
     
     if (boost::filesystem::is_directory(*piter))
       GoogleNGramCounts::expand(*piter, paths, max_order);
@@ -219,10 +219,10 @@ void accumulate_counts(const path_set_type& __paths,
     path_set_type::const_iterator piter_end = paths.end();
     for (path_set_type::const_iterator piter = paths.begin(); piter != piter_end; ++ piter) {
       if (*piter != "-" && ! boost::filesystem::exists(*piter))
-	throw std::runtime_error(std::string("no file? ") + piter->file_string());
+	throw std::runtime_error(std::string("no file? ") + piter->string());
 
       if (debug)
-	std::cerr << "file: " << piter->file_string() << std::endl;
+	std::cerr << "file: " << piter->string() << std::endl;
       
       utils::compress_istream is(*piter, 1024 * 1024);
       std::string line;
@@ -279,10 +279,10 @@ void accumulate_counts(const path_set_type& __paths,
     path_set_type::const_iterator piter_end = paths.end();
     for (path_set_type::const_iterator piter = paths.begin(); piter != piter_end; ++ piter) {
       if (*piter != "-" && ! boost::filesystem::exists(*piter))
-	throw std::runtime_error(std::string("no file? ") + piter->file_string());
+	throw std::runtime_error(std::string("no file? ") + piter->string());
       
       if (debug)
-	std::cerr << "file: " << piter->file_string() << std::endl;
+	std::cerr << "file: " << piter->string() << std::endl;
 
       queue.push(*piter);
     }
@@ -343,10 +343,10 @@ void accumulate_corpus(const path_set_type& paths,
     path_set_type::const_iterator piter_end = paths.end();
     for (path_set_type::const_iterator piter = paths.begin(); piter != piter_end; ++ piter) {
       if (*piter != "-" && ! boost::filesystem::exists(*piter))
-	throw std::runtime_error(std::string("no file? ") + piter->file_string());
+	throw std::runtime_error(std::string("no file? ") + piter->string());
       
       if (debug)
-	std::cerr << "file: " << piter->file_string() << std::endl;
+	std::cerr << "file: " << piter->string() << std::endl;
       
       utils::compress_istream is(*piter, 1024 * 1024);
       std::string line;
@@ -402,10 +402,10 @@ void accumulate_corpus(const path_set_type& paths,
     path_set_type::const_iterator piter_end = paths.end();
     for (path_set_type::const_iterator piter = paths.begin(); piter != piter_end; ++ piter) {
       if (*piter != "-" && ! boost::filesystem::exists(*piter))
-	throw std::runtime_error(std::string("no file? ") + piter->file_string());
+	throw std::runtime_error(std::string("no file? ") + piter->string());
       
       if (debug)
-	std::cerr << "file: " << piter->file_string() << std::endl;
+	std::cerr << "file: " << piter->string() << std::endl;
 
       queue.push(*piter);
     }

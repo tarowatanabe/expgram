@@ -17,6 +17,7 @@
 #include <boost/iostreams/filtering_stream.hpp>
 #include <boost/iostreams/device/file.hpp>
 #include <boost/thread.hpp>
+#include <boost/lexical_cast.hpp>
 
 #include <utils/atomicop.hpp>
 #include <utils/bithack.hpp>
@@ -463,7 +464,7 @@ namespace utils
       repository_type::const_iterator iter = repository.find("size");
       if (iter == repository.end())
 	throw std::runtime_error("no size...");
-      __size = atoll(iter->second.c_str());
+      __size = boost::lexical_cast<size_type>(iter->second);
 
       repository_type::const_iterator titer = repository.find("type");
       if (titer == repository.end())
@@ -683,7 +684,11 @@ namespace utils
     void dump_file(const _Path& file, const _Data& data) const
     {
       boost::iostreams::filtering_ostream os;
+#if BOOST_FILESYSTEM_VERSION == 2
       os.push(boost::iostreams::file_sink(file.native_file_string(), std::ios_base::out | std::ios_base::trunc), 1024 * 1024);
+#else
+      os.push(boost::iostreams::file_sink(file.string(), std::ios_base::out | std::ios_base::trunc), 1024 * 1024);
+#endif
       
       const int64_t file_size = sizeof(typename _Data::value_type) * data.size();
       for (int64_t offset = 0; offset < file_size; offset += 1024 * 1024)
