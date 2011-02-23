@@ -1,4 +1,7 @@
 // -*- mode: c++ -*-
+//
+//  Copyright(C) 2009-2011 Taro Watanabe <taro.watanabe@nict.go.jp>
+//
 
 //
 // taken from Bringing Practical Lock-Free Synchronization to 64-Bit Applications
@@ -317,7 +320,7 @@ namespace utils
     bool __push(const value_type& __value, Assigner __assign)
     {
       atomicop::memory_barrier();
-      if (__max_size > 0 && __size >= __max_size) return false;
+      if (__max_size > 0 && size_type(__size) >= __max_size) return false;
       
       local_data_type local_data;
       node_type* node = allocate(value_type());

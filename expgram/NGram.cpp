@@ -78,7 +78,7 @@ namespace expgram
     if (quantized.is_open()) {
       quantized.write(rep.path("quantized"));
       
-      for (int n = 1; n < maps.size(); ++ n) {
+      for (size_type n = 1; n < maps.size(); ++ n) {
 	std::ostringstream stream_map_file;
 	stream_map_file << n << "-logprob-map";
 	
@@ -109,7 +109,7 @@ namespace expgram
     shards.reserve(utils::lexical_cast<size_t>(siter->second));
     shards.resize(utils::lexical_cast<size_t>(siter->second));
     
-    if (shard >= shards.size())
+    if (shard >= static_cast<int>(shards.size()))
       throw std::runtime_error("shard is out of range");
 
     std::ostringstream stream_shard;
@@ -122,6 +122,9 @@ namespace expgram
   inline
   void open_shards(const Path& path, Shards& shards)
   {
+    typedef size_t    size_type;
+    typedef ptrdiff_t difference_type;
+    
     typedef utils::repository repository_type;
     
     repository_type rep(path, repository_type::read);
@@ -134,7 +137,7 @@ namespace expgram
     shards.reserve(utils::lexical_cast<size_t>(siter->second));
     shards.resize(utils::lexical_cast<size_t>(siter->second));
     
-    for (int shard = 0; shard < shards.size(); ++ shard) {
+    for (size_type shard = 0; shard != shards.size(); ++ shard) {
       std::ostringstream stream_shard;
       stream_shard << "ngram-" << std::setfill('0') << std::setw(6) << shard;
       
@@ -168,6 +171,9 @@ namespace expgram
   inline
   void write_shards(const Path& path, const Shards& shards)
   {
+    typedef size_t    size_type;
+    typedef ptrdiff_t difference_type;
+
     typedef utils::repository repository_type;
     
     typedef TaskWriter<Path, typename Shards::value_type>    task_type;
@@ -185,7 +191,7 @@ namespace expgram
     thread_ptr_set_type threads(shards.size());
     
     {
-      for (int shard = 1; shard < shards.size(); ++ shard) {
+      for (size_type shard = 1; shard != shards.size(); ++ shard) {
 	std::ostringstream stream_shard;
 	stream_shard << "ngram-" << std::setfill('0') << std::setw(6) << shard;
 	
@@ -198,7 +204,7 @@ namespace expgram
       task_type(path / stream_shard.str(), shards[0])();
       
       // terminate...
-      for (int shard = 1; shard < shards.size(); ++ shard)
+      for (size_type shard = 1; shard != shards.size(); ++ shard)
 	threads[shard]->join();
     }
     
@@ -579,9 +585,9 @@ namespace expgram
     typedef map_reduce_type::thread_ptr_set_type thread_ptr_set_type;
     
     thread_ptr_set_type threads(index.size());
-    for (int shard = 0; shard < index.size(); ++ shard)
+    for (size_type shard = 0; shard != index.size(); ++ shard)
       threads[shard].reset(new thread_type(reducer_type(*this, shard, debug)));
-    for (int shard = 0; shard < index.size(); ++ shard)
+    for (size_type shard = 0; shard != index.size(); ++ shard)
       threads[shard]->join();
     threads.clear();
   }
@@ -740,7 +746,7 @@ namespace expgram
     thread_ptr_set_type threads(index.size());
     queue_ptr_set_type  queues(index.size());
     
-    for (int shard = 0; shard < index.size(); ++ shard) {
+    for (size_type shard = 0; shard != index.size(); ++ shard) {
       queues[shard].reset(new queue_type(1024 * 64));
       threads[shard].reset(new thread_type(mapper_type(*this, *queues[shard], shard)));
     }
@@ -759,7 +765,7 @@ namespace expgram
       os << "ngram " << 1 << '=' << index[0].offsets[1] << '\n';
       for (int order = 2; order <= index.order(); ++ order) {
 	size_type size = 0;
-	for (int shard = 0; shard < index.size(); ++ shard)
+	for (size_type shard = 0; shard != index.size(); ++ shard)
 	  size += index[shard].offsets[order] - index[shard].offsets[order - 1];
 	os << "ngram " << order << '=' << size << '\n';
       }
@@ -799,7 +805,7 @@ namespace expgram
     
     // ngrams...
     pqueue_type pqueue;
-    for (int shard = 0; shard < index.size(); ++ shard) {
+    for (size_type shard = 0; shard != index.size(); ++ shard) {
       context_logprob_type context_logprob;
       queues[shard]->pop_swap(context_logprob);
       
@@ -821,7 +827,7 @@ namespace expgram
       context_words_queue_ptr_type context_queue(pqueue.top());
       pqueue.pop();
       
-      if (context_queue->first.size() + 1 != order) {
+      if (static_cast<int>(context_queue->first.size()) + 1 != order) {
 	order = context_queue->first.size() + 1;
 	os << '\n';
 	os << "\\" << order << "-grams:" << '\n';
@@ -985,7 +991,7 @@ namespace expgram
 	if (unigrams[id] > ngram.logprob_min())
 	  queues[0]->push(std::make_pair(context_type(1, id), unigrams[id]));
       
-      for (int shard = 0; shard < queues.size(); ++ shard)
+      for (size_type shard = 0; shard != queues.size(); ++ shard)
 	queues[shard]->push(std::make_pair(context_type(), 0.0));
     }
   };
@@ -1102,7 +1108,7 @@ namespace expgram
     // first, run reducer...
     logbounds.clear();
     logbounds.resize(index.size());
-    for (int shard = 0; shard < logbounds.size(); ++ shard) {
+    for (size_type shard = 0; shard != logbounds.size(); ++ shard) {
       logbounds[shard].offset = logprobs[shard].offset;
       
       queues[shard].reset(new queue_type(1024 * 64));
@@ -1110,13 +1116,13 @@ namespace expgram
     }
     
     // second, mapper...
-    for (int shard = 0; shard < logbounds.size(); ++ shard)
+    for (size_type shard = 0; shard != logbounds.size(); ++ shard)
       threads_mapper[shard].reset(new thread_type(mapper_type(*this, queues, shard, debug)));
     
     // termination...
-    for (int shard = 0; shard < logbounds.size(); ++ shard)
+    for (size_type shard = 0; shard != logbounds.size(); ++ shard)
       threads_mapper[shard]->join();
-    for (int shard = 0; shard < logbounds.size(); ++ shard)
+    for (size_type shard = 0; shard != logbounds.size(); ++ shard)
       threads_reducer[shard]->join();
   }
 
@@ -1414,7 +1420,7 @@ namespace expgram
 	    index_ngram(prefix, words);
 	    words.clear();
 	    
-	    if (context.size() != order)
+	    if (static_cast<int>(context.size()) != order)
 	      index_ngram();
 	  }
 	  
@@ -1486,7 +1492,8 @@ namespace expgram
     ostream_ptr_set_type os_backoffs(shard_size);
     path_set_type        path_logprobs(shard_size);
     path_set_type        path_backoffs(shard_size);
-    for (int shard = 0; shard < shard_size; ++ shard) {
+    
+    for (size_type shard = 0; shard != shard_size; ++ shard) {
       path_logprobs[shard] = utils::tempfile::file_name(tmp_dir / "expgram.logprob.XXXXXX");
       path_backoffs[shard] = utils::tempfile::file_name(tmp_dir / "expgram.backoff.XXXXXX");
       
@@ -1563,7 +1570,7 @@ namespace expgram
       if (tokens.size() < 2) continue;
       
       const logprob_type logprob = utils::lexical_cast<double>(tokens.front()) * log_10;
-      const logprob_type logbackoff = (tokens.size() == order + 2 ? (utils::lexical_cast<double>(tokens.back()) * log_10) : 0.0);
+      const logprob_type logbackoff = (static_cast<int>(tokens.size()) == order + 2 ? (utils::lexical_cast<double>(tokens.back()) * log_10) : 0.0);
       
       
       unigrams.push_back(std::make_pair(escape_word(tokens[1]), std::make_pair(logprob, logbackoff)));
@@ -1613,7 +1620,7 @@ namespace expgram
       if (debug)
 	std::cerr << "\t1-gram size: " << unigram_size << std::endl;
 
-      for (int shard = 0; shard < index.size(); ++ shard) {
+      for (size_type shard = 0; shard != index.size(); ++ shard) {
 	index[shard].offsets.clear();
 	index[shard].offsets.push_back(0);
 	index[shard].offsets.push_back(unigram_size);
@@ -1643,7 +1650,7 @@ namespace expgram
     // prepare queues, run threads!
     queue_ptr_set_type   queues(shard_size);
     thread_ptr_set_type  threads(shard_size);
-    for (int shard = 0; shard < shard_size; ++ shard) {
+    for (size_type shard = 0; shard != shard_size; ++ shard) {
       queues[shard].reset(new queue_type(1024 * 64));
       threads[shard].reset(new thread_type(reducer_type(*this, *queues[shard], *os_logprobs[shard], *os_backoffs[shard], shard, max_order, debug)));
     }
@@ -1679,10 +1686,10 @@ namespace expgram
       
       if (order == 0 || mode != NGRAMS) continue;
 
-      if (tokens.size() < order + 1) continue;
+      if (static_cast<int>(tokens.size()) < order + 1) continue;
       
       const logprob_type logprob = utils::lexical_cast<double>(tokens.front()) * log_10;
-      const logprob_type logbackoff = (tokens.size() == order + 2 ? (utils::lexical_cast<double>(tokens.back()) * log_10) : 0.0);
+      const logprob_type logbackoff = (static_cast<int>(tokens.size()) == order + 2 ? (utils::lexical_cast<double>(tokens.back()) * log_10) : 0.0);
       
       context.clear();
       
@@ -1703,10 +1710,10 @@ namespace expgram
     
     
     // termination...
-    for (int shard = 0; shard < index.size(); ++ shard)
+    for (size_type shard = 0; shard != index.size(); ++ shard)
       queues[shard]->push(std::make_pair(context_type(), std::make_pair(0.0, 0.0)));
     
-    for (int shard = 0; shard < index.size(); ++ shard) {
+    for (size_type shard = 0; shard != index.size(); ++ shard) {
       threads[shard]->join();
       
       os_logprobs[shard].reset();

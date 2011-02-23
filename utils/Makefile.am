@@ -164,6 +164,7 @@ sample_compress_stream_LDADD = $(LIBUTILS)
 sample_group_aligned_code_SOURCES = sample_group_aligned_code.cpp
 
 sample_indexed_set_SOURCES = sample_indexed_set.cpp
+sample_indexed_set_LDFLAGS = $(BOOST_THREAD_LDFLAGS) $(BOOST_THREAD_LIBS)
 
 sample_istream_line_iterator_SOURCES = sample_istream_line_iterator.cpp
 

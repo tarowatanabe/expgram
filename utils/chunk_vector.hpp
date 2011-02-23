@@ -1,4 +1,7 @@
 // -*- mode: c++ -*-
+//
+//  Copyright(C) 2009-2011 Taro Watanabe <taro.watanabe@nict.go.jp>
+//
 
 #ifndef __UTILS__CHUNK_VECTOR__HPP__
 #define __UTILS__CHUNK_VECTOR__HPP__ 1
@@ -101,7 +104,7 @@ namespace utils
     self_type& operator+=(difference_type __n)
     {
       const difference_type __offset = __n + (__curr - __first);
-      if (__offset >= 0 && __offset < __chunk_size)
+      if (__offset >= 0 && __offset < difference_type(__chunk_size))
 	__curr += __n;
       else {	
 	if (__offset > 0) {
@@ -276,9 +279,9 @@ namespace utils
     static const size_t __next_power2 = size_t(utils::bithack::static_next_largest_power2<_ChunkSize>::result);
     static const size_t chunk_size = (_ChunkSize == 0 ? size_t(1) : (__is_power2 ? _ChunkSize : __next_power2));
     
-    // temporarily use raw allocator for debug purpose...
-    //typedef utils::static_allocator<_Tp, chunk_size, _Alloc>   node_alloc_type;
-    typedef _Alloc   node_alloc_type;
+    typedef utils::static_allocator<_Tp, chunk_size, _Alloc>   node_alloc_type;
+    // use raw allocator for debug purpose...
+    // typedef _Alloc   node_alloc_type;
     typedef typename _Alloc::template rebind<_Tp*>::other map_alloc_type;
   };
   
@@ -795,7 +798,7 @@ namespace utils
       }
     }
     
-    void __uninitialied_fill(iterator first, iterator last, const value_type& __value)
+    void __uninitialized_fill(iterator first, iterator last, const value_type& __value)
     {
       // TODO: support for safer exception...
       

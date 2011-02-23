@@ -1,5 +1,5 @@
 # boost.m4: Locate Boost headers and libraries for autoconf-based projects.
-# Copyright (C) 2007, 2008, 2009  Benoit Sigoure <tsuna@lrde.epita.fr>
+# Copyright (C) 2007, 2008, 2009, 2010, 2011  Benoit Sigoure <tsuna@lrde.epita.fr>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 m4_define([_BOOST_SERIAL], [m4_translit([
-# serial 12
+# serial 14
 ], [#
 ], [])])
 
@@ -52,8 +52,12 @@ m4_pattern_forbid([^_?BOOST_])
 #                [ACTION-IF-FOUND], [ACTION-IF-NOT-FOUND])
 # --------------------------------------------------------
 # Same as AC_EGREP_CPP, but leave the result in conftest.i.
-# PATTERN is *not* overquoted, as in AC_EGREP_CPP.  It could be useful
-# to turn this into a macro which extracts the value of any macro.
+#
+# SED-PROGRAM is *not* overquoted, as in AC_EGREP_CPP.  It is expanded
+# in double-quotes, so escape your double quotes.
+#
+# It could be useful to turn this into a macro which extracts the
+# value of any macro.
 m4_define([_BOOST_SED_CPP],
 [AC_LANG_PREPROC_REQUIRE()dnl
 AC_REQUIRE([AC_PROG_SED])dnl
@@ -98,6 +102,7 @@ set x $boost_version_req 0 0 0
 IFS=$boost_save_IFS
 shift
 boost_version_req=`expr "$[1]" '*' 100000 + "$[2]" '*' 100 + "$[3]"`
+boost_version_req_string=$[1].$[2].$[3]
 AC_ARG_WITH([boost],
    [AS_HELP_STRING([--with-boost=DIR],
                    [prefix of Boost $1 @<:@guess@:>@])])dnl
@@ -115,7 +120,7 @@ fi
 AC_SUBST([DISTCHECK_CONFIGURE_FLAGS],
          ["$DISTCHECK_CONFIGURE_FLAGS '--with-boost=$with_boost'"])
 boost_save_CPPFLAGS=$CPPFLAGS
-  AC_CACHE_CHECK([for Boost headers version >= $boost_version_req],
+  AC_CACHE_CHECK([for Boost headers version >= $boost_version_req_string],
     [boost_cv_inc_path],
     [boost_cv_inc_path=no
 AC_LANG_PUSH([C++])dnl
@@ -183,24 +188,25 @@ AC_LANG_POP([C++])dnl
     ])
     case $boost_cv_inc_path in #(
       no)
-        boost_errmsg="cannot find Boost headers version >= $boost_version_req"
+        boost_errmsg="cannot find Boost headers version >= $boost_version_req_string"
         m4_if([$2], [],  [AC_MSG_ERROR([$boost_errmsg])],
                         [AC_MSG_NOTICE([$boost_errmsg])])
         $2
         ;;#(
       yes)
         BOOST_CPPFLAGS=
-        AC_DEFINE([HAVE_BOOST], [1],
-                  [Defined if the requested minimum BOOST version is satisfied])
         ;;#(
       *)
         AC_SUBST([BOOST_CPPFLAGS], ["-I$boost_cv_inc_path"])
         ;;
     esac
+  if test x"$boost_cv_inc_path" != xno; then
+  AC_DEFINE([HAVE_BOOST], [1],
+            [Defined if the requested minimum BOOST version is satisfied])
   AC_CACHE_CHECK([for Boost's header version],
     [boost_cv_lib_version],
     [m4_pattern_allow([^BOOST_LIB_VERSION$])dnl
-     _BOOST_SED_CPP([/^boost-lib-version = /{s///;s/\"//g;p;g;}],
+     _BOOST_SED_CPP([/^boost-lib-version = /{s///;s/\"//g;p;q;}],
                     [#include <boost/version.hpp>
 boost-lib-version = BOOST_LIB_VERSION],
     [boost_cv_lib_version=`cat conftest.i`])])
@@ -211,6 +217,7 @@ boost-lib-version = BOOST_LIB_VERSION],
         AC_MSG_ERROR([invalid value: boost_major_version=$boost_major_version])
         ;;
     esac
+fi
 CPPFLAGS=$boost_save_CPPFLAGS
 ])# BOOST_REQUIRE
 
@@ -290,6 +297,7 @@ dnl The else branch is huge and wasn't intended on purpose.
 AC_LANG_PUSH([C++])dnl
 AS_VAR_PUSHDEF([Boost_lib], [boost_cv_lib_$1])dnl
 AS_VAR_PUSHDEF([Boost_lib_LDFLAGS], [boost_cv_lib_$1_LDFLAGS])dnl
+AS_VAR_PUSHDEF([Boost_lib_LDPATH], [boost_cv_lib_$1_LDPATH])dnl
 AS_VAR_PUSHDEF([Boost_lib_LIBS], [boost_cv_lib_$1_LIBS])dnl
 BOOST_FIND_HEADER([$3])
 boost_save_CPPFLAGS=$CPPFLAGS
@@ -396,6 +404,7 @@ dnl generated only once above (before we start the for loops).
       LIBS=$boost_save_LIBS
       if test x"$Boost_lib" = xyes; then
         Boost_lib_LDFLAGS="-L$boost_ldpath -R$boost_ldpath"
+        Boost_lib_LDPATH="$boost_ldpath"
         break 6
       else
         boost_failed_libs="$boost_failed_libs@$boost_lib@"
@@ -410,14 +419,17 @@ rm -f conftest.$ac_objext
 ])
 case $Boost_lib in #(
   no) _AC_MSG_LOG_CONFTEST
-    AC_MSG_ERROR([cannot not find the flags to link with Boost $1])
+    AC_MSG_ERROR([cannot find the flags to link with Boost $1])
     ;;
 esac
 AC_SUBST(AS_TR_CPP([BOOST_$1_LDFLAGS]), [$Boost_lib_LDFLAGS])
+AC_SUBST(AS_TR_CPP([BOOST_$1_LDPATH]), [$Boost_lib_LDPATH])
+AC_SUBST([BOOST_LDPATH], [$Boost_lib_LDPATH])
 AC_SUBST(AS_TR_CPP([BOOST_$1_LIBS]), [$Boost_lib_LIBS])
 CPPFLAGS=$boost_save_CPPFLAGS
 AS_VAR_POPDEF([Boost_lib])dnl
 AS_VAR_POPDEF([Boost_lib_LDFLAGS])dnl
+AS_VAR_POPDEF([Boost_lib_LDPATH])dnl
 AS_VAR_POPDEF([Boost_lib_LIBS])dnl
 AC_LANG_POP([C++])dnl
 fi
@@ -535,13 +547,13 @@ AC_DEFUN([BOOST_GRAPH],
 
 
 # BOOST_IOSTREAMS([PREFERRED-RT-OPT])
-# -------------------------------
+# -----------------------------------
 # Look for Boost.IOStreams.  For the documentation of PREFERRED-RT-OPT, see the
 # documentation of BOOST_FIND_LIB above.
 AC_DEFUN([BOOST_IOSTREAMS],
 [BOOST_FIND_LIB([iostreams], [$1],
-                [boost/iostreams/device/file.hpp],
-                [boost::iostreams::file fd(""); ])
+                [boost/iostreams/device/file_descriptor.hpp],
+                [boost::iostreams::file_descriptor fd; fd.close();])
 ])# BOOST_IOSTREAMS
 
 
@@ -602,13 +614,43 @@ AC_DEFUN([BOOST_PREPROCESSOR],
 
 # BOOST_PROGRAM_OPTIONS([PREFERRED-RT-OPT])
 # -----------------------------------------
-# Look for Boost.Program_options.  For the documentation of PREFERRED-RT-OPT, see
-# the documentation of BOOST_FIND_LIB above.
+# Look for Boost.Program_options.  For the documentation of PREFERRED-RT-OPT,
+# see the documentation of BOOST_FIND_LIB above.
 AC_DEFUN([BOOST_PROGRAM_OPTIONS],
 [BOOST_FIND_LIB([program_options], [$1],
                 [boost/program_options.hpp],
                 [boost::program_options::options_description d("test");])
 ])# BOOST_PROGRAM_OPTIONS
+
+
+
+# _BOOST_PYTHON_CONFIG(VARIABLE, FLAG)
+# ------------------------------------
+# Save VARIABLE, and define it via `python-config --FLAG`.
+# Substitute BOOST_PYTHON_VARIABLE.
+m4_define([_BOOST_PYTHON_CONFIG],
+[AC_SUBST([BOOST_PYTHON_$1],
+          [`python-config --$2 2>/dev/null`])dnl
+boost_python_save_$1=$$1
+$1="$$1 $BOOST_PYTHON_$1"])
+
+
+# BOOST_PYTHON([PREFERRED-RT-OPT])
+# --------------------------------
+# Look for Boost.Python.  For the documentation of PREFERRED-RT-OPT,
+# see the documentation of BOOST_FIND_LIB above.
+AC_DEFUN([BOOST_PYTHON],
+[_BOOST_PYTHON_CONFIG([CPPFLAGS], [includes])
+_BOOST_PYTHON_CONFIG([LDFLAGS],   [ldflags])
+_BOOST_PYTHON_CONFIG([LIBS],      [libs])
+m4_pattern_allow([^BOOST_PYTHON_MODULE$])dnl
+BOOST_FIND_LIB([python], [$1],
+               [boost/python.hpp],
+               [], [BOOST_PYTHON_MODULE(empty) {}])
+CPPFLAGS=$boost_python_save_CPPFLAGS
+LDFLAGS=$boost_python_save_LDFLAGS
+LIBS=$boost_python_save_LIBS
+])# BOOST_PYTHON
 
 
 # BOOST_REF()
@@ -722,7 +764,7 @@ LIBS="$LIBS $boost_cv_pthread_flag"
 #   threading: -pthread (Linux), -pthreads (Solaris) or -mthreads (Mingw32)"
 CPPFLAGS="$CPPFLAGS $boost_cv_pthread_flag"
 BOOST_FIND_LIB([thread], [$1],
-                [boost/thread.hpp], [boost::thread t; boost::mutex m;])
+               [boost/thread.hpp], [boost::thread t; boost::mutex m;])
 BOOST_THREAD_LIBS="$BOOST_THREAD_LIBS $boost_cv_pthread_flag"
 BOOST_CPPFLAGS="$BOOST_CPPFLAGS $boost_cv_pthread_flag"
 LIBS=$boost_threads_save_LIBS
@@ -893,8 +935,9 @@ AC_DEFUN([_BOOST_FIND_COMPILER_TAG],
 [AC_REQUIRE([AC_PROG_CXX])dnl
 AC_REQUIRE([AC_CANONICAL_HOST])dnl
 AC_CACHE_CHECK([for the toolset name used by Boost for $CXX], [boost_cv_lib_tag],
-[AC_LANG_PUSH([C++])dnl
-  boost_cv_lib_tag=unknown
+[boost_cv_lib_tag=unknown
+if test x$boost_cv_inc_path != xno; then
+  AC_LANG_PUSH([C++])dnl
   # The following tests are mostly inspired by boost/config/auto_link.hpp
   # The list is sorted to most recent/common to oldest compiler (in order
   # to increase the likelihood of finding the right compiler with the
@@ -908,8 +951,9 @@ AC_CACHE_CHECK([for the toolset name used by Boost for $CXX], [boost_cv_lib_tag]
   #   como, edg, kcc, bck, mp, sw, tru, xlc
   # I'm not sure about my test for `il' (be careful: Intel's ICC pre-defines
   # the same defines as GCC's).
-  # TODO: Move the test on GCC 4.4 up once it's released.
   for i in \
+    _BOOST_gcc_test(4, 5) \
+    _BOOST_gcc_test(4, 4) \
     _BOOST_gcc_test(4, 3) \
     _BOOST_gcc_test(4, 2) \
     _BOOST_gcc_test(4, 1) \
@@ -929,7 +973,6 @@ AC_CACHE_CHECK([for the toolset name used by Boost for $CXX], [boost_cv_lib_tag]
     "defined __ICC && (defined __unix || defined __unix__) @ il" \
     "defined __ICL @ iw" \
     "defined _MSC_VER && _MSC_VER == 1300 @ vc7" \
-    _BOOST_gcc_test(4, 4) \
     _BOOST_gcc_test(2, 95) \
     "defined __MWERKS__ && __MWERKS__ <= 0x32FF @ cw9" \
     "defined _MSC_VER && _MSC_VER < 1300 && !defined UNDER_CE @ vc6" \
@@ -969,7 +1012,7 @@ AC_LANG_POP([C++])dnl
       boost_cv_lib_tag=
       ;;
   esac
-])dnl end of AC_CACHE_CHECK
+fi])dnl end of AC_CACHE_CHECK
 ])# _BOOST_FIND_COMPILER_TAG
 
 
