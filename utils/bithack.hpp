@@ -1,4 +1,7 @@
 // -*- mode: c++ -*-
+//
+//  Copyright(C) 2009-2011 Taro Watanabe <taro.watanabe@nict.go.jp>
+//
 
 #ifndef __UTILS__BITHACK__HPP__
 #define __UTILS__BITHACK__HPP__
@@ -9,8 +12,16 @@ namespace utils
 {
   namespace bithack
   {
+    template <typename Tp>
+    inline
+    Tp branch(const bool cond, const Tp& x, const Tp& y)
+    {
+      const Tp mask = Tp(cond) - 1;
+      return ((~mask) & x) | (mask & y);
+    }
     
     template <typename Tp>
+    inline
     Tp abs(Tp x)
     {
       const Tp mask = x >> (sizeof(Tp) * 8 - 1);
@@ -18,6 +29,14 @@ namespace utils
     }
 
     template <typename Tp>
+    inline
+    Tp average(Tp x, Tp y)
+    {
+      return (x & y) + ((x ^ y) >> 1);
+    }
+
+    template <typename Tp>
+    inline
     Tp max(Tp x, Tp y)
     {
       // integral only max..
@@ -25,6 +44,7 @@ namespace utils
     }
 
     template <typename Tp>
+    inline
     Tp min(Tp x, Tp y)
     {
       // integral only min...
@@ -49,11 +69,8 @@ namespace utils
     struct static_is_power2
     {
       static const bool result = ! (X & (X - 1));
+      static const bool value = ! (X & (X - 1));
     };
-    
-    
-    
-
     
     // next-largest-power2
     template <size_t ByteSize>
@@ -134,6 +151,7 @@ namespace utils
       
     public:
       static const uint64_t result = uint64_t(X6 + 1);
+      static const uint64_t value = uint64_t(X6 + 1);
     };
 
     // most significant bit...
@@ -215,6 +233,7 @@ namespace utils
       static const uint64_t X6 = uint64_t(X5) | (uint64_t(X5) >> 32);
     public:
       static const uint64_t result = (X6 & ~(X6 >> 1));
+      static const uint64_t value = (X6 & ~(X6 >> 1));
     };
     
     // bit-count
@@ -261,7 +280,7 @@ namespace utils
       __bit_count_mask __mask;
     };
     
-  template <>
+    template <>
     struct struct_bit_count<2>
     {
       size_t operator()(uint16_t x) const
@@ -277,13 +296,11 @@ namespace utils
     {
       size_t operator()(uint32_t x) const
       {
-	x = (x & 0x55555555) + (x >> 1 & 0x55555555);
-	x = (x & 0x33333333) + (x >> 2 & 0x33333333);
-	x = (x + (x >> 4)) & 0x0F0F0F0F;
-	x = x + (x >> 8);
-	x = (x + (x >> 16)) & 0x0000003F;
+	// from http://graphics.stanford.edu/~seander/bithacks.html
 	
-	return static_cast<size_t>(x);
+	x = x - ((x >> 1) & 0x55555555);                    // reuse input as temporary
+	x = (x & 0x33333333) + ((x >> 2) & 0x33333333);     // temp
+	return static_cast<size_t>((((x + (x >> 4)) & 0xF0F0F0F) * 0x1010101) >> 24);
       }
     };
     
@@ -292,14 +309,14 @@ namespace utils
     {
       size_t operator()(uint64_t x) const
       {
-	x = (x & 0x5555555555555555LLU) + (x >> 1 & 0x5555555555555555LLU);
-	x = (x & 0x3333333333333333LLU) + (x >> 2 & 0x3333333333333333LLU);
-	x = x + (x >> 4) & 0x0F0F0F0F0F0F0F0FLLU;
+	x = x - ((x >> 1) & 0x5555555555555555LLU);
+	x = (x & 0x3333333333333333LLU) + ((x >> 2) & 0x3333333333333333LLU);
+	x = (x + (x >> 4)) & 0x0F0F0F0F0F0F0F0FLLU;
 	x = x + (x >> 8);
 	x = x + (x >> 16);
-	x = x + (x >> 32) & 0x0000007F;
+	x = x + (x >> 32);
 	
-	return static_cast<size_t>(x);
+	return static_cast<size_t>(x & 0xFF);
       }
     };
     
@@ -315,14 +332,15 @@ namespace utils
     struct static_bit_count
     {
     private:
-      static const uint64_t X1 = (uint64_t(X) & 0x5555555555555555LLU) + (uint64_t(X) >> 1 & 0x5555555555555555LLU);
-      static const uint64_t X2 = (uint64_t(X1) & 0x3333333333333333LLU) + (uint64_t(X1) >> 2 & 0x3333333333333333LLU);
-      static const uint64_t X3 = uint64_t(X2) + (uint64_t(X2) >> 4) & 0x0F0F0F0F0F0F0F0FLLU;
-      static const uint64_t X4 = uint64_t(X3) + (uint64_t(X3) >> 8);
-      static const uint64_t X5 = uint64_t(X4) + (uint64_t(X4) >> 16);
-      static const uint64_t X6 = uint64_t(X5) + (uint64_t(X5) >> 32) & 0x0000007F;
+      static const uint64_t X1 = X - ((X >> 1) & 0x5555555555555555LLU);
+      static const uint64_t X2 = (X1 & 0x3333333333333333LLU) + ((X1 >> 2) & 0x3333333333333333LLU);
+      static const uint64_t X3 = (X2 + (X2 >> 4)) & 0x0F0F0F0F0F0F0F0FLLU;
+      static const uint64_t X4 = X3 + (X3 >> 8);
+      static const uint64_t X5 = X4 + (X4 >> 16);
+      static const uint64_t X6 = X5 + (X5 >> 32);
     public:
-      static const uint64_t result = size_t(X6);
+      static const uint64_t result = X6 & 0xFF;
+      static const uint64_t value  = X6 & 0xFF;
     };
     
     // floor_log2
@@ -396,6 +414,7 @@ namespace utils
       static const uint64_t X7 = X6 >> 1;
     public:
       static const uint64_t result = static_bit_count<X7>::result;
+      static const uint64_t value = static_bit_count<X7>::result;
     };
     
     template <typename Tp>
@@ -406,46 +425,6 @@ namespace utils
       return __func(x);
     }
     
-    // conditionally set bit...
-    
-    template <size_t ByteSize>
-    struct struct_bit_set {};
-    
-    template <>
-    struct struct_bit_set<1> 
-    {
-      uint8_t operator()(uint8_t x, size_t pos, bool flag=true) const
-      {
-	
-      }
-    };
-
-    template <>
-    struct struct_bit_set<2> 
-    {
-      uint16_t operator()(uint16_t x, size_t pos, bool flag=true) const
-      {
-	
-      }
-    };
-    
-    template <>
-    struct struct_bit_set<4> 
-    {
-      uint32_t operator()(uint32_t x, size_t pos, bool flag=true) const
-      {
-	
-      }
-    };
-    
-    template <>
-    struct struct_bit_set<8> 
-    {
-      uint64_t operator()(uint64_t x, size_t pos, bool flag=true) const
-      {
-	
-      }
-    };
   };
 };
 

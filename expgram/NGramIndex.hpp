@@ -443,7 +443,7 @@ namespace expgram
       case 1: return __shards.front().offsets[1];
       default:
 	size_type sum = 0;
-	for (int shard = 0; shard < __shards.size(); ++ shard)
+	for (size_type shard = 0; shard < __shards.size(); ++ shard)
 	  sum += __shards[shard].offsets[order] - __shards[shard].offsets[order - 1];
 	return sum;
       }
@@ -452,7 +452,7 @@ namespace expgram
     stat_type stat_index() const
     {
       stat_type stat;
-      for (int shard = 0; shard < __shards.size(); ++ shard)
+      for (size_type shard = 0; shard < __shards.size(); ++ shard)
 	stat += __shards[shard].stat_index();
       return stat;
     }
@@ -460,7 +460,7 @@ namespace expgram
     stat_type stat_pointer() const
     {
       stat_type stat;
-      for (int shard = 0; shard < __shards.size(); ++ shard)
+      for (size_type shard = 0; shard < __shards.size(); ++ shard)
 	stat += __shards[shard].stat_pointer();
       return stat;
     }

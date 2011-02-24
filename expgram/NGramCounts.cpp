@@ -27,7 +27,7 @@ namespace expgram
   void dump_file(const Path& file, const Data& data)
   {
     boost::iostreams::filtering_ostream os;
-    os.push(boost::iostreams::file_sink(file.native_file_string(), std::ios_base::out | std::ios_base::trunc), 1024 * 1024);
+    os.push(boost::iostreams::file_sink(file.string(), std::ios_base::out | std::ios_base::trunc), 1024 * 1024);
     
     const int64_t file_size = sizeof(typename Data::value_type) * data.size();
     for (int64_t offset = 0; offset < file_size; offset += 1024 * 1024)
@@ -156,7 +156,7 @@ namespace expgram
 	if (unigrams[id])
 	  queues[0]->push(std::make_pair(context_type(1, id), unigrams[id]));
       
-      for (int shard = 0; shard < queues.size(); ++ shard)
+      for (size_type shard = 0; shard != queues.size(); ++ shard)
 	queues[shard]->push(std::make_pair(context_type(), 0.0));
     }
   };
@@ -291,19 +291,19 @@ namespace expgram
     thread_ptr_set_type threads_reducer(index.size());
 
     // first, run reducer...
-    for (int shard = 0; shard < counts.size(); ++ shard) {
+    for (size_type shard = 0; shard != counts.size(); ++ shard) {
       queues[shard].reset(new queue_type(1024 * 64));
       threads_reducer[shard].reset(new thread_type(reducer_type(*this, *queues[shard], shard, debug)));
     }
     
     // second, mapper...
-    for (int shard = 0; shard < counts.size(); ++ shard)
+    for (size_type shard = 0; shard != counts.size(); ++ shard)
       threads_mapper[shard].reset(new thread_type(mapper_type(*this, queues, shard, debug)));
     
     // termination...
-    for (int shard = 0; shard < counts.size(); ++ shard)
+    for (size_type shard = 0; shard != counts.size(); ++ shard)
       threads_mapper[shard]->join();
-    for (int shard = 0; shard < counts.size(); ++ shard)
+    for (size_type shard = 0; shard != counts.size(); ++ shard)
       threads_reducer[shard]->join();
   }
   
@@ -369,7 +369,7 @@ namespace expgram
     
     void operator()()
     {
-      const id_type bos_id = ngram.index.vocab()[vocab_type::BOS];
+      //const id_type bos_id = ngram.index.vocab()[vocab_type::BOS];
       const id_type unk_id = ngram.index.vocab()[vocab_type::UNK];
 
       count_of_counts.clear();
@@ -438,12 +438,12 @@ namespace expgram
       const size_type pos_context_first = ngram.index[0].offsets[order_prev - 1];
       const size_type pos_context_last  = ngram.index[0].offsets[order_prev];
 
-      const id_type bos_id = ngram.index.vocab()[vocab_type::BOS];
+      //const id_type bos_id = ngram.index.vocab()[vocab_type::BOS];
       const id_type unk_id = ngram.index.vocab()[vocab_type::UNK];
       
-      size_type pos_last_prev = pos_context_last;
+      //size_type pos_last_prev = pos_context_last;
       for (size_type pos_context = pos_context_first; pos_context < pos_context_last; ++ pos_context)
-	if (id_type(pos_context) % ngram.index.size() == shard) {
+	if (static_cast<int>(id_type(pos_context) % ngram.index.size()) == shard) {
 	  
 	  count_type total = 0;
 	  count_type observed = 0;
@@ -453,7 +453,7 @@ namespace expgram
 	  
 	  double logsum_lower_order = boost::numeric::bounds<double>::lowest();
 	  
-	  for (int shard = 0; shard < ngram.index.size(); ++ shard) {
+	  for (size_type shard = 0; shard != ngram.index.size(); ++ shard) {
 	    const size_type pos_first = ngram.index[shard].children_first(pos_context);
 	    const size_type pos_last  = ngram.index[shard].children_last(pos_context);
 	    
@@ -484,7 +484,7 @@ namespace expgram
 	  for (/**/; logsum >= 0.0; ++ total) {
 	    logsum = boost::numeric::bounds<double>::lowest();
 	    
-	    for (int shard = 0; shard < ngram.index.size(); ++ shard) {
+	    for (size_type shard = 0; shard != ngram.index.size(); ++ shard) {
 	      const size_type pos_first = ngram.index[shard].children_first(pos_context);
 	      const size_type pos_last  = ngram.index[shard].children_last(pos_context);
 
@@ -531,7 +531,7 @@ namespace expgram
 	    if (denominator > 0.0)
 	      backoffs[0][pos_context] = utils::mathop::log(numerator) - utils::mathop::log(denominator);
 	    else {
-	      for (int shard = 0; shard < ngram.index.size(); ++ shard) {
+	      for (size_type shard = 0; shard != ngram.index.size(); ++ shard) {
 		const size_type pos_first = ngram.index[shard].children_first(pos_context);
 		const size_type pos_last  = ngram.index[shard].children_last(pos_context);
 
@@ -632,7 +632,7 @@ namespace expgram
 
       const size_type offset = ngram.counts[shard].offset;
 
-      const id_type bos_id = ngram.index.vocab()[vocab_type::BOS];
+      //const id_type bos_id = ngram.index.vocab()[vocab_type::BOS];
       const id_type unk_id = ngram.index.vocab()[vocab_type::UNK];
 
       context_type     context;
@@ -777,10 +777,10 @@ namespace expgram
 
       std::vector<count_map_type, std::allocator<count_map_type> > counts(index.size());
       thread_ptr_set_type threads(index.size());
-      for (int shard = 0; shard < index.size(); ++ shard)
+      for (size_type shard = 0; shard != index.size(); ++ shard)
 	threads[shard].reset(new thread_type(mapper_type(*this, counts[shard], shard, remove_unk)));
       
-      for (int shard = 0; shard < index.size(); ++ shard) {
+      for (size_type shard = 0; shard != index.size(); ++ shard) {
 	threads[shard]->join();
 	
 	for (int order = 1; order <= index.order(); ++ order) {
@@ -808,7 +808,7 @@ namespace expgram
     ngram.backoffs.reserve(index.size());
     ngram.logprobs.resize(index.size());
     ngram.backoffs.resize(index.size());
-    for (int shard = 0; shard < index.size(); ++ shard) {
+    for (size_type shard = 0; shard != index.size(); ++ shard) {
       ngram.logprobs[shard].offset = counts[shard].offset;
       ngram.backoffs[shard].offset = counts[shard].offset;
     }
@@ -817,7 +817,7 @@ namespace expgram
     // we will allocate large memory here...
     logprob_shard_set_type logprobs(index.size());
     backoff_shard_set_type backoffs(index.size());
-    for (int shard = 0; shard < index.size(); ++ shard) {
+    for (size_type shard = 0; shard != index.size(); ++ shard) {
       logprobs[shard].clear();
       backoffs[shard].clear();
       
@@ -936,10 +936,10 @@ namespace expgram
       typedef NGramCountsEstimateBigramMapper mapper_type;
       
       thread_ptr_set_type threads(index.size());
-      for (int shard = 0; shard < threads.size(); ++ shard)
+      for (size_type shard = 0; shard != threads.size(); ++ shard)
 	threads[shard].reset(new thread_type(mapper_type(*this, discounts, logprobs, backoffs, shard, remove_unk, debug)));
       
-      for (int shard = 0; shard < threads.size(); ++ shard)
+      for (size_type shard = 0; shard != threads.size(); ++ shard)
 	threads[shard]->join();
     }
     
@@ -949,21 +949,21 @@ namespace expgram
       
       thread_ptr_set_type threads(index.size());
       offset_set_type     offsets(index.size(), size_type(0));
-      for (int shard = 0; shard < offsets.size(); ++ shard) {
+      for (size_type shard = 0; shard != offsets.size(); ++ shard) {
 	offsets[shard] = ngram.index[shard].offsets[2];
 	
 	std::cerr << "shard: " << shard << " offset: " << offsets[shard] << std::endl;
       }
       
-      for (int shard = 0; shard < threads.size(); ++ shard)
+      for (size_type shard = 0; shard != threads.size(); ++ shard)
 	threads[shard].reset(new thread_type(mapper_type(*this, discounts, logprobs, backoffs, offsets, shard, remove_unk, debug)));
       
-      for (int shard = 0; shard < threads.size(); ++ shard)
+      for (size_type shard = 0; shard != threads.size(); ++ shard)
 	threads[shard]->join();
     }
     
     // finalize...
-    for (int shard = 0; shard < index.size(); ++ shard) {
+    for (size_type shard = 0; shard != index.size(); ++ shard) {
       const path_type tmp_dir      = utils::tempfile::tmp_dir();
       const path_type path_logprob = utils::tempfile::file_name(tmp_dir / "expgram.logprob.XXXXXX");
       const path_type path_backoff = utils::tempfile::file_name(tmp_dir / "expgram.backoff.XXXXXX");
@@ -1147,7 +1147,7 @@ namespace expgram
     thread_ptr_set_type threads(index.size());
     queue_ptr_set_type  queues(index.size());
     
-    for (int shard = 0; shard < index.size(); ++ shard) {
+    for (size_type shard = 0; shard != index.size(); ++ shard) {
       queues[shard].reset(new queue_type(1024 * 64));
       threads[shard].reset(new thread_type(mapper_type(*this, *queues[shard], shard)));
     }
@@ -1174,7 +1174,7 @@ namespace expgram
     }
     
     pqueue_type pqueue;
-    for (int shard = 0; shard < index.size(); ++ shard) {
+    for (size_type shard = 0; shard != index.size(); ++ shard) {
       context_count_type context_count;
       queues[shard]->pop_swap(context_count);
       
@@ -1282,7 +1282,7 @@ namespace expgram
     shards.reserve(utils::lexical_cast<size_t>(siter->second));
     shards.resize(utils::lexical_cast<size_t>(siter->second));
 
-    if (shard >= shards.size())
+    if (shard >= static_cast<int>(shards.size()))
       throw std::runtime_error("shard is out of range");
     
     std::ostringstream stream_shard;
@@ -1295,6 +1295,9 @@ namespace expgram
   inline
   void open_shards(const Path& path, Shards& shards)
   {
+    typedef size_t    size_type;
+    typedef ptrdiff_t difference_type;
+    
     typedef utils::repository repository_type;
     
     repository_type rep(path, repository_type::read);
@@ -1307,7 +1310,7 @@ namespace expgram
     shards.reserve(utils::lexical_cast<size_t>(siter->second));
     shards.resize(utils::lexical_cast<size_t>(siter->second));
     
-    for (int shard = 0; shard < shards.size(); ++ shard) {
+    for (size_type shard = 0; shard != shards.size(); ++ shard) {
       std::ostringstream stream_shard;
       stream_shard << "ngram-" << std::setfill('0') << std::setw(6) << shard;
       
@@ -1368,6 +1371,9 @@ namespace expgram
   inline
   void write_shards(const Path& path, const Shards& shards)
   {
+    typedef size_t    size_type;
+    typedef ptrdiff_t difference_type;
+    
     typedef utils::repository repository_type;
     
     typedef TaskWriter<Path, typename Shards::value_type>    task_type;
@@ -1385,7 +1391,7 @@ namespace expgram
     thread_ptr_set_type threads(shards.size());
     
     {
-      for (int shard = 1; shard < shards.size(); ++ shard) {
+      for (size_type shard = 1; shard != shards.size(); ++ shard) {
 	std::ostringstream stream_shard;
 	stream_shard << "ngram-" << std::setfill('0') << std::setw(6) << shard;
 	
@@ -1398,7 +1404,7 @@ namespace expgram
       task_type(path / stream_shard.str(), shards[0])();
       
       // terminate...
-      for (int shard = 1; shard < shards.size(); ++ shard)
+      for (size_type shard = 1; shard != shards.size(); ++ shard)
 	threads[shard]->join();
     }
     
@@ -1408,10 +1414,10 @@ namespace expgram
   void NGramCounts::open(const path_type& path, const size_type shard_size, const bool unique)
   {
     if (! boost::filesystem::exists(path))
-      throw std::runtime_error(std::string("no file: ") + path.file_string());
+      throw std::runtime_error(std::string("no file: ") + path.string());
     
     if (! boost::filesystem::is_directory(path))
-      throw std::runtime_error(std::string("invalid path: ") + path.file_string());
+      throw std::runtime_error(std::string("invalid path: ") + path.string());
 
     clear();
     
@@ -1632,7 +1638,7 @@ namespace expgram
 	    indexer(shard, ngram, prefix, words);
 	    words.clear();
 	    
-	    if (context.size() != order)
+	    if (static_cast<int>(context.size()) != order)
 	      indexer(shard, ngram, os_count, debug);
 	  }
 	  
@@ -1784,7 +1790,7 @@ namespace expgram
 	std::string line;
 	tokens_type tokens;
 	
-	for (int i = 0; i < paths.size(); ++ i) {
+	for (size_type i = 0; i != paths.size(); ++ i) {
 	  streams[i].reset(new utils::compress_istream(paths[i], 1024 * 1024));
 	  
 	  context_count_stream_ptr_type context_stream(new context_count_stream_type());
@@ -1870,7 +1876,7 @@ namespace expgram
       }
       
       // termination...
-      for (int ngram_shard = 0; ngram_shard < queues.size2(); ++ ngram_shard)
+      for (size_type ngram_shard = 0; ngram_shard != queues.size2(); ++ ngram_shard)
 	queues(shard, ngram_shard)->push(std::make_pair(ngram_context_type(), count_type(0)));
     }
   };
@@ -1940,7 +1946,7 @@ namespace expgram
       
       ngram_context_count_type context_count;
       
-      for (int ngram_shard = 0; ngram_shard < queues.size1(); ++ ngram_shard) {
+      for (size_type ngram_shard = 0; ngram_shard != queues.size1(); ++ ngram_shard) {
 	queues(ngram_shard, shard)->pop_swap(context_count);
 	
 	if (! context_count.first.empty()) {
@@ -2036,7 +2042,7 @@ namespace expgram
     
     ostream_ptr_set_type os_counts(shard_size);
     path_set_type        path_counts(shard_size);
-    for (int shard = 0; shard < shard_size; ++ shard) {
+    for (size_type shard = 0; shard != shard_size; ++ shard) {
       path_counts[shard] = utils::tempfile::directory_name(tmp_dir / "expgram.count.XXXXXX");
       
       utils::tempfile::insert(path_counts[shard]);
@@ -2121,7 +2127,7 @@ namespace expgram
     if (debug)
       std::cerr << "\t1-gram size: " << unigram_size << std::endl;
     
-    for (int shard = 0; shard < index.size(); ++ shard) {
+    for (size_type shard = 0; shard != index.size(); ++ shard) {
       index[shard].offsets.clear();
       index[shard].offsets.push_back(0);
       index[shard].offsets.push_back(unigram_size);
@@ -2145,7 +2151,7 @@ namespace expgram
       
       queue_ptr_set_type   queues(shard_size);
       thread_ptr_set_type  threads(shard_size);
-      for (int shard = 0; shard < shard_size; ++ shard) {
+      for (size_type shard = 0; shard != shard_size; ++ shard) {
 	queues[shard].reset(new queue_type(1024 * 64));
 	threads[shard].reset(new thread_type(reducer_type(*this, *queues[shard], *os_counts[shard], shard, debug)));
       }
@@ -2178,16 +2184,16 @@ namespace expgram
 	  tokens.clear();
 	  tokens.insert(tokens.end(), tokenizer.begin(), tokenizer.end());
 	  
-	  if (tokens.size() != order + 1)
-	    throw std::runtime_error(std::string("invalid google ngram format...") + index_file.file_string());
+	  if (static_cast<int>(tokens.size()) != order + 1)
+	    throw std::runtime_error(std::string("invalid google ngram format...") + index_file.string());
 	  
 	  const path_type path_ngram = ngram_dir / static_cast<std::string>(tokens.front());
 	  
 	  if (! boost::filesystem::exists(path_ngram))
-	    throw std::runtime_error(std::string("invalid google ngram format... no file: ") + path_ngram.file_string());
+	    throw std::runtime_error(std::string("invalid google ngram format... no file: ") + path_ngram.string());
 
 	  if (debug >= 2)
-	    std::cerr << "\tfile: " << path_ngram.file_string() << std::endl;
+	    std::cerr << "\tfile: " << path_ngram.string() << std::endl;
 	  
 	  utils::compress_istream is(path_ngram, 1024 * 1024);
 	  
@@ -2199,7 +2205,7 @@ namespace expgram
 	    tokens.insert(tokens.end(), tokenizer.begin(), tokenizer.end());
 	    
 	    // invalid ngram...?
-	    if (tokens.size() != order + 1)
+	    if (static_cast<int>(tokens.size()) != order + 1)
 	      continue;
 	    
 	    context.clear();
@@ -2220,17 +2226,17 @@ namespace expgram
       }
       
       // termination...
-      for (int shard = 0; shard < index.size(); ++ shard)
+      for (size_type shard = 0; shard != index.size(); ++ shard)
 	queues[shard]->push(std::make_pair(context_type(), count_type(0)));
 
-      for (int shard = 0; shard < index.size(); ++ shard) {
+      for (size_type shard = 0; shard != index.size(); ++ shard) {
 	threads[shard]->join();
 	os_counts[shard].reset();
       }
 
       ::sync();
       
-      for (int shard = 0; shard < index.size(); ++ shard) {
+      for (size_type shard = 0; shard != index.size(); ++ shard) {
 	while (! shard_data_type::count_set_type::exists(path_counts[shard]))
 	  boost::thread::yield();
 	
@@ -2281,16 +2287,16 @@ namespace expgram
 	    
 	    if (tokens.empty()) continue;
 	    
-	    if (tokens.size() != order + 1)
-	      throw std::runtime_error(std::string("invalid google ngram format...") + index_file.file_string());
+	    if (static_cast<int>(tokens.size()) != order + 1)
+	      throw std::runtime_error(std::string("invalid google ngram format...") + index_file.string());
 	    
 	    const path_type path_ngram = ngram_dir / static_cast<std::string>(tokens.front());
 	    
 	    if (debug >= 2)
-	      std::cerr << "\tfile: " << path_ngram.file_string() << std::endl;
+	      std::cerr << "\tfile: " << path_ngram.string() << std::endl;
 	    
 	    if (! boost::filesystem::exists(path_ngram))
-	      throw std::runtime_error(std::string("invalid google ngram format... no file: ") + path_ngram.file_string());
+	      throw std::runtime_error(std::string("invalid google ngram format... no file: ") + path_ngram.string());
 	    
 	    paths_ngram.push_back(path_ngram);
 	  }
@@ -2305,7 +2311,7 @@ namespace expgram
 	
 	std::vector<path_set_type, std::allocator<path_set_type> > paths(shard_size);
 	
-	for (int i = 0; i < paths_ngram.size(); ++ i)
+	for (size_type i = 0; i < paths_ngram.size(); ++ i)
 	  paths[i % paths.size()].push_back(paths_ngram[i]);
 	
 	// map-reduce here!
@@ -2313,32 +2319,32 @@ namespace expgram
 	thread_ptr_set_type     threads_mapper(index.size());
 	thread_ptr_set_type     threads_reducer(index.size());
 	
-	for (int i = 0; i < shard_size; ++ i)
-	  for (int j = 0; j < shard_size; ++ j)
+	for (size_type i = 0; i != shard_size; ++ i)
+	  for (size_type j = 0; j != shard_size; ++ j)
 	    queues(i, j).reset(new queue_type(1024 * 32));
 	
 	// first, reducer...
-	for (int shard = 0; shard < shard_size; ++ shard)
+	for (size_type shard = 0; shard != shard_size; ++ shard)
 	  threads_reducer[shard].reset(new thread_type(reducer_type(*this, vocab_map, queues, *os_counts[shard], shard, debug)));
 	
 	// second, mapper...
-	for (int shard = 0; shard < shard_size; ++ shard)
+	for (size_type shard = 0; shard != shard_size; ++ shard)
 	  threads_mapper[shard].reset(new thread_type(mapper_type(*this, vocab_map, paths[shard], queues, shard, debug)));
 	
 	// termination...
-	for (int shard = 0; shard < shard_size; ++ shard)
+	for (size_type shard = 0; shard != shard_size; ++ shard)
 	  threads_mapper[shard]->join();
-	for (int shard = 0; shard < shard_size; ++ shard)
+	for (size_type shard = 0; shard != shard_size; ++ shard)
 	  threads_reducer[shard]->join();
       }
       
       // termination...
-      for (int shard = 0; shard < shard_size; ++ shard)
+      for (size_type shard = 0; shard != shard_size; ++ shard)
 	os_counts[shard].reset();
 
       ::sync();
       
-      for (int shard = 0; shard < shard_size; ++ shard) {
+      for (size_type shard = 0; shard != shard_size; ++ shard) {
 	
 	while (! shard_data_type::count_set_type::exists(path_counts[shard]))
 	  boost::thread::yield();

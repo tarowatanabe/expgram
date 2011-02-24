@@ -164,7 +164,7 @@ namespace expgram
     stat_type stat_count() const 
     {
       stat_type stat;
-      for (int shard = 0; shard < counts.size(); ++ shard)
+      for (size_type shard = 0; shard < counts.size(); ++ shard)
 	stat += counts[shard].stat();
       return stat;
     }

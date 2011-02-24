@@ -170,7 +170,7 @@ namespace utils
       
       // if not directory, remove
       if (boost::filesystem::exists(repository_dir) && ! boost::filesystem::is_directory(repository_dir))
-	boost::filesystem::remove_all(repository_dir);
+	utils::filesystem::remove_all(repository_dir);
       
       // create directory
       boost::filesystem::create_directories(repository_dir);
@@ -178,7 +178,7 @@ namespace utils
       // remove all the files under the repository_dir
       boost::filesystem::directory_iterator iter_end;
       for (boost::filesystem::directory_iterator iter(repository_dir); iter != iter_end; ++ iter)
-	boost::filesystem::remove_all(*iter);
+	utils::filesystem::remove_all(*iter);
     }
     
     // close the repository... this will dump the contents of props at props.list if write-mode
@@ -188,7 +188,11 @@ namespace utils
       if ((repository_mode == write || modified) && ! repository_dir.empty() && boost::filesystem::exists(repository_dir) && boost::filesystem::is_directory(repository_dir)) {
 	
 	// here, dump contents of props at "prop.list"
+#if BOOST_FILESYSTEM_VERSION == 2
+	std::ofstream os((repository_dir / "prop.list").file_string().c_str());
+#else
 	std::ofstream os((repository_dir / "prop.list").string().c_str());
+#endif
 	os.exceptions(std::ostream::eofbit | std::ostream::failbit | std::ostream::badbit);
 	props_type::const_iterator piter_end = props.end();
 	for (props_type::const_iterator piter = props.begin(); piter != piter_end; ++ piter)
@@ -254,7 +258,11 @@ namespace utils
       if (! boost::filesystem::exists(prop_path) || boost::filesystem::is_directory(prop_path))
 	throw std::runtime_error("invalid property list");
       
+#if BOOST_FILESYSTEM_VERSION == 2
+      std::ifstream is(prop_path.file_string().c_str());
+#else
       std::ifstream is(prop_path.string().c_str());
+#endif
       std::string line;
       
       while (std::getline(is, line)) {

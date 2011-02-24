@@ -1,4 +1,7 @@
 // -*- mode: c++ -*-
+//
+//  Copyright(C) 2009-2011 Taro Watanabe <taro.watanabe@nict.go.jp>
+//
 
 #ifndef __UTILS__STATIC_ALLOCATOR__HPP__
 #define __UTILS__STATIC_ALLOCATOR__HPP__ 1
@@ -76,7 +79,7 @@ namespace utils
       if (! p) return;
       
       pool_type& pool = local_pool();
-      if (pool.size < 1024 * 8) {
+      if (pool.size < 256) {
 	*((pointer*) p) = pool.pool;
 	pool.pool = p;
 	++ pool.size;

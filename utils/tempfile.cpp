@@ -1,3 +1,7 @@
+//
+//  Copyright(C) 2009-2011 Taro Watanabe <taro.watanabe@nict.go.jp>
+//
+
 #include <unistd.h>
 #include <signal.h>
 

@@ -164,6 +164,7 @@ sample_compress_stream_LDADD = $(LIBUTILS)
 sample_group_aligned_code_SOURCES = sample_group_aligned_code.cpp
 
 sample_indexed_set_SOURCES = sample_indexed_set.cpp
+sample_indexed_set_LDFLAGS = $(BOOST_THREAD_LDFLAGS) $(BOOST_THREAD_LIBS)
 
 sample_istream_line_iterator_SOURCES = sample_istream_line_iterator.cpp
 
@@ -192,8 +193,8 @@ sample_static_allocator_LDFLAGS = $(BOOST_THREAD_LDFLAGS)
 sample_static_allocator_LDADD = $(BOOST_THREAD_LIBS)
 
 sample_subprocess_SOURCES = sample_subprocess.cpp
-sample_subprocess_LDFLAGS = $(BOOST_IOSTREAMS_LDFLAGS) $(BOOST_THREAD_LDFLAGS)
-sample_subprocess_LDADD = $(BOOST_IOSTREAMS_LIBS) $(BOOST_SYSTEM_LIBS) $(BOOST_THREAD_LIBS)
+sample_subprocess_LDFLAGS = $(BOOST_IOSTREAMS_LDFLAGS) $(BOOST_THREAD_LDFLAGS) $(BOOST_FILESYSTEM_LDFLAGS)
+sample_subprocess_LDADD = $(BOOST_IOSTREAMS_LIBS) $(BOOST_SYSTEM_LIBS) $(BOOST_THREAD_LIBS) $(BOOST_FILESYSTEM_LIBS)
 
 sample_succinct_vector_SOURCES = sample_succinct_vector.cpp
 sample_succinct_vector_LDFLAGS = $(BOOST_FILESYSTEM_LDFLAGS) $(BOOST_THREAD_LDFLAGS)

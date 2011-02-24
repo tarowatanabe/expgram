@@ -128,7 +128,7 @@ namespace expgram
     // vocabulary...
     __vocab.open(rep.path("vocab"));
     
-    for (int shard = 0; shard < __shards.size(); ++ shard) {
+    for (size_type shard = 0; shard != __shards.size(); ++ shard) {
       std::ostringstream stream_shard;
       stream_shard << "ngram-" << std::setfill('0') << std::setw(6) << shard;
       
@@ -183,7 +183,7 @@ namespace expgram
     thread_ptr_set_type threads(__shards.size());
     
     {
-      for (int shard = 0; shard < __shards.size(); ++ shard) {
+      for (size_type shard = 0; shard != __shards.size(); ++ shard) {
 	std::ostringstream stream_shard;
 	stream_shard << "ngram-" << std::setfill('0') << std::setw(6) << shard;
 	
@@ -193,7 +193,7 @@ namespace expgram
       // main thread will simply dump vocab
       __vocab.write(file / "vocab");
       
-      for (int shard = 0; shard < __shards.size(); ++ shard)
+      for (size_type shard = 0; shard != __shards.size(); ++ shard)
 	threads[shard]->join();
     }
     
@@ -215,7 +215,7 @@ namespace expgram
       throw std::runtime_error("no shard size...");
     __shards.resize(utils::lexical_cast<size_t>(siter->second));
 
-    if (shard >= __shards.size())
+    if (shard >= static_cast<int>(__shards.size()))
       throw std::runtime_error("shard is out of range...");
     
     // order

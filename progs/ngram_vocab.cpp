@@ -174,24 +174,24 @@ void accumulate_counts(const path_set_type& __paths,
   path_set_type::const_iterator piter_end = __paths.end();
   for (path_set_type::const_iterator piter = __paths.begin(); piter != piter_end; ++ piter) {
     if (*piter != "-" && ! boost::filesystem::exists(*piter))
-      throw std::runtime_error(std::string("no file? ") + piter->file_string());
+      throw std::runtime_error(std::string("no file? ") + piter->string());
     
     if (boost::filesystem::is_directory(*piter)) {
       const path_type path = *piter;
       const path_type ngram_dir = path / "1gms";
       
       if (! boost::filesystem::exists(ngram_dir))
-	throw std::runtime_error("no directory? " + ngram_dir.directory_string());
+	throw std::runtime_error("no directory? " + ngram_dir.string());
       if (! boost::filesystem::is_directory(ngram_dir))
-	throw std::runtime_error(std::string("no at directory? ") + ngram_dir.directory_string());
+	throw std::runtime_error(std::string("no at directory? ") + ngram_dir.string());
       
       const path_type vocab_file        = ngram_dir / "vocab.gz";
       const path_type vocab_sorted_file = ngram_dir / "vocab_cs.gz";
       
       if (! boost::filesystem::exists(vocab_file))
-	throw std::runtime_error(std::string("no vocab? ") + vocab_file.file_string());
+	throw std::runtime_error(std::string("no vocab? ") + vocab_file.string());
       if (! boost::filesystem::exists(vocab_sorted_file))
-	throw std::runtime_error(std::string("no vocab_cs? ") + vocab_sorted_file.file_string());
+	throw std::runtime_error(std::string("no vocab_cs? ") + vocab_sorted_file.string());
       
       paths.push_back(vocab_sorted_file);
     } else
@@ -227,10 +227,10 @@ void accumulate_counts(const path_set_type& __paths,
     path_set_type::const_iterator piter_end = paths.end();
     for (path_set_type::const_iterator piter = paths.begin(); piter != piter_end; ++ piter) {
       if (*piter != "-" && ! boost::filesystem::exists(*piter))
-	throw std::runtime_error(std::string("no file? ") + piter->file_string());
+	throw std::runtime_error(std::string("no file? ") + piter->string());
 
       if (debug)
-	std::cerr << "file: " << piter->file_string() << std::endl;
+	std::cerr << "file: " << piter->string() << std::endl;
       
       utils::compress_istream is(*piter, 1024 * 1024);
       std::string line;
@@ -292,10 +292,10 @@ void accumulate_counts(const path_set_type& __paths,
     path_set_type::const_iterator piter_end = paths.end();
     for (path_set_type::const_iterator piter = paths.begin(); piter != piter_end; ++ piter) {
       if (*piter != "-" && ! boost::filesystem::exists(*piter))
-	throw std::runtime_error(std::string("no file? ") + piter->file_string());
+	throw std::runtime_error(std::string("no file? ") + piter->string());
       
       if (debug)
-	std::cerr << "file: " << piter->file_string() << std::endl;
+	std::cerr << "file: " << piter->string() << std::endl;
 
       queue.push(*piter);
     }
@@ -356,10 +356,10 @@ void accumulate_corpus(const path_set_type& paths,
     path_set_type::const_iterator piter_end = paths.end();
     for (path_set_type::const_iterator piter = paths.begin(); piter != piter_end; ++ piter) {
       if (*piter != "-" && ! boost::filesystem::exists(*piter))
-	throw std::runtime_error(std::string("no file? ") + piter->file_string());
+	throw std::runtime_error(std::string("no file? ") + piter->string());
       
       if (debug)
-	std::cerr << "file: " << piter->file_string() << std::endl;
+	std::cerr << "file: " << piter->string() << std::endl;
       
       utils::compress_istream is(*piter, 1024 * 1024);
       std::string line;
@@ -420,10 +420,10 @@ void accumulate_corpus(const path_set_type& paths,
     path_set_type::const_iterator piter_end = paths.end();
     for (path_set_type::const_iterator piter = paths.begin(); piter != piter_end; ++ piter) {
       if (*piter != "-" && ! boost::filesystem::exists(*piter))
-	throw std::runtime_error(std::string("no file? ") + piter->file_string());
+	throw std::runtime_error(std::string("no file? ") + piter->string());
       
       if (debug)
-	std::cerr << "file: " << piter->file_string() << std::endl;
+	std::cerr << "file: " << piter->string() << std::endl;
 
       queue.push(*piter);
     }
