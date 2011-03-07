@@ -83,6 +83,7 @@ static_allocator.hpp \
 subprocess.hpp \
 succinct_vector.hpp \
 tempfile.hpp \
+thread_specific_ptr.hpp \
 vector2.hpp \
 vector3.hpp \
 vector2_aligned.hpp \
