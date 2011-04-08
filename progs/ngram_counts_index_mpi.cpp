@@ -1016,7 +1016,7 @@ void index_ngram_unique(const path_type& path, ngram_type& ngram, Stream& os_cou
       tokens.clear();
       tokens.insert(tokens.end(), tokenizer.begin(), tokenizer.end());
       
-      if (tokens.size() != order + 1)
+      if (static_cast<int>(tokens.size()) != order + 1)
 	throw std::runtime_error(std::string("invalid google ngram format...") + index_file.string());
       
       const path_type path_ngram = ngram_dir / static_cast<std::string>(tokens.front());
@@ -1037,7 +1037,7 @@ void index_ngram_unique(const path_type& path, ngram_type& ngram, Stream& os_cou
 	tokens.insert(tokens.end(), tokenizer.begin(), tokenizer.end());
 	
 	// invalid ngram...?
-	if (tokens.size() != order + 1)
+	if (static_cast<int>(tokens.size()) != order + 1)
 	  continue;
 	
 	// check if the rank of this ngram data is mpi_rank...
