@@ -204,7 +204,7 @@ void accumulate_counts(const path_set_type& __paths,
     path_thread_type    paths_thread(num_threads, path_map_type(max_order));
     
     std::vector<boost::shared_ptr<subprocess_type> > subprocess(path_filter.empty() ? 0 : num_threads);
-    for (int shard = 0; shard < subprocess.size(); ++ shard)
+    for (size_t shard = 0; shard < subprocess.size(); ++ shard)
       subprocess[shard].reset(new subprocess_type(path_filter));
     
     for (int shard = 0; shard < num_threads; ++ shard) {
@@ -266,7 +266,7 @@ void accumulate_counts(const path_set_type& __paths,
     path_thread_type    paths_thread(num_threads, path_map_type(max_order));
     
     std::vector<boost::shared_ptr<subprocess_type> > subprocess(path_filter.empty() ? 0 : num_threads);
-    for (int shard = 0; shard < subprocess.size(); ++ shard)
+    for (size_t shard = 0; shard < subprocess.size(); ++ shard)
       subprocess[shard].reset(new subprocess_type(path_filter));
     
     for (int shard = 0; shard < num_threads; ++ shard) {
@@ -328,7 +328,7 @@ void accumulate_corpus(const path_set_type& paths,
     path_thread_type    paths_thread(num_threads, path_map_type(max_order));
 
     std::vector<boost::shared_ptr<subprocess_type> > subprocess(path_filter.empty() ? 0 : num_threads);
-    for (int shard = 0; shard < subprocess.size(); ++ shard)
+    for (size_t shard = 0; shard < subprocess.size(); ++ shard)
       subprocess[shard].reset(new subprocess_type(path_filter));
     
     for (int shard = 0; shard < num_threads; ++ shard) {
@@ -389,7 +389,7 @@ void accumulate_corpus(const path_set_type& paths,
     path_thread_type    paths_thread(num_threads, path_map_type(max_order));
     
     std::vector<boost::shared_ptr<subprocess_type> > subprocess(path_filter.empty() ? 0 : num_threads);
-    for (int shard = 0; shard < subprocess.size(); ++ shard)
+    for (size_t shard = 0; shard < subprocess.size(); ++ shard)
       subprocess[shard].reset(new subprocess_type(path_filter));
     
     for (int shard = 0; shard < num_threads; ++ shard) {
