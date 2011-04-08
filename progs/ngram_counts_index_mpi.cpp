@@ -605,7 +605,7 @@ void index_ngram_mapper_root(intercomm_type& reducer, const path_type& path, ngr
 	
 	if (tokens.empty()) continue;
 	
-	if (tokens.size() != order + 1)
+	if (static_cast<int>(tokens.size()) != order + 1)
 	  throw std::runtime_error(std::string("invalid google ngram format...") + index_file.string());
 
 	const path_type path_ngram = ngram_dir / static_cast<std::string>(tokens.front());
@@ -639,7 +639,7 @@ void index_ngram_mapper_root(intercomm_type& reducer, const path_type& path, ngr
     }
     
     path_set_type paths_map;
-    for (int i = 0; i < paths_ngram.size(); ++ i) {
+    for (size_t i = 0; i < paths_ngram.size(); ++ i) {
       const int rank = i % mpi_size;
       
       if (rank == mpi_rank)
@@ -776,7 +776,7 @@ struct IndexNGramReducer
 	  indexer(shard, ngram, prefix, words);
 	  words.clear();
 	  
-	  if (context.size() != order)
+	  if (static_cast<int>(context.size()) != order)
 	    indexer(shard, ngram, os_count, debug);
 	}
 	

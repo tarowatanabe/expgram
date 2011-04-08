@@ -603,7 +603,7 @@ struct GoogleNGramCounts
 	  
 	  if (tokens.empty()) continue;
 	  
-	  if (tokens.size() != order + 1)
+	  if (static_cast<int>(tokens.size()) != order + 1)
 	    throw std::runtime_error("invalid google's ngram structure...");
 	  
 	  break;
@@ -684,7 +684,7 @@ struct GoogleNGramCounts
 	
 	  if (tokens.empty()) continue;
 	
-	  if (tokens.size() != order + 1)
+	  if (static_cast<int>(tokens.size()) != order + 1)
 	    throw std::runtime_error(std::string("invalid google ngram format...") + index_file.string());
 	
 	  const path_type path_ngram = ngram_dir / static_cast<std::string>(tokens.front());
@@ -801,8 +801,8 @@ struct GoogleNGramCounts
 	tokens.clear();
 	tokens.insert(tokens.end(), tokenizer.begin(), tokenizer.end());
 	
-	if (tokens.size() < 2) continue;
-	if (tokens.size() - 1 > max_order) continue;
+	if (static_cast<int>(tokens.size()) < 2) continue;
+	if (static_cast<int>(tokens.size()) - 1 > max_order) continue;
 	
 	
 	ngram_count_set_type::id_type id = counts.root();
