@@ -413,6 +413,9 @@ void estimate_unigram(const ngram_counts_type& ngram,
       }
     }
     
+    // bos is assigned -99 from srilm
+    shard_data.logprobs[bos_id] = -99;
+    
     // fallback to uniform distribution...
     if (shard_data.smooth == boost::numeric::bounds<logprob_type>::lowest())
       shard_data.smooth = utils::mathop::log(uniform_distribution);

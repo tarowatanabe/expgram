@@ -920,6 +920,9 @@ namespace expgram
 	}
       }
       
+      // bos is assigned -99 from srilm
+      logprobs[0][bos_id] = -99;
+      
       // fallback to uniform distribution...
       if (ngram.smooth == boost::numeric::bounds<logprob_type>::lowest())
 	ngram.smooth = utils::mathop::log(uniform_distribution);
