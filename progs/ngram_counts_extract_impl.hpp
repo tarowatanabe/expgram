@@ -610,7 +610,7 @@ struct GoogleNGramCounts
 	}
 
 	if (! tokens.empty()) {
-	  os << piter->leaf() << '\t';
+	  os << path_type(piter->leaf()).string() << '\t';
 	  std::copy(tokens.begin(), tokens.end() - 2, std::ostream_iterator<utils::piece>(os, " "));
 	  os << *(tokens.end() - 2) << '\n';
 	  
