@@ -772,9 +772,9 @@ namespace expgram
     }
     os << '\n';
     
-    const double log_10 = utils::mathop::log(10.0);
+    const double log_10 = M_LN10;
 
-    static const logprob_type logprob_srilm_min = double(-99) * utils::mathop::log(10.0);
+    static const logprob_type logprob_srilm_min = double(-99) * M_LN10;
 
     // unigrams...
     {
@@ -1513,7 +1513,7 @@ namespace expgram
       NGRAMS,
     } mode_type;
     
-    const double log_10 = utils::mathop::log(10.0);
+    const double log_10 = M_LN10;
     
     utils::compress_istream is(path, 1024 * 1024);
     
