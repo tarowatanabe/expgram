@@ -443,7 +443,7 @@ namespace expgram
       for (size_type pos = pos_first; pos < pos_last; ++ pos)
 	++ counts[logprobs(pos, order)];
       
-      Quantizer::quantize(counts, ngram.logprob_min(), codebook, codemap, debug >= 2);
+      Quantizer::quantize(ngram, counts, codebook, codemap, debug >= 2);
       
       for (size_type pos = pos_first; pos < pos_last; ++ pos) {
 	codemap_type::const_iterator citer = codemap.find(logprobs(pos, order));

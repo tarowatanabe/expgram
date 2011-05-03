@@ -88,7 +88,7 @@ void quantize(ngram_type& ngram, OStream& os, LogProbs& logprobs, Counts& counts
   for (size_type pos = pos_first; pos < pos_last; ++ pos)
     ++ counts[logprobs(pos, order)];
   
-  expgram::Quantizer::quantize(counts, ngram.logprob_min(), codebook, codemap);
+  expgram::Quantizer::quantize(ngram, counts, codebook, codemap);
   
   for (size_type pos = pos_first; pos < pos_last; ++ pos) {
     typename Codemap::const_iterator citer = codemap.find(logprobs(pos, order));
