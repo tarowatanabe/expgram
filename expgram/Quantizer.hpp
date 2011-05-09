@@ -17,11 +17,11 @@ namespace expgram
   {
     typedef size_t size_type;
     
-    template <typename Counts, typename LogProb, typename CodeBook, typename CodeMap>
+    template <typename NGram, typename Counts, typename CodeBook, typename CodeMap>
     static inline
-    void quantize(Counts& counts, const LogProb& logprob_min, CodeBook& codebook, CodeMap& codemap, const int debug=0)
+    void quantize(const NGram& ngram, Counts& counts, CodeBook& codebook, CodeMap& codemap, const int debug=0)
     {
-      typedef LogProb logprob_type;
+      typedef typename NGram::logprob_type logprob_type;
       typedef std::pair<logprob_type, size_type> logprob_count_type;
       typedef std::vector<logprob_count_type, std::allocator<logprob_count_type> > logprob_set_type;
       typedef std::multimap<size_type, logprob_set_type, std::greater<size_type>, std::allocator<std::pair<const size_type, logprob_set_type> > > quantized_type;
@@ -31,15 +31,26 @@ namespace expgram
       
       size_type num_center = 256;
       
-      // zeros...
+      // logprob min
       {
-	typename Counts::iterator citer = counts.begin();
-	if (citer != counts.end() && citer->first == logprob_min) {
+	typename Counts::iterator citer = counts.find(ngram.logprob_min());
+	if (citer != counts.end()) {
 	  quantized.insert(std::make_pair(citer->second, logprob_set_type(1, *citer)));
 	  counts.erase(citer);
 	  -- num_center;
 	}
       }
+      
+      // logprob bos
+      {
+	typename Counts::iterator citer = counts.find(ngram.logprob_bos());
+	if (citer != counts.end()) {
+	  quantized.insert(std::make_pair(citer->second, logprob_set_type(1, *citer)));
+	  counts.erase(citer);
+	  -- num_center;
+	}
+      }
+
       
       // ones...?
       {
@@ -49,7 +60,7 @@ namespace expgram
 	  counts.erase(citer);
 	  -- num_center;
 	}
-      }      
+      }
       
       // split...
       typename Counts::const_iterator citer_zero = counts.upper_bound(0.0);

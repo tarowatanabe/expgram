@@ -1,3 +1,6 @@
+2011-5-x
+	* Quantization fix for unigram probability for <s>
+
 2011-4-18
 	* unigram probability <s> is assigned -99.0, taken from SRILM
 

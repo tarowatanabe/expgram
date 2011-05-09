@@ -413,8 +413,8 @@ void estimate_unigram(const ngram_counts_type& ngram,
       }
     }
     
-    // bos is assigned -99 from srilm
-    shard_data.logprobs[bos_id] = -99;
+    // bos is assigned -99 (base 10) from srilm
+    shard_data.logprobs[bos_id] = expgram::NGram::logprob_bos();
     
     // fallback to uniform distribution...
     if (shard_data.smooth == boost::numeric::bounds<logprob_type>::lowest())
