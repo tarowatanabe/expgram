@@ -410,7 +410,7 @@ struct MapReduceLine
 	bool found = false;
 	
 	for (int rank = 1; rank < mpi_size && is; ++ rank)
-	  if (device[rank]->test() && std::getline(is, line)) {
+	  if (device[rank]->test() && device[rank]->flush(true) == 0 && std::getline(is, line)) {
 	    *stream[rank] << line << '\n';
 	    found = true;
 	  }
