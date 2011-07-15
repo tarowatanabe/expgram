@@ -374,6 +374,11 @@ struct MapReduceLine
     const int mpi_size = MPI::COMM_WORLD.Get_size();
     
     std::auto_ptr<subprocess_type> subprocess(path_filter.empty() ? 0 : new subprocess_type(path_filter));
+
+    queue_type queue(1);
+    std::auto_ptr<thread_type> thread(subprocess.get()
+				      ? new thread_type(task_type(queue, *subprocess, vocabulary, output_path, paths_counts, max_malloc))
+				      : new thread_type(task_type(queue, vocabulary, output_path, paths_counts, max_malloc)));
     
     std::vector<ostream_ptr_type, std::allocator<ostream_ptr_type> > stream(mpi_size);
     std::vector<odevice_ptr_type, std::allocator<odevice_ptr_type> > device(mpi_size);
@@ -385,12 +390,7 @@ struct MapReduceLine
       stream[rank]->push(boost::iostreams::gzip_compressor());
       stream[rank]->push(*device[rank]);
     }
-    
-    queue_type queue(1);
-    std::auto_ptr<thread_type> thread(subprocess.get()
-				      ? new thread_type(task_type(queue, *subprocess, vocabulary, output_path, paths_counts, max_malloc))
-				      : new thread_type(task_type(queue, vocabulary, output_path, paths_counts, max_malloc)));
-  
+      
     std::string line;
     line_set_type lines;
 
@@ -477,15 +477,15 @@ struct MapReduceLine
     const int mpi_size = MPI::COMM_WORLD.Get_size();
     
     std::auto_ptr<subprocess_type> subprocess(path_filter.empty() ? 0 : new subprocess_type(path_filter));
-    
-    istream_type stream;
-    stream.push(boost::iostreams::gzip_decompressor());
-    stream.push(idevice_type(0, line_tag, 1024 * 1024));
-    
+        
     queue_type queue(1);
     std::auto_ptr<thread_type> thread(subprocess.get()
 				      ? new thread_type(task_type(queue, *subprocess, vocabulary, output_path, paths_counts, max_malloc))
 				      : new thread_type(task_type(queue, vocabulary, output_path, paths_counts, max_malloc)));
+
+    istream_type stream;
+    stream.push(boost::iostreams::gzip_decompressor());
+    stream.push(idevice_type(0, line_tag, 1024 * 1024));
     
     std::string line;
     line_set_type lines;
@@ -563,20 +563,20 @@ struct MapReduceFile
     
     std::auto_ptr<subprocess_type> subprocess(path_filter.empty() ? 0 : new subprocess_type(path_filter));
     
-    std::vector<ostream_ptr_type, std::allocator<ostream_ptr_type> > stream(mpi_size);
-    
-    for (int rank = 1; rank < mpi_size; ++ rank)
-      stream[rank].reset(new ostream_type(rank, file_tag, 4096));
-
-    std::vector<int, std::allocator<int> >                   num_file(mpi_size, 0);
-    std::vector<MPI::Request, std::allocator<MPI::Request> > requests(mpi_size);
-    for (int rank = 1; rank < mpi_size; ++ rank)
-      requests[rank] = MPI::COMM_WORLD.Irecv(&num_file[rank], 1, MPI::INT, rank, count_tag);
-    
     queue_type queue(1);
     std::auto_ptr<thread_type> thread(subprocess.get()
 				      ? new thread_type(task_type(queue, *subprocess, vocabulary, output_path, paths_counts, max_malloc))
 				      : new thread_type(task_type(queue, vocabulary, output_path, paths_counts, max_malloc)));
+    
+    std::vector<ostream_ptr_type, std::allocator<ostream_ptr_type> > stream(mpi_size);
+    
+    for (int rank = 1; rank < mpi_size; ++ rank)
+      stream[rank].reset(new ostream_type(rank, file_tag, 4096));
+    
+    std::vector<int, std::allocator<int> >                   num_file(mpi_size, 0);
+    std::vector<MPI::Request, std::allocator<MPI::Request> > requests(mpi_size);
+    for (int rank = 1; rank < mpi_size; ++ rank)
+      requests[rank] = MPI::COMM_WORLD.Irecv(&num_file[rank], 1, MPI::INT, rank, count_tag);
     
     int non_found_iter = 0;
 
@@ -668,12 +668,12 @@ struct MapReduceFile
     
     std::auto_ptr<subprocess_type> subprocess(path_filter.empty() ? 0 : new subprocess_type(path_filter));
     
-    istream_type stream(0, file_tag, 4096);
-    
     queue_type queue(1);
     std::auto_ptr<thread_type> thread(subprocess.get()
 				      ? new thread_type(task_type(queue, *subprocess, vocabulary, output_path, paths_counts, max_malloc))
 				      : new thread_type(task_type(queue, vocabulary, output_path, paths_counts, max_malloc)));
+    
+    istream_type stream(0, file_tag, 4096);
     
     int num_file = 0;
     std::string file;
