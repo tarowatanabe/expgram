@@ -1,0 +1,60 @@
+#ignore objects and archives.
+*.[oa]
+*.lo
+*.la
+
+# libtool related stuff
+.libs
+.deps
+
+
+## ignore backup
+*~
+
+### makefiles
+Makefile
+Makefile.in
+
+### automakes
+.DS_Store
+COPYING
+INSTALL
+aclocal.m4
+autom4te.cache
+config.log
+config.status
+configure
+libtool
+
+
+
+sample_arc_list
+sample_bithack
+sample_bitpack
+sample_byte_aligned_code
+sample_chunk_vector
+sample_compress_stream
+sample_group_aligned_code
+sample_indexed_set
+sample_istream_line_iterator
+sample_lockfree_list_queue
+sample_lockfree_queue
+sample_map_file_allocator
+sample_packed_vector
+sample_simple_vector
+sample_static_allocator
+sample_subprocess
+sample_succinct_vector
+sample_tempfile
+sample_vector2
+sample_vertical_coded_vector
+bitpack_gen.py
+group_aligned_code_offsets.py
+bitpack16_impl.hpp
+bitpack32_impl.hpp
+bitpack64_impl.hpp
+bitpack8_impl.hpp
+config.h
+config.h.in
+group_aligned_code_offsets.hpp
+stamp-h1
