@@ -117,6 +117,30 @@ dist_noinst_SCRIPTS = \
 bitpack_gen.py \
 group_aligned_code_offsets.py
 
+IGNORES = \
+bitpack16_impl.hpp \
+bitpack32_impl.hpp \
+bitpack64_impl.hpp \
+bitpack8_impl.hpp \
+config.h \
+config.h.in \
+group_aligned_code_offsets.hpp \
+stamp-h1
+
+noinst_DATA = .gitignore
+
+.gitignore: Makefile.am
+	cat $(top_builddir)/.gitignore > .gitignore
+	for bin in $(PROGRAMS); do \
+	  echo $$bin >> .gitignore; \
+	done; \
+	for bin in $(SCRIPTS); do \
+	  echo $$bin >> .gitignore; \
+	done; \
+	for bin in $(IGNORES); do \
+	  echo $$bin >> .gitignore; \
+	done
+
 noinst_HEADERS = \
 bitpack_impl.hpp
 
