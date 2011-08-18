@@ -46,6 +46,16 @@ noinst_HEADERS = \
 	ngram_counts_extract_impl.hpp \
 	ngram_vocab_impl.hpp
 
+noinst_DATA = .gitignore
+
+.gitignore: Makefile.am
+	cat $(top_builddir)/.gitignore > .gitignore
+	for bin in $(PROGRAMS); do \
+	  echo $$bin >> .gitignore; \
+	done; \
+	for bin in $(SCRIPTS); do \
+	  echo $$bin >> .gitignore; \
+	done
 
 ### ngram language model
 ngram_SOURCES = ngram.cpp
