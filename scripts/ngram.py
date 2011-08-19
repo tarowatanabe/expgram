@@ -67,15 +67,13 @@ opt_parser = OptionParser(
 
 
 def run_command(command, logfile=None):
-    fp = None
+    
     if logfile:
-        fp = os.popen(command + '>& ' +logfile)
-    else:
-        fp = os.popen(command)
-    while 1:
-        data = fp.read(1)
-        if not data: break
-        stdout.write(data)
+        command += '>& ' + logfile
+
+    retcode = subprocess.Popen(command, shell=True).wait()
+    if retcode < 0:
+        sys.exit(retcode)
 
 def compressed_file(file):
     if not file:
