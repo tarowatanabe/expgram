@@ -1,4 +1,7 @@
-2011-5-x
+2011-8-22
+	* Serious bugfix for mpi-based ngram counts accumulation when readling from single files: check for terminatin condition
+	
+2011-5-9
 	* Quantization fix for unigram probability for <s>
 
 2011-4-18

@@ -448,17 +448,19 @@ struct MapReduceLine
       non_found_iter = loop_sleep(found, non_found_iter);
     }
   
+    bool terminated = false;
     for (;;) {
       bool found = false;
       
-      if (queue.push_swap(lines, true)) {
+      if (! terminated && queue.push_swap(lines, true)) {
 	lines.clear();
+	terminated = true;
 	found = true;
       }
-    
+      
       found |= utils::mpi_terminate_devices(stream, device);
       
-      if (std::count(device.begin(), device.end(), odevice_ptr_type()) == mpi_size) break;
+      if (terminated && std::count(device.begin(), device.end(), odevice_ptr_type()) == mpi_size) break;
       
       non_found_iter = loop_sleep(found, non_found_iter);
     }
