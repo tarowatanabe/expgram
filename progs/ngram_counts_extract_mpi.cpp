@@ -410,15 +410,17 @@ struct MapReduceLine
 	bool found = false;
 	
 	for (int rank = 1; rank < mpi_size && is; ++ rank)
-	  if (device[rank]->test() && device[rank]->flush(true) == 0 && std::getline(is, line)) {
-	    *stream[rank] << line << '\n';
+	  if (device[rank]->test() && device[rank]->flush(true) == 0 && std::getline(is, line)) 
+	    if (! line.empty()) {
+	      *stream[rank] << line << '\n';
+	      found = true;
+	    }
+	
+	if (is && lines.size() < max_lines && queue.empty() && std::getline(is, line)) 
+	  if (! line.empty()) {
+	    lines.push_back(line);
 	    found = true;
 	  }
-	
-	if (is && lines.size() < max_lines && queue.empty() && std::getline(is, line)) {
-	  lines.push_back(line);
-	  found = true;
-	}
 	
 	if (lines.size() >= max_lines && queue.push_swap(lines, true)) {
 	  lines.clear();
@@ -492,13 +494,14 @@ struct MapReduceLine
     std::string line;
     line_set_type lines;
     
-    while (std::getline(stream, line)) {
-      lines.push_back(line);
-      if (lines.size() >= max_lines) {
-	queue.push_swap(lines);
-	lines.clear();
+    while (std::getline(stream, line)) 
+      if (! line.empty()) {
+	lines.push_back(line);
+	if (lines.size() >= max_lines) {
+	  queue.push_swap(lines);
+	  lines.clear();
+	}
       }
-    }
     
     if (! lines.empty())
       queue.push_swap(lines);
