@@ -227,7 +227,7 @@ void ngram_modify_mapper(const ngram_type& ngram, intercomm_type& reducer)
     stream[rank].reset(new ostream_type());
     device[rank].reset(new odevice_type(reducer.comm, rank, modify_tag, 1024 * 1024, false, true));
     
-    stream[rank]->push(boost::iostreams::gzip_compressor());
+    stream[rank]->push(boost::iostreams::zlib_compressor());
     stream[rank]->push(*device[rank]);
 
     stream[rank]->precision(20);
@@ -371,7 +371,7 @@ void ngram_modify_reducer(ngram_type& ngram, intercomm_type& mapper)
     stream[rank].reset(new istream_type());
     device[rank].reset(new idevice_type(mapper.comm, rank, modify_tag, 1024 * 1024));
     
-    stream[rank]->push(boost::iostreams::gzip_decompressor());
+    stream[rank]->push(boost::iostreams::zlib_decompressor());
     stream[rank]->push(*device[rank]);
   }
   

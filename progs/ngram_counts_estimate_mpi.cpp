@@ -265,7 +265,7 @@ void estimate_discounts(const ngram_counts_type& ngram,
   for (int rank = 0; rank < mpi_size; ++ rank) {
     if (rank == mpi_rank) {
       boost::iostreams::filtering_ostream stream;
-      stream.push(boost::iostreams::gzip_compressor());
+      stream.push(boost::iostreams::zlib_compressor());
       stream.push(utils::mpi_device_bcast_sink(rank, 1024 * 1024));
       
       for (int order = 1; order < count_of_counts_map.size(); ++ order) {
@@ -278,7 +278,7 @@ void estimate_discounts(const ngram_counts_type& ngram,
       typedef boost::tokenizer<utils::space_separator, utils::piece::const_iterator, utils::piece> tokenizer_type;
 
       boost::iostreams::filtering_istream stream;
-      stream.push(boost::iostreams::gzip_decompressor());
+      stream.push(boost::iostreams::zlib_decompressor());
       stream.push(utils::mpi_device_bcast_source(rank, 1024 * 1024));
       
       std::string line;
@@ -1053,7 +1053,7 @@ void estimate_bigram(const ngram_counts_type& ngram,
   for (int rank = 0; rank < mpi_size; ++ rank) {
     if (rank == mpi_rank) {
       boost::iostreams::filtering_ostream stream;
-      stream.push(boost::iostreams::gzip_compressor());
+      stream.push(boost::iostreams::zlib_compressor());
       stream.push(utils::mpi_device_bcast_sink(rank, 1024 * 1024));
       
       for (int pos = 0; pos < unigram_size; ++ pos) 
@@ -1061,7 +1061,7 @@ void estimate_bigram(const ngram_counts_type& ngram,
 	  stream.write((char*) &shard_data.backoffs[pos], sizeof(logprob_type));
     } else {
       boost::iostreams::filtering_istream stream;
-      stream.push(boost::iostreams::gzip_decompressor());
+      stream.push(boost::iostreams::zlib_decompressor());
       stream.push(utils::mpi_device_bcast_source(rank, 1024 * 1024));
       
       for (int pos = 0; pos < unigram_size; ++ pos) 
