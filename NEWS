@@ -1,3 +1,6 @@
+2011-9-x
+	* Serious bugfix for mpi-based programs: use of zlib_{compressor,decompressor} when sending data
+
 2011-8-22
 	* Serious bugfix for mpi-based ngram counts accumulation when readling from single files: check for terminatin condition
 	
