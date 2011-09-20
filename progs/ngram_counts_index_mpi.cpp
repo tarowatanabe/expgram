@@ -430,7 +430,7 @@ void index_ngram_mapper(intercomm_type& reducer, const PathSet& paths, ngram_typ
   for (int rank = 0; rank < mpi_size; ++ rank) {
     stream[rank].reset(new ostream_type());
     device[rank].reset(new odevice_type(reducer.comm, rank, count_tag, 1024 * 1024, false, true));
-    stream[rank]->push(boost::iostreams::gzip_compressor());
+    stream[rank]->push(boost::iostreams::zlib_compressor());
     stream[rank]->push(*device[rank]);
   }
 
@@ -634,7 +634,7 @@ void index_ngram_mapper_root(intercomm_type& reducer, const path_type& path, ngr
     ostream_ptr_set_type stream(mpi_size);
     for (int rank = 1; rank < mpi_size; ++ rank) {
       stream[rank].reset(new ostream_type());
-      stream[rank]->push(boost::iostreams::gzip_compressor());
+      stream[rank]->push(boost::iostreams::zlib_compressor());
       stream[rank]->push(utils::mpi_device_sink(MPI::COMM_WORLD, rank, file_tag, 1024 * 4));
     }
     
@@ -677,7 +677,7 @@ void index_ngram_mapper_others(intercomm_type& reducer, ngram_type& ngram)
     
     path_set_type paths_map;
     boost::iostreams::filtering_istream stream;
-    stream.push(boost::iostreams::gzip_decompressor());
+    stream.push(boost::iostreams::zlib_decompressor());
     stream.push(utils::mpi_device_source(MPI::COMM_WORLD, 0, file_tag, 1024 * 4));
     
     std::string line;
@@ -849,7 +849,7 @@ void index_ngram_reducer(intercomm_type& mapper, ngram_type& ngram, Stream& os_c
     stream[rank].reset(new istream_type());
     device[rank].reset(new idevice_type(mapper.comm, rank, count_tag, 1024 * 1024));
     
-    stream[rank]->push(boost::iostreams::gzip_decompressor());
+    stream[rank]->push(boost::iostreams::zlib_decompressor());
     stream[rank]->push(*device[rank]);
     
     context_count_stream_ptr_type context_stream(new context_count_stream_type());

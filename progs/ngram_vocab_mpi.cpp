@@ -218,7 +218,7 @@ void reduce_counts_root(count_set_type& counts)
   
   for (int rank = 1; rank < mpi_size; ++ rank) {
     istream_type is;
-    is.push(boost::iostreams::gzip_decompressor());
+    is.push(boost::iostreams::zlib_decompressor());
     is.push(idevice_type(rank, count_tag, 1024 * 1024));
     
     std::string line;
@@ -252,7 +252,7 @@ void reduce_counts_others(const count_set_type& counts)
   const int mpi_size = MPI::COMM_WORLD.Get_size();
   
   ostream_type os;
-  os.push(boost::iostreams::gzip_compressor());
+  os.push(boost::iostreams::zlib_compressor());
   os.push(odevice_type(0, count_tag, 1024 * 1024));
   
   for (word_type::id_type id = 0; id != counts.size(); ++ id)
@@ -327,7 +327,7 @@ struct MapReduceLine
       stream[rank].reset(new ostream_type());
       device[rank].reset(new odevice_type(rank, line_tag, 1024 * 1024, false, true));
     
-      stream[rank]->push(boost::iostreams::gzip_compressor());
+      stream[rank]->push(boost::iostreams::zlib_compressor());
       stream[rank]->push(*device[rank]);
     }
     
@@ -421,7 +421,7 @@ struct MapReduceLine
     std::auto_ptr<subprocess_type> subprocess(path_filter.empty() ? 0 : new subprocess_type(path_filter));
     
     istream_type stream;
-    stream.push(boost::iostreams::gzip_decompressor());
+    stream.push(boost::iostreams::zlib_decompressor());
     stream.push(idevice_type(0, line_tag, 1024 * 1024));
     
     queue_type queue(1);

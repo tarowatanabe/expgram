@@ -170,7 +170,7 @@ int main(int argc, char** argv)
       
       if (vocabulary_size) {
 	boost::iostreams::filtering_ostream os;
-	os.push(boost::iostreams::gzip_compressor());
+	os.push(boost::iostreams::zlib_compressor());
 	os.push(utils::mpi_device_bcast_sink(0, 1024 * 1024));
 	
 	vocabulary_type::const_iterator viter_end = vocabulary.end();
@@ -205,7 +205,7 @@ int main(int argc, char** argv)
       MPI::COMM_WORLD.Bcast(&vocabulary_size, 1, MPI::INT, 0);
       if (vocabulary_size) {
 	boost::iostreams::filtering_istream is;
-	is.push(boost::iostreams::gzip_decompressor());
+	is.push(boost::iostreams::zlib_decompressor());
 	is.push(utils::mpi_device_bcast_source(0, 1024 * 1024));
 	
 	std::string word;
@@ -256,7 +256,7 @@ void reduce_counts_root(path_map_type& paths_counts)
   for (int order = 1; order <= max_order; ++ order)
     for (int rank = 1; rank < mpi_size; ++ rank) {
       istream_type is;
-      is.push(boost::iostreams::gzip_decompressor());
+      is.push(boost::iostreams::zlib_decompressor());
       is.push(idevice_type(rank, path_tag, 4096));
       
       std::string line;
@@ -286,7 +286,7 @@ void reduce_counts_others(const path_map_type& paths_counts)
 
     {
       ostream_type os;
-      os.push(boost::iostreams::gzip_compressor());
+      os.push(boost::iostreams::zlib_compressor());
       os.push(odevice_type(0, path_tag, 4096));
       
       path_set_type::const_iterator piter_end = paths_counts[order - 1].end();
@@ -387,7 +387,7 @@ struct MapReduceLine
       stream[rank].reset(new ostream_type());
       device[rank].reset(new odevice_type(rank, line_tag, 1024 * 1024, false, true));
     
-      stream[rank]->push(boost::iostreams::gzip_compressor());
+      stream[rank]->push(boost::iostreams::zlib_compressor());
       stream[rank]->push(*device[rank]);
     }
       
@@ -488,7 +488,7 @@ struct MapReduceLine
 				      : new thread_type(task_type(queue, vocabulary, output_path, paths_counts, max_malloc)));
 
     istream_type stream;
-    stream.push(boost::iostreams::gzip_decompressor());
+    stream.push(boost::iostreams::zlib_decompressor());
     stream.push(idevice_type(0, line_tag, 1024 * 1024));
     
     std::string line;
