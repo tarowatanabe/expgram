@@ -3,9 +3,8 @@ expgram: EXPonential-order n-GRAM toolkit
 This is an ngram package with efficient handling of large data in mind, based on a succinct storage [1].
 The target is to index Google's ngrams into 10GB.
 Among ngram compression mentioned in [1], we do not implement block-wise compression (or gzip every 8k-byte)
-for efficiency reason. One of the serious problem is a synchronization when used with multiple threads...
-Also, this toolkit tries to implement large scale ngram language model proposed by Goolge [2].
-However, mpi version is not fully tested.
+for efficiency reason. 
+Also, this toolkit implements large scale ngram language model proposed by Goolge [2].
 
 Brief descriptions:
 
