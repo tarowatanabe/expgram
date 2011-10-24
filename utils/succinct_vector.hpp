@@ -190,7 +190,7 @@ namespace utils
       size_type result(size_type first, size_type last, const Data& data, const size_type& value)
       {
 	size_type offset = first;
-	for (/**/; first != last && (first - offset + 1) * ReverseScale - data[first] < value; ++ first);
+	for (/**/; first != last && (first - offset + 1) * ReverseScale - data[first] < value; ++ first) {}
 	return first;
       }
     };
@@ -201,7 +201,7 @@ namespace utils
       static inline
       size_type result(size_type first, size_type last, const Data& data, const size_type& value)
       {
-	for (/**/; first != last && data[first] < value; ++ first);
+	for (/**/; first != last && data[first] < value; ++ first) {}
 	return first;
       }
     };
@@ -215,7 +215,7 @@ namespace utils
 	size_type offset = first;
 	size_type length = last - first;
 	if (length <= 64) {
-	  for (/**/; first != last && (first - offset + 1) * ReverseScale - data[first] < value; ++ first);
+	  for (/**/; first != last && (first - offset + 1) * ReverseScale - data[first] < value; ++ first) {}
 	  return first;
 	} else {
 	  while (length > 0) {
@@ -247,7 +247,7 @@ namespace utils
       {
 	size_type length = last - first;
 	if (length <= 64) {
-	  for (/**/; first != last && data[first] < value; ++ first);
+	  for (/**/; first != last && data[first] < value; ++ first) {}
 	  return first;
 	} else {
 	  while (length > 0) {
@@ -411,6 +411,22 @@ namespace utils
       __cache_select1.clear();
     }
     void close() { clear(); }
+
+    void swap(succinct_vector_mapped& x)
+    {
+      std::swap(__size, x.__size);
+      __blocks.swap(x.__blocks);
+      __rank_high.swap(x.__rank_high);
+      __rank_low.swap(x.__rank_low);
+      
+      __cache_select0.swap(x.__cache_select0);
+      __cache_select1.swap(x.__cache_select1);
+      
+      std::swap(__select0_mask_pos,    x.__select0_mask_pos);
+      std::swap(__select0_mask_select, x.__select0_mask_select);
+      std::swap(__select1_mask_pos,    x.__select1_mask_pos);
+      std::swap(__select1_mask_select, x.__select1_mask_select);
+    }
     
     size_type select(size_type pos, bool bit) const
     {
@@ -624,6 +640,14 @@ namespace utils
       __rank_high.clear();
       __rank_low.clear();
     }
+
+    void swap(succinct_vector& x)
+    {
+      std::swap(__size, x.__size);
+      __blocks.swap(x.__blocks);
+      __rank_high.swap(x.__rank_high);
+      __rank_low.swap(x.__rank_low);
+    }
     
     size_type select(size_type pos, bool bit) const
     {
@@ -721,5 +745,21 @@ namespace utils
   
 };
 
+namespace std
+{
+  template <typename A>
+  inline
+  void swap(utils::succinct_vector_mapped<A>& x, utils::succinct_vector_mapped<A>& y)
+  {
+    x.swap(y);
+  }
+
+  template <typename A>
+  inline
+  void swap(utils::succinct_vector<A>& x, utils::succinct_vector<A>& y)
+  {
+    x.swap(y);
+  }
+};
 
 #endif

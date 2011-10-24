@@ -215,7 +215,7 @@ namespace expgram
 	  const size_type offset = offsets[1];
 	  
 	  if (length <= 128) {
-	    for (/**/; first != last && ids[first - offset] < id; ++ first);
+	    for (/**/; first != last && ids[first - offset] < id; ++ first) {}
 	    return first;
 	  } else {
 	    while (length > 0) {
