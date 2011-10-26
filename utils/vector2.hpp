@@ -1,9 +1,13 @@
 // -*- mode: c++ -*-
+//
+//  Copyright(C) 2009-2011 Taro Watanabe <taro.watanabe@nict.go.jp>
+//
 
 #ifndef __UTILS__VECTOR2__HPP__
 #define __UTILS__VECTOR2__HPP__ 1
 
 #include <vector>
+#include <boost/swap.hpp>
 
 namespace utils
 {
@@ -96,23 +100,20 @@ namespace utils
     
     void swap(vector2& x)
     {
-      using namespace std;
       __base.swap(x.__base);
-      swap(__size1, x.__size1);
-      swap(__size2, x.__size2);
+      std::swap(__size1, x.__size1);
+      std::swap(__size2, x.__size2);
     }
 
     void swap(size_type pos1, size_type pos2)
     {
-      using namespace std;
-      
       if (pos1 == pos2) return;
       
       for (size_type j = 0; j < __size2; ++ j)
-        swap(operator()(pos1, j), operator()(pos2, j));
+	boost::swap(operator()(pos1, j), operator()(pos2, j));
       
       for (size_type i = 0; i < __size1; ++ i)
-        swap(operator()(i, pos1), operator()(i, pos2));
+	boost::swap(operator()(i, pos1), operator()(i, pos2));
     }
     
     inline const_view_type operator[](size_type pos1) const { return const_view_type(begin(pos1), __size2); }
