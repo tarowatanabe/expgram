@@ -26,6 +26,8 @@ typedef expgram::Vocab    vocab_type;
 typedef expgram::Word     word_type;
 typedef expgram::Sentence sentence_type;
 
+typedef expgram::NGram::state_type state_type;
+
 path_type ngram_file = "-";
 
 bool quantize = false;
@@ -79,21 +81,47 @@ int main(int argc, char** argv)
       tokens.insert(tokens.end(), tokenizer.begin(), tokenizer.end());
       tokens.push_back(vocab_type::EOS);
 
+      state_type state = ngram.index.next(state_type(), vocab_type::BOS);
+
+      std::cerr << "bos state: shard: " <<  state.shard()
+		<< " node: " << state.node()
+		<< " is-root-shard: " << state.is_root_shard()
+		<< " is-root-node: " << state.is_root_node()
+		<< " order: " << ngram.index.order(state)
+		<< std::endl;
+      
       tokens_type::const_iterator titer_begin = tokens.begin();
       tokens_type::const_iterator titer_end = tokens.end();
       for (tokens_type::const_iterator titer = titer_begin + 1; titer != titer_end; ++ titer) {
 	
 	// ngram access must use containser that supports random-iterator concepts.
 	// If not sure, use vector!
+
+	std::pair<float, state_type> result_logprob  = ngram.logprob(state, *titer);	
 	
-	for (tokens_type::const_iterator titer_first = std::max(titer + 1 - order, titer_begin); titer_first != titer + 1; ++ titer_first) {
-	  std::cout << ngram(titer_first, titer + 1)
-		    << ' ' << ngram.logbound(titer_first, titer + 1)
-		    << ' ' << (ngram.exists(titer_first, titer + 1) ? "true" : "false");
-	  std::cout << ' ';
-	  std::copy(titer_first, titer, std::ostream_iterator<std::string>(std::cout, " "));
-	  std::cout << (*titer) << std::endl;
-	}
+	std::cerr << "state: shard: " <<  result_logprob.second.shard()
+		  << " node: " << result_logprob.second.node()
+		  << " is-root-shard: " << result_logprob.second.is_root_shard()
+		  << " is-root-node: " << result_logprob.second.is_root_node()
+		  << " logprob: " << result_logprob.first
+		  << " order: " << ngram.index.order(result_logprob.second)
+		  << std::endl;
+		
+	tokens_type::const_iterator titer_first = std::max(titer_begin, titer + 1 - order);
+	tokens_type::const_iterator titer_last  = titer + 1;
+	
+	const float score_logprob  = ngram(titer_first, titer_last);
+	
+	std::cout << score_logprob
+		  << ' ' << (ngram.exists(titer_first, titer_last) ? "true" : "false");
+	std::cout << ' ';
+	std::copy(titer_first, titer_last, std::ostream_iterator<std::string>(std::cout, " "));
+	std::cout << std::endl;
+	
+	if (score_logprob != result_logprob.first)
+	  std::cerr << "logprob differ: " << score_logprob << ' ' << result_logprob.first << std::endl;
+	
+	state = result_logprob.second;
       }
     }
   }

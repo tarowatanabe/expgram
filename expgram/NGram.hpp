@@ -96,6 +96,8 @@ namespace expgram
     typedef std::vector<shard_data_type, std::allocator<shard_data_type> > shard_data_set_type;
     typedef NGramIndex shard_index_type;
     
+    typedef shard_index_type::state_type state_type;
+
   public:
     NGram(const int _debug=0) : debug(_debug) { clear(); }
     NGram(const path_type& path,
@@ -108,6 +110,106 @@ namespace expgram
     static const logprob_type logprob_bos() { return -99.0 * M_LN10; }
     
   public:
+    
+    state_type root() const { return index.root(); }
+
+    template <typename Iterator>
+    std::pair<Iterator, Iterator> prefix(Iterator first, Iterator last) const
+    {
+      return index.prefix(first, last);
+    }
+    
+    template <typename Iterator>
+    state_type suffix(Iterator first, Iterator last) const
+    {
+      return index.suffix(first, last);
+    }
+    
+    template <typename _Word>
+    std::pair<logprob_type, state_type> logbound(state_type state, const _Word& word) const
+    {
+      return logbound(state, index.vocab()[word]);
+    }
+    
+    std::pair<logprob_type, state_type> logbound(state_type state, const id_type& word) const
+    {
+      // returned state... maximum suffix of state + word, since we may forced backoff :-)
+      state_type state_ret;
+      
+      bool backoffed = false;
+      logprob_type logbackoff = 0.0;
+      for (;;) {
+	const int order = index.order(state) + 1;
+	
+	const state_type state_next = index.next(state, word);
+	
+	if (! state_next.is_root_node()) {
+	  
+	  // if we are the maximum, set to "prefix"
+	  if (state_ret.is_root())
+	    state_ret = (order == index.order() ? index.suffix(state_next) : state_next);
+	  
+	  const size_type shard_index = utils::bithack::branch(state_next.is_root_shard(), size_type(0), state_next.shard());
+	  const logprob_type __logprob = (! backoffed && state_next.node() < logbounds[shard_index].size()
+					  ? logbounds[shard_index](state_next.node(), order)
+					  : logprobs[shard_index](state_next.node(), order));
+	  
+	  if (__logprob != logprob_min())
+	    return std::make_pair(__logprob + logbackoff, state_ret);
+	}
+	
+	backoffed = true;
+	
+	if (state.is_root())
+	  return std::make_pair((index.is_bos(word) ? logprob_bos() : smooth) + logbackoff, state_ret);
+	
+	// we will backoff
+	const size_type shard_index = utils::bithack::branch(state.is_root_shard(), size_type(0), state.shard());
+	logbackoff += backoffs[shard_index](state.node(), order - 1);
+	state = index.suffix(state);
+      }
+    }
+    
+    template <typename _Word>
+    std::pair<logprob_type, state_type> logprob(state_type state, const _Word& word) const
+    {
+      return logprob(state, index.vocab()[word]);
+    }
+    
+    std::pair<logprob_type, state_type> logprob(state_type state, const id_type& word) const
+    {
+      // returned state... maximum suffix of state + word, since we may forced backoff :-)
+      state_type state_ret;
+
+      logprob_type logbackoff = 0.0;
+      for (;;) {
+	const int order = index.order(state) + 1;
+
+	const state_type state_next = index.next(state, word);
+
+	if (! state_next.is_root_node()) {
+	  
+	  // if we are the maximum, set to "prefix"
+	  if (state_ret.is_root())
+	    state_ret = (order == index.order() ? index.suffix(state_next) : state_next);
+	  
+	  const size_type shard_index = utils::bithack::branch(state_next.is_root_shard(), size_type(0), state_next.shard());
+	  const logprob_type __logprob = logprobs[shard_index](state_next.node(), order);
+	  
+	  if (__logprob != logprob_min())
+	    return std::make_pair(__logprob + logbackoff, state_ret);
+	}
+	
+	if (state.is_root())
+	  return std::make_pair((index.is_bos(word) ? logprob_bos() : smooth) + logbackoff, state_ret);
+	
+	// we will backoff
+	const size_type shard_index = utils::bithack::branch(state.is_root_shard(), size_type(0), state.shard());
+	logbackoff += backoffs[shard_index](state.node(), order - 1);
+	state = index.suffix(state);
+      }
+    }
+
     template <typename Iterator>
     std::pair<Iterator, Iterator> ngram_prefix(Iterator first, Iterator last) const
     {
@@ -199,9 +301,9 @@ namespace expgram
 					   : logprobs[shard_index](result.second, order));
 	  return (__logbound != logprob_min()
 		  ? __logbound
-		  : (smooth_smallest
-		     ? logprob_min()
-		     : smooth));
+		  : (index.is_bos(*first)
+		     ? logprob_bos()
+		     : (smooth_smallest ? logprob_min() : smooth)));
 	} else
 	  return (smooth_smallest ? logprob_min() : smooth);
       }
@@ -285,9 +387,9 @@ namespace expgram
       
       return (result.first == last && logprobs[shard_index](result.second, order) != logprob_min()
 	      ? logbackoff + logprobs[shard_index](result.second, order)
-	      : (smooth_smallest
-		 ? logprob_min()
-		 : logbackoff + smooth));
+	      : (index.is_bos(*first)
+		 ? logprob_bos()
+		 : (smooth_smallest ? logprob_min() : logbackoff + smooth)));
     }
     
     
