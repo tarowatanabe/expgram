@@ -1,4 +1,5 @@
 2011-10-x
+	* Serious bugfix: very rare case may happen to query a node which does not exists
 	* Added an efficient ngram state representation
 
 2011-10-25
