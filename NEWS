@@ -1,4 +1,4 @@
-2011-10-x
+2011-10-29
 	* Serious bugfix: very rare case may happen to query a node which does not exists
 	* Added an efficient ngram state representation
 
