@@ -35,6 +35,8 @@ int main(int argc, char** argv)
     typedef expgram::Vocab    vocab_type;
     typedef expgram::Sentence sentence_type;
 
+    typedef ngram_type::state_type state_type;
+
     typedef std::vector<word_type::id_type, std::allocator<word_type::id_type> > id_set_type;
     
     ngram_type ngram(ngram_file, shards, debug);
@@ -57,18 +59,16 @@ int main(int argc, char** argv)
       
       if (sentence.empty()) continue;
 
-      ids.clear();
-      ids.push_back(bos_id);
-      sentence_type::const_iterator siter_end = sentence.end();
-      for (sentence_type::const_iterator siter = sentence.begin(); siter != siter_end; ++ siter)
-	ids.push_back(ngram.index.vocab()[*siter]);
-      ids.push_back(eos_id);
-      
       double logprob = 0.0;
-      id_set_type::const_iterator iter_begin = ids.begin();
-      id_set_type::const_iterator iter_end   = ids.end();
-      for (id_set_type::const_iterator iter = iter_begin + 1; iter != iter_end; ++ iter)
-	logprob += ngram(std::max(iter_begin, iter + 1 - order), iter + 1);
+      state_type state = ngram.index.next(state_type(), bos_id);
+      sentence_type::const_iterator siter_end = sentence.end();
+      for (sentence_type::const_iterator siter = sentence.begin(); siter != siter_end; ++ siter) {
+	const std::pair<state_type, float> result = ngram.logprob(state, *siter);
+	
+	state = result.first;
+	logprob += result.second;
+      }
+      logprob += ngram.logprob(state, eos_id).second;
       
       os << logprob << '\n';
     }

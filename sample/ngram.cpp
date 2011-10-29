@@ -97,14 +97,14 @@ int main(int argc, char** argv)
 	// ngram access must use containser that supports random-iterator concepts.
 	// If not sure, use vector!
 
-	std::pair<float, state_type> result_logprob  = ngram.logprob(state, *titer);	
+	std::pair<state_type, float> result_logprob  = ngram.logprob(state, *titer);	
 	
-	std::cerr << "state: shard: " <<  result_logprob.second.shard()
-		  << " node: " << result_logprob.second.node()
-		  << " is-root-shard: " << result_logprob.second.is_root_shard()
-		  << " is-root-node: " << result_logprob.second.is_root_node()
-		  << " logprob: " << result_logprob.first
-		  << " order: " << ngram.index.order(result_logprob.second)
+	std::cerr << "state: shard: " <<  result_logprob.first.shard()
+		  << " node: " << result_logprob.first.node()
+		  << " is-root-shard: " << result_logprob.first.is_root_shard()
+		  << " is-root-node: " << result_logprob.first.is_root_node()
+		  << " logprob: " << result_logprob.second
+		  << " order: " << ngram.index.order(result_logprob.first)
 		  << std::endl;
 		
 	tokens_type::const_iterator titer_first = std::max(titer_begin, titer + 1 - order);
@@ -118,10 +118,50 @@ int main(int argc, char** argv)
 	std::copy(titer_first, titer_last, std::ostream_iterator<std::string>(std::cout, " "));
 	std::cout << std::endl;
 	
-	if (score_logprob != result_logprob.first)
-	  std::cerr << "logprob differ: " << score_logprob << ' ' << result_logprob.first << std::endl;
+	if (score_logprob != result_logprob.second)
+	  std::cerr << "logprob differ: " << score_logprob << ' ' << result_logprob.second << std::endl;
 	
-	state = result_logprob.second;
+	state = result_logprob.first;
+	
+	{
+	  state_type state;
+	  
+	  for (tokens_type::const_iterator titer = titer_first; titer != titer_last; ++ titer) {
+	    const float score_logprob  = ngram.logprob(titer_first, titer + 1);
+	    const float score_logbound = ngram.logbound(titer_first, titer + 1);
+	    
+	    const bool backoffed = ngram.index.order(state) != std::distance(titer_first, titer);
+	    
+	    const std::pair<state_type, float> result_logprob  = ngram.logprob(state, *titer, order, backoffed);
+	    const std::pair<state_type, float> result_logbound = ngram.logbound(state, *titer, order, backoffed);
+	    
+	    std::cout << "\t";
+	    std::copy(titer_first, titer + 1, std::ostream_iterator<std::string>(std::cout, " "));
+	    std::cout << std::endl;
+	    
+	    std::cerr << "\tstate: shard: " <<  result_logprob.first.shard()
+		      << " node: " << result_logprob.first.node()
+		      << " is-root-shard: " << result_logprob.first.is_root_shard()
+		      << " is-root-node: " << result_logprob.first.is_root_node()
+		      << " logprob: " << result_logprob.second
+		      << " order: " << ngram.index.order(result_logprob.first)
+		      << std::endl;
+
+	    
+	    if (result_logprob.first != result_logbound.first)
+	      std::cerr << "\tstate differ:" << std::endl
+			<< "\tlogprob:  shard: " << result_logprob.first.shard() << " node: " << result_logprob.first.node() << std::endl
+			<< "\tlogbound: shard: " << result_logbound.first.shard() << " node: " << result_logbound.first.node() << std::endl;
+	    
+	    
+	    if (score_logprob != result_logprob.second)
+	      std::cerr << "\tlogprob differ: " << score_logprob << ' ' << result_logprob.second << std::endl;
+	    if (score_logbound != result_logbound.second)
+	      std::cerr << "\tlogbound differ: " << score_logbound << ' ' << result_logbound.second << std::endl;
+	    
+	    state = result_logprob.first;
+	  }
+	}
       }
     }
   }
