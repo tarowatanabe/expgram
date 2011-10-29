@@ -1,3 +1,6 @@
+2011-10-x
+	* Added an efficient ngram state representation
+
 2011-10-25
 	* Added ngram_prefix and ngram_suffix for ngram state computation
 
