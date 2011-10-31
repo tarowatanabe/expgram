@@ -91,8 +91,9 @@ int main(int argc, char** argv)
        << " order: " << order
        << std::endl;
     
-    os << "ppl  = " << utils::mathop::exp(- logprob_total / (num_word - num_oov + num_sentence)) << std::endl;
-    os << "ppl1 = " << utils::mathop::exp(- logprob_total / (num_word - num_oov)) << std::endl;
+    os << "logprob = " << logprob_total << std::endl;
+    os << "ppl     = " << utils::mathop::exp(- logprob_total / (num_word - num_oov + num_sentence)) << std::endl;
+    os << "ppl1    = " << utils::mathop::exp(- logprob_total / (num_word - num_oov)) << std::endl;
     
   }
   catch (std::exception& err) {
