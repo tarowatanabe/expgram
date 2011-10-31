@@ -36,8 +36,8 @@ int main(int argc, char** argv)
     typedef expgram::Vocab    vocab_type;
     typedef expgram::Sentence sentence_type;
 
-    typedef std::vector<word_type::id_type, std::allocator<word_type::id_type> > id_set_type;
-    
+    typedef ngram_type::state_type state_type;
+
     ngram_type ngram(ngram_file, shards, debug);
     
     double logprob_total = 0.0;
@@ -46,7 +46,6 @@ int main(int argc, char** argv)
     size_t num_sentence = 0;
     
     sentence_type sentence;
-    id_set_type ids;
     
     utils::compress_istream is(input_file);
 
@@ -61,25 +60,25 @@ int main(int argc, char** argv)
       // add BOS and EOS
       
       if (sentence.empty()) continue;
-
-      ids.clear();
-      ids.push_back(bos_id);
+      
+      state_type state = ngram.index.next(state_type(), bos_id);
+      
       sentence_type::const_iterator siter_end = sentence.end();
-      for (sentence_type::const_iterator siter = sentence.begin(); siter != siter_end; ++ siter)
-	ids.push_back(ngram.index.vocab()[*siter]);
-      ids.push_back(eos_id);
-
-      id_set_type::const_iterator iter_begin = ids.begin();
-      id_set_type::const_iterator iter_end   = ids.end();
-      for (id_set_type::const_iterator iter = iter_begin + 1; iter != iter_end; ++ iter) {
-	const double logprob = ngram(std::max(iter_begin, iter + 1 - order), iter + 1);
-	const bool is_oov = (*iter == unk_id) || (*iter == none_id);
+      for (sentence_type::const_iterator siter = sentence.begin(); siter != siter_end; ++ siter) {
+	const word_type::id_type word_id = ngram.index.vocab()[*siter];
+	const bool is_oov = (word_id == unk_id) || (word_id == none_id);
 	
-	if (include_oov || (! is_oov))
-	  logprob_total += logprob;
+	const std::pair<state_type, float> result = ngram.logprob(state, word_id);
+	
+	state = result.first;
+	
+	if (include_oov || ! is_oov)
+	  logprob_total += result.second;
 	
 	num_oov += is_oov;
       }
+      
+      logprob_total += ngram.logprob(state, eos_id).second;
       
       num_word += sentence.size();
       ++ num_sentence;

@@ -36,13 +36,10 @@ int main(int argc, char** argv)
     typedef expgram::Sentence sentence_type;
 
     typedef ngram_type::state_type state_type;
-
-    typedef std::vector<word_type::id_type, std::allocator<word_type::id_type> > id_set_type;
     
     ngram_type ngram(ngram_file, shards, debug);
     
     sentence_type sentence;
-    id_set_type ids;
     
     const bool flush_output = (output_file == "-" || (boost::filesystem::exists(output_file) && ! boost::filesystem::is_regular_file(output_file)));
     
