@@ -139,8 +139,8 @@ int main(int argc, char** argv)
 	    
 	    const bool backoffed = ngram.index.order(state) != std::distance(titer_first, titer);
 	    
-	    const std::pair<state_type, float> result_logprob  = ngram.logprob(state, *titer, order, backoffed);
-	    const std::pair<state_type, float> result_logbound = ngram.logbound(state, *titer, order, backoffed);
+	    const std::pair<state_type, float> result_logprob  = ngram.logprob(state, *titer, backoffed, order);
+	    const std::pair<state_type, float> result_logbound = ngram.logbound(state, *titer, backoffed, order);
 	    
 	    std::cout << "\t";
 	    std::copy(titer_first, titer + 1, std::ostream_iterator<std::string>(std::cout, " "));
@@ -152,6 +152,7 @@ int main(int argc, char** argv)
 		      << " is-root-node: " << result_logprob.first.is_root_node()
 		      << " logprob: " << result_logprob.second
 		      << " order: " << ngram.index.order(result_logprob.first)
+	      
 		      << std::endl;
 
 	    
