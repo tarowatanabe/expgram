@@ -259,7 +259,6 @@ namespace expgram
 	write_shards_prepare(rep.path("logbound"), logbounds);
       
       rep["smooth"] = utils::lexical_cast<std::string>(smooth);
-      rep["bound-exact"] = utils::lexical_cast<std::string>(bound_exact);
     }
     
     ::sync();
@@ -303,7 +302,6 @@ namespace expgram
       write_shards(rep.path("logbound"), logbounds);
     
     rep["smooth"] = utils::lexical_cast<std::string>(smooth);
-    rep["bound-exact"] = utils::lexical_cast<std::string>(bound_exact);
   }
   
   void NGram::open(const path_type& path, const size_type shard_size)
@@ -337,12 +335,6 @@ namespace expgram
     if (siter == rep.end())
       throw std::runtime_error("no smoothing parameter...?");
     smooth = utils::lexical_cast<double>(siter->second);
-    
-    repository_type::const_iterator biter = rep.find("bound-exact");
-    if (biter != rep.end())
-      bound_exact = utils::lexical_cast<bool>(biter->second);
-    else
-      bound_exact = false;
   }
   
   
@@ -366,12 +358,6 @@ namespace expgram
     if (siter == rep.end())
       throw std::runtime_error("no smoothing parameter...?");
     smooth = utils::lexical_cast<double>(siter->second);
-    
-    repository_type::const_iterator biter = rep.find("bound-exact");
-    if (biter != rep.end())
-      bound_exact = utils::lexical_cast<bool>(biter->second);
-    else
-      bound_exact = false;
     
     if (debug)
       std::cerr << "# of shards: " << index.size()
@@ -964,7 +950,7 @@ namespace expgram
 	    const logprob_type logprob = ngram.logprobs[shard](pos, order_prev + 1);
 	    if (logprob != ngram.logprob_min()) {
 	      
-#if 0
+#if 1
 	      context_type::const_iterator citer_end = context.end();
 	      context_type::const_iterator citer_begin = context.begin() + 1;
 	      if (citer_end - citer_begin == 1)
@@ -972,7 +958,7 @@ namespace expgram
 	      else
 		queues[ngram.index.shard_index(citer_begin, citer_end)]->push(std::make_pair(context_type(citer_begin, citer_end), logprob));
 #endif
-#if 1
+#if 0
 	      context_type::const_iterator citer_end = context.end();
 	      for (context_type::const_iterator citer = context.begin() + 1; citer != citer_end; ++ citer) {
 		if (citer_end - citer == 1)
@@ -1098,8 +1084,6 @@ namespace expgram
     // check if we already computed upper-bounds...
     if (logbounds.size() == logprobs.size())
       return;
-    
-    bound_exact = true;
     
     queue_ptr_set_type  queues(index.size());
     thread_ptr_set_type threads_mapper(index.size());
