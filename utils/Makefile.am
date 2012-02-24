@@ -76,8 +76,6 @@ program_options.hpp \
 regex_group.hpp \
 repository.hpp \
 resource.hpp \
-sgi_hash_map.hpp \
-sgi_hash_set.hpp \
 simple_vector.hpp \
 space_separator.hpp \
 sparse_hash_map.hpp \
@@ -88,6 +86,8 @@ subprocess.hpp \
 succinct_vector.hpp \
 tempfile.hpp \
 thread_specific_ptr.hpp \
+unordered_map.hpp \
+unordered_set.hpp \
 vector2.hpp \
 vector3.hpp \
 vector2_aligned.hpp \

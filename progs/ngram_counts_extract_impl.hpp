@@ -74,7 +74,7 @@ struct GoogleNGramCounts
     }
   };
   
-  typedef google::dense_hash_set<std::string, string_hash, std::equal_to<std::string> > vocabulary_type;
+  typedef utils::dense_hash_set<std::string, string_hash, std::equal_to<std::string> >::type vocabulary_type;
   
   template <typename Task>
   struct TaskLine
