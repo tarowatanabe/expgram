@@ -41,12 +41,11 @@
 #include <utils/malloc_stats.hpp>
 #include <utils/hashmurmur.hpp>
 #include <utils/piece.hpp>
+#include <utils/dense_hash_set.hpp>
 
 #include <expgram/Word.hpp>
 #include <expgram/Vocab.hpp>
 #include <expgram/Sentence.hpp>
-
-#include <google/dense_hash_set>
 
 struct GoogleNGramCounts
 {

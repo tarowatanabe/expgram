@@ -1,10 +1,10 @@
 // -*- mode: c++ -*-
+//
+//  Copyright(C) 2009-2011 Taro Watanabe <taro.watanabe@nict.go.jp>
+//
 
 #ifndef __UTILS__COMPACT_TRIE__HPP__
 #define __UTILS__COMPACT_TRIE__HPP__ 1
-
-#include <google/sparse_hash_map>
-#include <google/dense_hash_map>
 
 #include <utils/chunk_vector.hpp>
 #include <utils/sgi_hash_map.hpp>
@@ -46,8 +46,6 @@ namespace utils
     
   private:  
     typedef typename Alloc::template rebind<std::pair<const key_type, id_type> >::other id_map_alloc_type;
-    //typedef google::sparse_hash_map<key_type, id_type, hash_type, equal_type, id_map_alloc_type> id_map_type;
-    //typedef google::dense_hash_map<key_type, id_type, hash_type, equal_type, id_map_alloc_type> id_map_type;
     
 #ifdef HAVE_TR1_UNORDERED_MAP
     typedef std::tr1::unordered_map<key_type, id_type, hash_type, equal_type, id_map_alloc_type> id_map_type;
@@ -62,7 +60,7 @@ namespace utils
       id_map_type __map;
       mapped_type __data;
 
-      Node() : __map(), __data() {}
+      Node() : __map(), __data() { }
       Node(const mapped_type& data) : __map(), __data(data) {}
     };
     typedef Node node_type;
@@ -93,7 +91,13 @@ namespace utils
     void clear() { __root.clear(); __nodes.clear(); }
     
     bool empty() const { return __nodes.empty(); }
-    bool empty(id_type __id) const { return __nodes[__id].__map.empty(); }
+    bool empty(id_type __id) const
+    {
+      if (__id == npos())
+	return __root.empty();
+      else
+	return __nodes[__id].__map.empty();
+    }
     
     bool is_root(id_type __id) const { return __id == npos(); }
 
