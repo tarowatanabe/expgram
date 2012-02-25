@@ -172,7 +172,6 @@ BOOST_PROGRAM_OPTIONS
 BOOST_THREADS
 BOOST_FILESYSTEM
 BOOST_IOSTREAMS
-BOOST_SYSTEM
 
 ## save pthred-flag, computed by-product of boost-threads
 PTHREAD_FLAGS=$boost_cv_pthread_flag
