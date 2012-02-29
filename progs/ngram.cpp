@@ -20,6 +20,7 @@ path_type output_file = "-";
 int order = 0;
 
 int shards = 4;
+int verbose = 0;
 int debug = 0;
 
 int getoptions(int argc, char** argv);
@@ -62,10 +63,19 @@ int main(int argc, char** argv)
       for (sentence_type::const_iterator siter = sentence.begin(); siter != siter_end; ++ siter) {
 	const std::pair<state_type, float> result = ngram.logprob(state, *siter);
 	
+	if (verbose)
+	  os << *siter << ' ' << result.second << std::endl;
+	
 	state = result.first;
 	logprob += result.second;
       }
-      logprob += ngram.logprob(state, eos_id).second;
+      
+      const std::pair<state_type, float> result = ngram.logprob(state, eos_id);
+      
+      if (verbose)
+	os << vocab_type::EOS << ' ' << result.second << std::endl;
+      
+      logprob += result.second;
       
       os << logprob << '\n';
     }
@@ -89,8 +99,9 @@ int getoptions(int argc, char** argv)
     
     ("order",       po::value<int>(&order)->default_value(order),              "ngram order")
     
-    ("shard",  po::value<int>(&shards)->default_value(shards),                 "# of shards (or # of threads)")
-    ("debug", po::value<int>(&debug)->implicit_value(1), "debug level")
+    ("shard",   po::value<int>(&shards)->default_value(shards),                 "# of shards (or # of threads)")
+    ("verbose", po::value<int>(&verbose)->implicit_value(1), "verbose level")
+    ("debug",   po::value<int>(&debug)->implicit_value(1),   "debug level")
     ("help", "help message");
   
   po::variables_map vm;
