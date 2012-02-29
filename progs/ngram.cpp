@@ -64,7 +64,7 @@ int main(int argc, char** argv)
 	const std::pair<state_type, float> result = ngram.logprob(state, *siter);
 	
 	if (verbose)
-	  os << *siter << ' ' << result.second << std::endl;
+	  os << *siter << ' ' << result.second << '\n';
 	
 	state = result.first;
 	logprob += result.second;
@@ -73,7 +73,7 @@ int main(int argc, char** argv)
       const std::pair<state_type, float> result = ngram.logprob(state, eos_id);
       
       if (verbose)
-	os << vocab_type::EOS << ' ' << result.second << std::endl;
+	os << vocab_type::EOS << ' ' << result.second << '\n';
       
       logprob += result.second;
       
