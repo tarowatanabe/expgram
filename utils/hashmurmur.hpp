@@ -1,11 +1,18 @@
 // -*- mode: c++ -*-
+//
+//  Copyright(C) 2009-2011 Taro Watanabe <taro.watanabe@nict.go.jp>
+//
 
 #ifndef __UTILS__HASHMURMUR__HPP__
 #define __UTILS__HASHMURMUR__HPP__ 1
 
+#include <cstddef>
 #include <stdint.h>
 
 // murmurhash2 by Austin Appleby
+// All code is released to the public domain. For business purposes, Murmurhash is
+// under the MIT license. 
+//
 // we assume only POD data... but potentially optimized with template metaprogramming
 // if we know the size in advance...
 
@@ -342,6 +349,12 @@ namespace utils
     {
       return __dynamic_hashmurmur<sizeof(_Value)>::hash((const uint8_t*) &(*first), (const uint8_t*) &(*last), seed);
     }
+    
+    _Value operator()(void* ptr, size_t size, _Value seed=0) const
+    {
+      return __dynamic_hashmurmur<sizeof(_Value)>::hash((const uint8_t*) ptr, ((const uint8_t*) ptr) + size, seed);
+    }
+
   };
   
 };
