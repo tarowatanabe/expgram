@@ -75,6 +75,7 @@ program_options.hpp \
 regex_group.hpp \
 repository.hpp \
 resource.hpp \
+rwticket.hpp \
 simple_vector.hpp \
 space_separator.hpp \
 sparse_hash_map.hpp \
