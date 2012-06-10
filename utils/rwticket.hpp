@@ -19,6 +19,149 @@ namespace utils
   class rwticket : private boost::noncopyable
   {
   private:
+    struct mutex_type
+    {
+      typedef union {
+	uint32_t u;
+	struct
+	{
+	  uint16_t ticket;
+	  uint16_t users;
+	} s;
+      } ticket_type;
+      
+      mutex_type() { ticket_.u = 0; }
+      
+      void lock()
+      {
+	const uint16_t me = __sync_fetch_and_add(&ticket_.s.users, uint16_t(1));
+	
+	while (ticket_.s.ticket != me)
+	  boost::thread::yield();
+      }
+      
+      void unlock()
+      {
+	__sync_add_and_fetch(&ticket_.s.ticket, uint16_t(1));
+      }
+      
+      bool try_lock()
+      {
+	const uint16_t me = ticket_.s.users;
+	const uint16_t menew = me + 1;
+	const uint32_t cmp    = (uint32_t(me) << 16)    | me;
+	const uint32_t cmpnew = (uint32_t(menew) << 16) | me;
+	
+	return utils::atomicop::compare_and_swap(ticket_.u, cmp, cmpnew);
+      }
+      
+      bool locked()
+      {
+	const ticket_type u = ticket_;
+	
+	utils::atomicop::memory_barrier();
+	
+	return u.s.ticket != u.s.users;
+      }
+      
+      ticket_type ticket_;
+    };
+    
+
+  public:
+    
+    struct scoped_writer_lock
+    {
+      scoped_writer_lock(rwticket& x) : lock(x) { lock.lock_writer(); }
+      ~scoped_writer_lock() { lock.unlock_writer(); }
+      
+    private:
+      rwticket& lock;
+    };
+    
+    struct scoped_reader_lock
+    {
+      scoped_reader_lock(rwticket& x) : lock(x) { lock.lock_reader(); }
+      ~scoped_reader_lock() { lock.unlock_reader(); }
+      
+    private:
+      rwticket& lock;
+    };
+    
+    rwticket()
+      : mutex_(), pending_(0) { }
+    
+  public:
+    void lock_writer()
+    {
+      mutex_.lock();
+      
+      while (pending_)
+	boost::thread::yield();
+    }
+
+    bool trylock_writer()
+    {
+      if (pending_) return false;
+      
+      if (! mutex_.try_lock()) return false;
+      
+      if (pending_) {
+	mutex_.unlock();
+	
+	return false;
+      }
+      
+      return true;
+    }
+    
+    void unlock_writer()
+    {
+      mutex_.unlock();
+    }
+    
+    void lock_reader()
+    {
+      for (;;) {
+	utils::atomicop::add_and_fetch(pending_, 1);
+	
+	if (! mutex_.locked()) return;
+	
+	utils::atomicop::add_and_fetch(pending_, -1);
+	
+	while (mutex_.locked())
+	  boost::thread::yield();
+      }
+    }
+
+    bool trylock_reader()
+    {
+      utils::atomicop::add_and_fetch(pending_, 1);
+      
+      if (! mutex_.locked()) return true;
+      
+      utils::atomicop::add_and_fetch(pending_, -1);
+      
+      return false;
+    }
+    
+    void unlock_reader()
+    {
+      utils::atomicop::add_and_fetch(pending_, -1);
+    }
+    
+  private:
+    mutex_type        mutex_;
+    volatile int32_t  pending_;
+  };
+};
+
+#if 0
+namespace utils
+{
+  class rwticket : private boost::noncopyable
+  {
+  private:
     typedef union 
     {
       uint64_t u;
@@ -60,7 +203,7 @@ namespace utils
     {
       const uint64_t me = __sync_fetch_and_add(&ticket_.u, uint64_t(1) << 32);
       const uint16_t val = me >> 32;
-      
+
       while (val != ticket_.s.write)
 	boost::thread::yield();
     }
@@ -69,7 +212,7 @@ namespace utils
     {
       const uint64_t me = ticket_.s.users;
       const uint16_t menew = me + 1;
-      const uint64_t read = ticket_.s.read << 16;
+      const uint64_t read = uint64_t(ticket_.s.read) << 16;
       const uint64_t cmp    = (me << 16) + read + me;
       const uint64_t cmpnew = (uint64_t(menew) << 16) + read + me;
       
@@ -119,5 +262,6 @@ namespace utils
     ticket_type ticket_;
   };
 };
+#endif
 
 #endif
