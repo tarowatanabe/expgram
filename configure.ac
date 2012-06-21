@@ -214,18 +214,21 @@ fi
 
 ### check for MPI
 AC_PATH_PROGS(MPI_CXX_COMPILER, [mpic++ mpicxx mpiCC], no)
-if test "x$MPI_CXX_COMPILER" = "xno"; then
-  AS_ERROR("no mpi...")
+MPI_CPPFLAGS=""
+MPI_LDFLAGS=""
+if test "x$MPI_CXX_COMPILER" != "xno"; then
+  AC_MSG_CHECKING(mpi cppflags)
+  MPI_CPPFLAGS=`$MPI_CXX_COMPILER -showme | awk '{for(i=1;i<NF;i++){if($i~/^-I/ || $i~/^-D/){printf "%s ", $i;}}}'`
+  AC_MSG_RESULT($MPI_CPPFLAGS)
+  
+  AC_MSG_CHECKING(mpi ldflags)
+  MPI_LDFLAGS=`$MPI_CXX_COMPILER -showme | awk '{for(i=1;i<NF;i++){if($i~/^-L/ || $i~/^-l/ || $i~/^-Wl/){printf "%s ", $i;}}}'`
+  AC_MSG_RESULT($MPI_LDFLAGS)
 fi 
 
-AC_MSG_CHECKING(mpi cppflags)
-MPI_CPPFLAGS=`$MPI_CXX_COMPILER -showme | awk '{for(i=1;i<NF;i++){if($i~/^-I/ || $i~/^-D/){printf "%s ", $i;}}}'`
-AC_MSG_RESULT($MPI_CPPFLAGS)
-AC_SUBST(MPI_CPPFLAGS)
+AM_CONDITIONAL(WITH_MPI, test "$MPI_CXX_COMPILER" != xno)
 
-AC_MSG_CHECKING(mpi ldflags)
-MPI_LDFLAGS=`$MPI_CXX_COMPILER -showme | awk '{for(i=1;i<NF;i++){if($i~/^-L/ || $i~/^-l/ || $i~/^-Wl/){printf "%s ", $i;}}}'`
-AC_MSG_RESULT($MPI_LDFLAGS)
+AC_SUBST(MPI_CPPFLAGS)
 AC_SUBST(MPI_LDFLAGS)
 
 AC_MSG_CHECKING([for __thread])

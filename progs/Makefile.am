@@ -11,35 +11,37 @@ boost_LDADD = \
 LIBEXPGRAM = $(top_builddir)/expgram/libexpgram.la
 LIBUTILS   = $(top_builddir)/utils/libutils.la
 
+if WITH_MPI
+bin_mpi = \
+	ngram_quantize_mpi \
+	ngram_bound_mpi \
+	ngram_counts_extract_mpi \
+	ngram_counts_index_mpi \
+	ngram_counts_modify_mpi \
+	ngram_counts_estimate_mpi \
+	ngram_vocab_mpi \
+	mpish
+endif WITH_MPI
+
 bin_PROGRAMS = \
-	\
 	ngram \
 	ngram_index \
 	ngram_dump \
 	ngram_quantize \
-	ngram_quantize_mpi \
 	ngram_bound \
-	ngram_bound_mpi \
 	ngram_stat \
 	ngram_perplexity \
-	\
 	ngram_counts_extract \
-	ngram_counts_extract_mpi \
 	ngram_counts_index \
-	ngram_counts_index_mpi \
 	ngram_counts_modify \
-	ngram_counts_modify_mpi \
 	ngram_counts_dump \
 	ngram_counts_estimate \
-	ngram_counts_estimate_mpi \
 	ngram_counts_stat \
-	\
 	ngram_vocab \
-	ngram_vocab_mpi \
 	\
 	expgram_clean \
-	\
-	mpish
+	$(bin_mpi)
+
 
 noinst_HEADERS = \
 	ngram_counts_extract_impl.hpp \
