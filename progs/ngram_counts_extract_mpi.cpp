@@ -152,7 +152,6 @@ int main(int argc, char** argv)
 	throw std::runtime_error("no corpus files nor counts files");
 
       vocabulary_type vocabulary;
-      vocabulary.set_empty_key(std::string());
       
       if (! vocab_file.empty()) {
 	if (vocab_file != "-" && ! boost::filesystem::exists(vocab_file))
@@ -199,7 +198,6 @@ int main(int argc, char** argv)
       
     } else {
       vocabulary_type vocabulary;
-      vocabulary.set_empty_key(std::string());
       
       int vocabulary_size = 0;
       MPI::COMM_WORLD.Bcast(&vocabulary_size, 1, MPI::INT, 0);

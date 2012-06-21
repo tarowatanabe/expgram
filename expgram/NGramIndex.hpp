@@ -296,13 +296,6 @@ namespace expgram
 	      
 	      first  = utils::bithack::branch(is_less, middle + 1, first);
 	      length = utils::bithack::branch(is_less, length - half - 1, half);
-#if 0
-	      if (ids[middle - offset] < id) {
-		first = middle + 1;
-		length = length - half - 1;
-	      } else
-		length = half;
-#endif
 	    }
 	    return first;
 	  }

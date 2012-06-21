@@ -123,7 +123,6 @@ int main(int argc, char** argv)
       throw std::runtime_error("no corpus files nor counts files");
 
     vocabulary_type vocabulary;
-    vocabulary.set_empty_key(std::string());
 
     if (! vocab_file.empty()) {
       if (vocab_file != "-" && ! boost::filesystem::exists(vocab_file))

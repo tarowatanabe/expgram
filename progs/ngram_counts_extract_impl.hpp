@@ -41,7 +41,7 @@
 #include <utils/malloc_stats.hpp>
 #include <utils/hashmurmur.hpp>
 #include <utils/piece.hpp>
-#include <utils/dense_hash_set.hpp>
+#include <utils/unordered_set.hpp>
 
 #include <expgram/Word.hpp>
 #include <expgram/Vocab.hpp>
@@ -74,7 +74,7 @@ struct GoogleNGramCounts
     }
   };
   
-  typedef utils::dense_hash_set<std::string, string_hash, std::equal_to<std::string> >::type vocabulary_type;
+  typedef utils::unordered_set<std::string, string_hash, std::equal_to<std::string> >::type vocabulary_type;
   
   template <typename Task>
   struct TaskLine

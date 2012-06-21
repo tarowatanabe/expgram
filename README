@@ -105,21 +105,20 @@ API: Sample codes exists at sample directory, ngram.cc and ngram_counts.cc
                 expgram::Word::id_type word_id = {ngram or ngram_counts}.index.vocab()[expgram::Vocab::UNK];
 		if ({ngram or ngram_counts}.index.vocab().exists(word))
 		  word_id = {ngram or ngram_counts}.index.vocab()[word];
-
 	
 	All the operations are thread-safe, meaning that concurrent programs may call any API any time without locking!
 	(except for ngram loading...)
 
 Requirements:
-	Following table lists required libraries for installation. The tools are successfully compiled
-	with GCC 4.0.0 (Mac OS X). However, it is recommended to use the latest stable GCC 4.3.3.
+	Boost Library			http://www.boost.org
 
-	Libraries			version		URL
-	--------------------------------------------------------------------------
-	Boost Library			1.38.0		http://www.boost.org
-	MPI (Open MPI)			1.3.1		http://www.open-mpi.org
-	google-perftools (tcmalloc)	1.1		http://code.google.com/p/google-perftools/
-	google-sparsehash		1.4		http://code.google.com/p/google-sparsehash/
+Optional Libraries:
+	Better training:
+	MPI (Open MPI)			http://www.open-mpi.org
+
+	Fast malloc replacement (recommended for Linux)
+	jemalloc  			http://www.canonware.com/jemalloc/
+	gperftools (tcmalloc)		http://code.google.com/p/gperftools/
 
 References:
 [1]

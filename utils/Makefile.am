@@ -43,8 +43,6 @@ compact_trie.hpp \
 compress_stream.hpp \
 config.hpp \
 config.h \
-dense_hash_map.hpp \
-dense_hash_set.hpp \
 filesystem.hpp \
 group_aligned_code.hpp \
 group_aligned_code_offsets.hpp \
@@ -78,8 +76,6 @@ resource.hpp \
 rwticket.hpp \
 simple_vector.hpp \
 space_separator.hpp \
-sparse_hash_map.hpp \
-sparse_hash_set.hpp \
 spinlock.hpp \
 static_allocator.hpp \
 subprocess.hpp \
