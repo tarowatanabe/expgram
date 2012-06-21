@@ -14,7 +14,7 @@
 
 #include <boost/filesystem.hpp>
 #include <boost/program_options.hpp>
-#include <boost/algorithm/string.hpp>
+#include <boost/algorithm/string/trim.hpp>
 #include <boost/functional/hash.hpp>
 
 #include <utils/compress_stream.hpp>

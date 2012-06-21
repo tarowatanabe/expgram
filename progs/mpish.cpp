@@ -13,7 +13,7 @@
 #include <boost/program_options.hpp>
 #include <boost/thread.hpp>
 #include <boost/shared_ptr.hpp>
-#include <boost/algorithm/string.hpp>
+#include <boost/algorithm/string/trim.hpp>
 #include <boost/tokenizer.hpp>
 
 #include <utils/mpi.hpp>
