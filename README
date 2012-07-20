@@ -113,12 +113,16 @@ Requirements:
 	Boost Library			http://www.boost.org
 
 Optional Libraries:
-	Better training:
+	Better parallel training:
 	MPI (Open MPI)			http://www.open-mpi.org
 
-	Fast malloc replacement (recommended for Linux)
+	Fast malloc replacement (recommended for Linux):
 	jemalloc  			http://www.canonware.com/jemalloc/
 	gperftools (tcmalloc)		http://code.google.com/p/gperftools/
+
+Included codes:
+	Murmurhash2
+		All code is released to the public domain. For business purposes, Murmurhash is under the MIT license. 
 
 References:
 [1]

@@ -47,8 +47,8 @@ namespace expgram
       typedef utils::packed_vector_mapped<count_type, std::allocator<count_type> > count_set_type;
       
     public:
-      ShardData() : counts(), modified(), accumulated(), offset(0) {}
-      ShardData(const path_type& path) : counts(), modified(), accumulated(), offset(0) { open(path); }
+      ShardData() : counts(), modified(), offset(0) {}
+      ShardData(const path_type& path) : counts(), modified(), offset(0) { open(path); }
       
     public:
       void open(const path_type& path);
@@ -60,7 +60,6 @@ namespace expgram
       {
 	counts.clear();
 	modified.clear();
-	accumulated.clear();
 	offset = 0;
       }
       
@@ -68,7 +67,6 @@ namespace expgram
       size_type size() const { return __counts().size() + offset; }
       
       bool is_modified() const { return modified.is_open(); }
-      bool is_accumulated() const { return accumulated.is_open(); }
 
       stat_type stat() const
       {
@@ -76,12 +74,11 @@ namespace expgram
       }
       
     private:
-      const count_set_type& __counts() const { return (accumulated.is_open() ? accumulated : (modified.is_open() ? modified : counts)); }
+      const count_set_type& __counts() const { return (modified.is_open() ? modified : counts); }
 
     public:
       count_set_type counts;
       count_set_type modified;
-      count_set_type accumulated;
       size_type      offset;
     };
     typedef ShardData                                                      shard_data_type;

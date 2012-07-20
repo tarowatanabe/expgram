@@ -1,9 +1,6 @@
-* Implement ngram_counts_filter/ngram_counts_filter_mpi
-    - perform ngram-counts filtering by its "unigram" freqency
-    - Less-frequent words are mapped into <unk>, thus ngram-counts recomputation will be required.
-
 * Implement --min-ngram to perform filtering duing indexing (for bigrams and upward)
 
 * Implement mini-expgram, which supports only loading.
 
-* Use Boost.Spirit for faster parsing/generation of various data-structs for exchange between MPI ranks
+* Implement lower-order ngram estimates (use of bounds!)
+	and remove accumulated from NGramCounts
