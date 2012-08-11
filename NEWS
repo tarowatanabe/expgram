@@ -1,4 +1,5 @@
-2012-2-x
+2012-8-x
+	* Removed unused data structure
 	* Support the latest sparsehash and gperftools (actually, they are renamed)
 
 2012-1-15
