@@ -50,4 +50,3 @@ ngram_counts_index_mpi
 ngram_counts_modify_mpi
 ngram_counts_estimate_mpi
 ngram_vocab_mpi
-mpish

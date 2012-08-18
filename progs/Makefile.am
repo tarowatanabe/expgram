@@ -19,8 +19,7 @@ bin_mpi = \
 	ngram_counts_index_mpi \
 	ngram_counts_modify_mpi \
 	ngram_counts_estimate_mpi \
-	ngram_vocab_mpi \
-	mpish
+	ngram_vocab_mpi
 endif WITH_MPI
 
 bin_PROGRAMS = \
@@ -134,7 +133,3 @@ ngram_vocab_mpi_LDADD   = $(MPI_LDFLAGS) $(LIBEXPGRAM) $(LIBUTILS) $(boost_LDADD
 ### utilities
 expgram_clean_SOURCES = expgram_clean.cpp
 expgram_clean_LDADD   = $(LIBUTILS) $(boost_LDADD) $(perftools_LDADD)
-
-mpish_SOURCES = mpish.cpp
-mpish_CPPFLAGS = $(MPI_CPPFLAGS) $(AM_CPPFLAGS)
-mpish_LDADD   = $(MPI_LDFLAGS) $(boost_LDADD) $(perftools_LDADD)
