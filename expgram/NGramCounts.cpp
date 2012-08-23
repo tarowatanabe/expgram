@@ -135,7 +135,7 @@ namespace expgram
 	  
 	  // BOS handling...
 	  if (shard == 0 && order_prev == 1 && context.front() == bos_id)
-	    unigrams[context.front()] += ngram.counts[shard][pos_context];
+	    unigrams[context.front()] += ngram.counts[shard].count(pos_context);
 	  
 	  for (size_type pos = pos_first; pos != pos_last; ++ pos) {
 	    context.back() = ngram.index[shard][pos];
@@ -147,7 +147,7 @@ namespace expgram
 												       count_type(1)));
 	    
 	    if (context.front() == bos_id && order_prev + 1 != max_order)
-	      queues[ngram.index.shard_index(context.begin(), context.end())]->push(std::make_pair(context, ngram.counts[shard][pos]));
+	      queues[ngram.index.shard_index(context.begin(), context.end())]->push(std::make_pair(context, ngram.counts[shard].count(pos)));
 	  }
 	}
       }
@@ -249,7 +249,7 @@ namespace expgram
       
       // dump the last order...
       for (size_type pos = ngram.index[shard].position_size(); pos < ngram.counts[shard].size(); ++ pos) {
-	const count_type count = ngram.counts[shard][pos];
+	const count_type count = ngram.counts[shard].count(pos);
 	os.write((char*) &count, sizeof(count_type));
       }
       os.pop();
@@ -257,10 +257,10 @@ namespace expgram
       ::sync();
       while (! ngram_type::shard_data_type::count_set_type::exists(path))
 	boost::thread::yield();
-
+      
       utils::tempfile::permission(path);
       
-      ngram.counts[shard].counts.close();
+      //ngram.counts[shard].counts.close();
       ngram.counts[shard].modified.open(path);
     }
   };
@@ -381,7 +381,7 @@ namespace expgram
 	const size_type pos_last  = ngram.index[shard].offsets[order];
 	
 	for (size_type pos = pos_first; pos != pos_last; ++ pos) {
-	  const count_type count = ngram.counts[shard][pos];
+	  const count_type count = ngram.counts[shard].count_modified(pos);
 	  if (count && (order == 1 || ! remove_unk || ngram.index[shard][pos] != unk_id))
 	    ++ count_of_counts[order][count];
 	}
@@ -459,7 +459,7 @@ namespace expgram
 	    
 	    for (size_type pos = pos_first; pos != pos_last; ++ pos) {
 	      const id_type    id = ngram.index[shard][pos];
-	      const count_type count = ngram.counts[shard][pos];
+	      const count_type count = ngram.counts[shard].count_modified(pos);
 	      
 	      // simply treat it as a special zero event
 	      if (remove_unk && id == unk_id) continue;
@@ -492,7 +492,7 @@ namespace expgram
 	      
 	      for (size_type pos = pos_first; pos != pos_last; ++ pos) {
 		const id_type    id = ngram.index[shard][pos];
-		const count_type count = ngram.counts[shard][pos];
+		const count_type count = ngram.counts[shard].count_modified(pos);
 		
 		if (remove_unk && id == unk_id) continue;
 		if (count == 0) continue;
@@ -538,7 +538,7 @@ namespace expgram
 		const size_type offset = ngram.counts[shard].offset;
 		
 		for (size_type pos = pos_first; pos != pos_last; ++ pos)
-		  if (ngram.counts[shard][pos] && ((! remove_unk) || (ngram.index[shard][pos] != unk_id)))
+		  if (ngram.counts[shard].count_modified(pos) && ((! remove_unk) || (ngram.index[shard][pos] != unk_id)))
 		    logprobs[shard][pos - offset] -= logsum;
 	      }
 	    }
@@ -675,7 +675,7 @@ namespace expgram
 	  
 	  logprob_set_type::iterator liter = lowers.begin();
 	  for (size_type pos = pos_first; pos != pos_last; ++ pos, ++ liter) {
-	    const count_type count = ngram.counts[shard][pos];
+	    const count_type count = ngram.counts[shard].count_modified(pos);
 
 	    if (remove_unk && ngram.index[shard][pos] == unk_id) continue;
 	    
@@ -705,7 +705,7 @@ namespace expgram
 	    
 	    logprob_set_type::const_iterator liter = lowers.begin();
 	    for (size_type pos = pos_first; pos != pos_last; ++ pos, ++ liter) {
-	      const count_type count = ngram.counts[shard][pos];
+	      const count_type count = ngram.counts[shard].count_modified(pos);
 	      
 	      if (remove_unk && ngram.index[shard][pos] == unk_id) continue;
 	      if (count == 0) continue;
@@ -743,7 +743,7 @@ namespace expgram
 	      backoffs[shard][pos_context - offset] = utils::mathop::log(numerator) - utils::mathop::log(denominator);
 	    else {
 	      for (size_type pos = pos_first; pos != pos_last; ++ pos) 
-		if (ngram.counts[shard][pos] && ((! remove_unk) ||(ngram.index[shard][pos] != unk_id)))
+		if (ngram.counts[shard].count_modified(pos) && ((! remove_unk) ||(ngram.index[shard][pos] != unk_id)))
 		  logprobs[shard][pos - offset] -= logsum;
 	    }
 	  }
@@ -845,7 +845,7 @@ namespace expgram
       for (size_type pos = 0; pos < index[0].offsets[1]; ++ pos) {
 	if (id_type(pos) == bos_id) continue;
 	
-	const count_type count = counts[0][pos];
+	const count_type count = counts[0].count_modified(pos);
 	
 	// when remove-unk is enabled, we treat it as zero_events
 	if (count == 0 || (remove_unk && id_type(pos) == unk_id)) {
@@ -868,7 +868,7 @@ namespace expgram
 	for (size_type pos = 0; pos < index[0].offsets[1]; ++ pos) {
 	  if (id_type(pos) == bos_id) continue;
 	  
-	  const count_type count = counts[0][pos];
+	  const count_type count = counts[0].count_modified(pos);
 	  
 	  if (count == 0 || (remove_unk && id_type(pos) == unk_id)) continue;
 	  
@@ -906,7 +906,7 @@ namespace expgram
 	  
 	  const double logdistribute = utils::mathop::log(discounted_mass) - utils::mathop::log(zero_events);
 	  for (size_type pos = 0; pos < index[0].offsets[1]; ++ pos)
-	    if (id_type(pos) != bos_id && (counts[0][pos] == 0 || (remove_unk && id_type(pos) == unk_id)))
+	    if (id_type(pos) != bos_id && (counts[0].count_modified(pos) == 0 || (remove_unk && id_type(pos) == unk_id)))
 	      logprobs[0][pos] = logdistribute;
 	  if (ngram.smooth == boost::numeric::bounds<logprob_type>::lowest())
 	    ngram.smooth = logdistribute;
@@ -1093,7 +1093,7 @@ namespace expgram
 	  
 	  word_set_type& words = context_count.second;
 	  for (size_type pos = pos_first; pos != pos_last; ++ pos) {
-	    const count_type count = ngram.counts[shard][pos];
+	    const count_type count = ngram.counts[shard].count(pos);
 	    
 	    if (count > 0)
 	      words.push_back(std::make_pair(ngram.index[shard][pos], count));
@@ -1163,7 +1163,7 @@ namespace expgram
     // unigrams
 
     for (size_type pos = 0; pos < index[0].offsets[1]; ++ pos) {
-      const count_type count = counts[0][pos];
+      const count_type count = counts[0].count(pos);
       if (count > 0) {
 	const id_type id(pos);
 	
@@ -1248,8 +1248,8 @@ namespace expgram
     
     if (boost::filesystem::exists(rep.path("modified")))
       modified.open(rep.path("modified"));
-    else
-      counts.open(rep.path("counts"));
+    
+    counts.open(rep.path("counts"));
   }
   
   void NGramCounts::ShardData::write(const path_type& file) const

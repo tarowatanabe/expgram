@@ -63,14 +63,22 @@ namespace expgram
 	offset = 0;
       }
       
-      count_type operator[](size_type pos) const { return __counts()[pos - offset]; }
+      count_type count(size_type pos) const { return counts[pos - offset]; }
+      count_type count_modified(size_type pos) const { return modified[pos - offset]; }
+      //count_type operator[](size_type pos) const { return __counts()[pos - offset]; }
+      
       size_type size() const { return __counts().size() + offset; }
       
       bool is_modified() const { return modified.is_open(); }
-
-      stat_type stat() const
+      
+      stat_type stat_counts() const
       {
-	return stat_type(__counts().size_bytes(), __counts().size_compressed(), __counts().size_cache());
+	return stat_type(counts.size_bytes(), counts.size_compressed(), counts.size_cache());
+      }
+      
+      stat_type stat_modified() const
+      {
+	return stat_type(modified.size_bytes(), modified.size_compressed(), modified.size_cache());
       }
       
     private:
@@ -113,7 +121,7 @@ namespace expgram
     {
       const size_type shard_index = index.shard_index(first, last);
       std::pair<Iterator, size_type> result = index.traverse(shard_index, first, last);
-      return (result.first == last && result.second != size_type(-1) ? counts[shard_index][result.second] : count_type(0));
+      return (result.first == last && result.second != size_type(-1) ? counts[shard_index].count(result.second) : count_type(0));
     }
     
   public:
@@ -158,13 +166,21 @@ namespace expgram
     stat_type stat_pointer() const { return index.stat_pointer(); }
     stat_type stat_vocab() const { return index.stat_vocab(); }
     
-    stat_type stat_count() const 
+    stat_type stat_counts() const 
     {
       stat_type stat;
       for (size_type shard = 0; shard < counts.size(); ++ shard)
-	stat += counts[shard].stat();
+	stat += counts[shard].stat_counts();
       return stat;
     }
+    stat_type stat_modified() const 
+    {
+      stat_type stat;
+      for (size_type shard = 0; shard < counts.size(); ++ shard)
+	stat += counts[shard].stat_modified();
+      return stat;
+    }
+    
   private:
     void open_binary(const path_type& path);
     void open_google(const path_type& path,

@@ -106,7 +106,7 @@ int main(int argc, char** argv)
       ngram_type ngram(debug);
       ngram.open_shard(ngram_file, mpi_rank);
       
-      if (ngram.index.size() != mpi_size)
+      if (static_cast<int>(ngram.index.size()) != mpi_size)
 	throw std::runtime_error("MPI universe size do not match with ngram shard size");
       
       ngram_modify_mapper(ngram, comm_child);
@@ -269,7 +269,7 @@ void ngram_modify_mapper(const ngram_type& ngram, intercomm_type& reducer)
       
       // BOS handling...
       if (mpi_rank == 0 && order_prev == 1 && context.front() == bos_id)
-	unigrams[context.front()] += ngram.counts[mpi_rank][pos_context];
+	unigrams[context.front()] += ngram.counts[mpi_rank].count(pos_context);
       
       for (size_type pos = pos_first; pos != pos_last; ++ pos) {
 	context.back() = ngram.index[mpi_rank][pos];
@@ -290,7 +290,7 @@ void ngram_modify_mapper(const ngram_type& ngram, intercomm_type& reducer)
 	  
 	  std::ostream_iterator<char> iter(*stream[shard]);
 	  
-	  if (! karma::generate(iter, +(id_generator << ' ') << count_generator << '\n', context, ngram.counts[mpi_rank][pos]))
+	  if (! karma::generate(iter, +(id_generator << ' ') << count_generator << '\n', context, ngram.counts[mpi_rank].count(pos)))
 	    throw std::runtime_error("failed generation");
 	}
       }
@@ -432,7 +432,7 @@ void ngram_modify_reducer(ngram_type& ngram, intercomm_type& mapper)
   
   // dump the last order...
   for (size_type pos = ngram.index[mpi_rank].position_size(); pos < ngram.counts[mpi_rank].size(); ++ pos) {
-    const count_type count = ngram.counts[mpi_rank][pos];
+    const count_type count = ngram.counts[mpi_rank].count(pos);
     os.write((char*) &count, sizeof(count_type));
   }
   os.pop();
@@ -444,7 +444,7 @@ void ngram_modify_reducer(ngram_type& ngram, intercomm_type& mapper)
   
   utils::tempfile::permission(path);
   
-  ngram.counts[mpi_rank].counts.close();
+  //ngram.counts[mpi_rank].counts.close();
   ngram.counts[mpi_rank].modified.open(path);
 }
 

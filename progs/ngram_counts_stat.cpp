@@ -68,10 +68,11 @@ int main(int argc, char** argv)
     for (int order = 1; order <= ngram.index.order(); ++ order)
       os << order << "-gram: " << std::setw(16) << ngram.index.ngram_size(order) << '\n';
     
-    dump(os, "index",   ngram.stat_index()) << '\n';
-    dump(os, "pointer", ngram.stat_pointer()) << '\n';
-    dump(os, "vocab",   ngram.stat_vocab()) << '\n';
-    dump(os, "count",   ngram.stat_count()) << '\n';
+    dump(os, "index",    ngram.stat_index()) << '\n';
+    dump(os, "pointer",  ngram.stat_pointer()) << '\n';
+    dump(os, "vocab",    ngram.stat_vocab()) << '\n';
+    dump(os, "count",    ngram.stat_counts()) << '\n';
+    dump(os, "modified", ngram.stat_modified()) << '\n';
   }
   catch (std::exception& err) {
     std::cerr << "error: " << err.what() << std::endl;

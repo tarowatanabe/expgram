@@ -153,7 +153,7 @@ int main(int argc, char** argv)
     ngram_counts_type ngram_counts(debug);
     ngram_counts.open_shard(ngram_file, mpi_rank);
     
-    if (ngram_counts.index.size() != mpi_size)
+    if (static_cast<int>(ngram_counts.index.size()) != mpi_size)
       throw std::runtime_error("MPI universe size do not match with ngram shard size");
     
     if (! ngram_counts.counts[mpi_rank].is_modified())
@@ -255,7 +255,7 @@ void estimate_discounts(const ngram_counts_type& ngram,
     const size_type pos_last  = ngram.index[mpi_rank].offsets[order];
     
     for (size_type pos = pos_first; pos != pos_last; ++ pos) {
-      const count_type count = ngram.counts[mpi_rank][pos];
+      const count_type count = ngram.counts[mpi_rank].count_modified(pos);
       if (count && (order == 1 || ! remove_unk || ngram.index[mpi_rank][pos] != unk_id))
 	++ count_of_counts[order][count];
     }
@@ -268,7 +268,7 @@ void estimate_discounts(const ngram_counts_type& ngram,
       stream.push(boost::iostreams::zlib_compressor());
       stream.push(utils::mpi_device_bcast_sink(rank, 1024 * 1024));
       
-      for (int order = 1; order < count_of_counts_map.size(); ++ order) {
+      for (size_t order = 1; order < count_of_counts_map.size(); ++ order) {
 	count_set_type::const_iterator citer_end = count_of_counts_map[order].end();
 	for (count_set_type::const_iterator citer = count_of_counts_map[order].begin(); citer != citer_end; ++ citer)
 	  stream << order << '\t' << citer->first << ' ' << citer->second << '\n';
@@ -340,7 +340,7 @@ void estimate_unigram(const ngram_counts_type& ngram,
     for (size_type pos = 0; pos < ngram.index[0].offsets[1]; ++ pos) {
       if (id_type(pos) == bos_id) continue;
       
-      const count_type count = ngram.counts[0][pos];
+      const count_type count = ngram.counts[0].count_modified(pos);
       
       // when remove-unk is enabled, we treat it as zero_events
       if (count == 0 || (remove_unk && id_type(pos) == unk_id)) {
@@ -363,7 +363,7 @@ void estimate_unigram(const ngram_counts_type& ngram,
       for (size_type pos = 0; pos < ngram.index[0].offsets[1]; ++ pos) {
 	if (id_type(pos) == bos_id) continue;
       
-	const count_type count = ngram.counts[0][pos];
+	const count_type count = ngram.counts[0].count_modified(pos);
       
 	if (count == 0 || (remove_unk && id_type(pos) == unk_id)) continue;
       
@@ -399,7 +399,7 @@ void estimate_unigram(const ngram_counts_type& ngram,
 	// if we set remove_unk, then zero events will be incremented when we actually observed UNK
 	const double logdistribute = utils::mathop::log(discounted_mass) - utils::mathop::log(zero_events);
 	for (size_type pos = 0; pos < ngram.index[0].offsets[1]; ++ pos)
-	  if (id_type(pos) != bos_id && (ngram.counts[0][pos] == 0 || (remove_unk && id_type(pos) == unk_id)))
+	  if (id_type(pos) != bos_id && (ngram.counts[0].count_modified(pos) == 0 || (remove_unk && id_type(pos) == unk_id)))
 	    shard_data.logprobs[pos] = logdistribute;
 	if (shard_data.smooth == boost::numeric::bounds<logprob_type>::lowest())
 	  shard_data.smooth = logdistribute;
@@ -558,7 +558,7 @@ struct EstimateBigramMapper
       
       for (size_type pos = pos_first; pos != pos_last; ++ pos) {
 	const id_type    id = ngram.index[mpi_rank][pos];
-	const count_type count = ngram.counts[mpi_rank][pos];
+	const count_type count = ngram.counts[mpi_rank].count_modified(pos);
 	
 	if (remove_unk && id == unk_id) continue;
 	
@@ -1056,16 +1056,16 @@ void estimate_bigram(const ngram_counts_type& ngram,
       stream.push(boost::iostreams::zlib_compressor());
       stream.push(utils::mpi_device_bcast_sink(rank, 1024 * 1024));
       
-      for (int pos = 0; pos < unigram_size; ++ pos) 
-	if (pos % mpi_size == rank)
+      for (size_type pos = 0; pos < unigram_size; ++ pos) 
+	if (static_cast<int>(pos % mpi_size) == rank)
 	  stream.write((char*) &shard_data.backoffs[pos], sizeof(logprob_type));
     } else {
       boost::iostreams::filtering_istream stream;
       stream.push(boost::iostreams::zlib_decompressor());
       stream.push(utils::mpi_device_bcast_source(rank, 1024 * 1024));
       
-      for (int pos = 0; pos < unigram_size; ++ pos) 
-	if (pos % mpi_size == rank)
+      for (size_type pos = 0; pos < unigram_size; ++ pos) 
+	if (static_cast<int>(pos % mpi_size) == rank)
 	  stream.read((char*) &shard_data.backoffs[pos], sizeof(logprob_type));
     }
   }
@@ -1250,7 +1250,7 @@ struct EstimateNGramMapper
 	logprob_event_set_type::iterator liter = lowers.begin();
 	for (size_type pos = pos_first; pos != pos_last; ++ pos, ++ liter) {
 	  if (remove_unk && ngram.index[shard][pos] == unk_id) continue;
-	  if (ngram.counts[shard][pos] == 0) continue;
+	  if (ngram.counts[shard].count_modified(pos) == 0) continue;
 	  
 	  context.back() = ngram.index[shard][pos];
 	  
@@ -1361,7 +1361,7 @@ struct EstimateNGramReducer
 	  
 	logprob_event_set_type::iterator liter = lowers.begin();
 	for (size_type pos = pos_first; pos != pos_last; ++ pos, ++ liter) {
-	  const count_type count = ngram.counts[shard][pos];
+	  const count_type count = ngram.counts[shard].count_modified(pos);
 
 	  if (remove_unk && ngram.index[shard][pos] == unk_id) continue;
 	    
@@ -1392,7 +1392,7 @@ struct EstimateNGramReducer
 	  
 	  logprob_event_set_type::const_iterator liter = lowers.begin();
 	  for (size_type pos = pos_first; pos != pos_last; ++ pos, ++ liter) {
-	    const count_type count = ngram.counts[shard][pos];
+	    const count_type count = ngram.counts[shard].count_modified(pos);
 	      
 	    if (remove_unk && ngram.index[shard][pos] == unk_id) continue;
 	    if (count == 0) continue;
@@ -1432,7 +1432,7 @@ struct EstimateNGramReducer
 	    shard_data.backoffs[pos_context] = utils::mathop::log(numerator) - utils::mathop::log(denominator);
 	  else {
 	    for (size_type pos = pos_first; pos != pos_last; ++ pos) 
-	      if (ngram.counts[shard][pos] && ((! remove_unk) ||(ngram.index[shard][pos] != unk_id)))
+	      if (ngram.counts[shard].count_modified(pos) && ((! remove_unk) || (ngram.index[shard][pos] != unk_id)))
 		shard_data.logprobs[pos] -= logsum;
 	  }
 	}
@@ -1541,7 +1541,7 @@ struct EstimateNGramServer
     context_logprob_type context_logprob;
     pending_set_type pendings;
     
-    size_t finished = 0;
+    int finished = 0;
     
     int non_found_iter = 0;
     while (1) {
@@ -1654,8 +1654,8 @@ void estimate_ngram(const ngram_counts_type& ngram,
   context_logprob_type context_logprob;
   std::string buffer;
 
-  size_type terminated_recv = 0;
-  size_type terminated_send = 0;
+  int terminated_recv = 0;
+  int terminated_send = 0;
 
   namespace qi    = boost::spirit::qi;
   namespace karma = boost::spirit::karma;
