@@ -541,57 +541,10 @@ class Estimate:
             else:
                 run_command(self.command, logfile=self.log)
 
-class Bound:
-
-    def __init__(self, expgram=None, output="",
-                 estimate=None,
-                 max_malloc=4,
-                 threads=4, mpi=None, pbs=None, debug=None):
-        
-        self.ngram = output + '.lm.final'
-        self.log = self.ngram + '.log'
-        
-        self.mpi = mpi
-        self.threads = threads
-        self.pbs = pbs
-        
-        self.max_malloc = max_malloc
-        
-        command = ""
-        if mpi:
-            command = "%s" %(expgram.ngram_bound_mpi)
-        else:
-            command = "%s" %(expgram.ngram_bound)
-
-        command += " --ngram \"%s\"" %(estimate.ngram)
-        command += " --output \"%s\"" %(self.ngram)
-        
-        if mpi:
-            command += " --prog %s" %(expgram.ngram_bound_mpi)
-
-        if debug >= 2:
-            command += " --debug %d" %(debug)
-        else:
-            command += " --debug"
-
-        self.command = command
-
-    def run(self):
-        if self.mpi:
-            if self.pbs:
-                pbs.run(command=self.command, threads=self.threads, mpi=self.mpi, name="bound", memory=self.max_malloc, logfile=self.log)
-            else:
-                self.mpi.run(self.command, logfile=self.log)
-        else:
-            if self.pbs:
-                pbs.run(command=self.command, threads=self.threads, name="bound", memory=self.max_malloc, logfile=self.log)
-            else:
-                run_command(self.command, logfile=self.log)
-
 class Quantize:
 
     def __init__(self, expgram=None, output="",
-                 bound=None,
+                 estimate=None,
                  max_malloc=4,
                  threads=4, mpi=None, pbs=None, debug=None):
         
@@ -610,7 +563,7 @@ class Quantize:
         else:
             command = "%s" %(expgram.ngram_quantize)
 
-        command += " --ngram \"%s\"" %(bound.ngram)
+        command += " --ngram \"%s\"" %(estimate.ngram)
         command += " --output \"%s\"" %(self.ngram)
         
         if mpi:
@@ -739,21 +692,10 @@ print "estimate language model started  @", time.ctime()
 estimate.run()
 print "estimate language model finished @", time.ctime()
 
-bound = Bound(expgram=expgram,
-              output=options.output,
-              estimate=estimate,
-              max_malloc=options.max_malloc,
-              threads=options.threads, mpi=mpi, pbs=pbs,
-              debug=options.debug)
-print "estimate upper bound started  @", time.ctime()
-bound.run()
-print "estimate upper bound finished @", time.ctime()
-
-print "estimated language model:", bound.ngram
 
 quantize = Quantize(expgram=expgram,
                     output=options.output,
-                    bound=bound,
+                    estimate=estimate,
                     max_malloc=options.max_malloc,
                     threads=options.threads, mpi=mpi, pbs=pbs,
                     debug=options.debug)
