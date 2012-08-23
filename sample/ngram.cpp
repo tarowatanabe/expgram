@@ -121,12 +121,11 @@ int main(int argc, char** argv)
 	if (score_logprob != result_logprob.second)
 	  std::cerr << "logprob differ: " << score_logprob << ' ' << result_logprob.second << std::endl;
 	
-	std::pair<tokens_type::const_iterator, tokens_type::const_iterator> prefix_old = ngram.ngram_prefix(titer_first, titer_last + 1);
-	std::pair<tokens_type::const_iterator, tokens_type::const_iterator> prefix_new = ngram.prefix(titer_first, titer_last + 1);
+	std::pair<tokens_type::const_iterator, tokens_type::const_iterator> prefix_old = ngram.ngram_prefix(titer_first, titer_last);
+	std::pair<tokens_type::const_iterator, tokens_type::const_iterator> prefix_new = ngram.prefix(titer_first, titer_last);
 
 	if (prefix_old != prefix_new)
 	  std::cerr << "prefix differ" << std::endl;
-
 	
 	state = result_logprob.first;
 	
