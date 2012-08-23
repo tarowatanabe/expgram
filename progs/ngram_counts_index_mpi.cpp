@@ -49,8 +49,6 @@ path_type output_file;
 
 path_type prog_name;
 
-bool unique = false;
-
 int debug = 0;
 
 enum {
@@ -73,8 +71,6 @@ void index_unigram(const path_type& path,
 		   Stream& os_counts);
 template <typename Stream>
 void index_ngram_reducer(intercomm_type& mapper, ngram_type& ngram, Stream& os_count);
-template <typename Stream>
-void index_ngram_unique(const path_type& path, ngram_type& ngram, Stream& os_count);
 
 
 int getoptions(int argc, char** argv);
@@ -165,9 +161,7 @@ int main(int argc, char** argv)
       
       index_unigram(ngram_file, output_file, ngram, os_count);
       
-      if (unique)
-	index_ngram_unique(ngram_file, ngram, os_count);
-      else {
+      {
 	const std::string name = (boost::filesystem::exists(prog_name) ? prog_name.string() : std::string(argv[0]));
 	utils::mpi_intercomm comm_child(MPI::COMM_WORLD.Spawn(name.c_str(), &(*args.begin()), mpi_size, MPI::INFO_NULL, 0));
 	
@@ -181,7 +175,7 @@ int main(int argc, char** argv)
       
       // perform indexing and open
       os_count.pop();
-
+      
       while (! ngram_type::shard_data_type::count_set_type::exists(path_count))
 	boost::thread::yield();
       
@@ -955,133 +949,6 @@ void index_ngram_reducer(intercomm_type& mapper, ngram_type& ngram, Stream& os_c
   }
 }
 
-template <typename Stream>
-void index_ngram_unique(const path_type& path, ngram_type& ngram, Stream& os_count)
-{
-  typedef std::vector<std::string, std::allocator<std::string> > ngram_context_type;
-
-  typedef std::vector<utils::piece, std::allocator<utils::piece> > tokens_type;
-  typedef boost::tokenizer<utils::space_separator, utils::piece::const_iterator, utils::piece> tokenizer_type;
-  
-  typedef IndexNGramMapReduce map_reduce_type;
-  typedef IndexNGramReducer   reducer_type;
-  
-  typedef map_reduce_type::context_type       context_type;
-  typedef map_reduce_type::context_count_type context_count_type;
-  
-  typedef map_reduce_type::queue_type         queue_type;
-  typedef map_reduce_type::thread_type        thread_type;
-
-  typedef VocabMap vocab_map_type;
-  
-  const int mpi_rank = MPI::COMM_WORLD.Get_rank();
-  const int mpi_size = MPI::COMM_WORLD.Get_size();
-  
-  queue_type queue(1024 * 64);
-  std::auto_ptr<thread_type> thread(new thread_type(reducer_type(ngram, queue, os_count, mpi_rank, debug)));
-
-  vocab_map_type vocab_map(ngram.index.vocab());
-
-  for (int order = 2; /**/; ++ order) {
-        
-    std::ostringstream stream_ngram;
-    stream_ngram << order << "gms";
-    
-    std::ostringstream stream_index;
-    stream_index << order << "gm.idx";
-    
-    const path_type ngram_dir = path / stream_ngram.str();
-    const path_type index_file = ngram_dir / stream_index.str();
-    
-    if (! boost::filesystem::exists(ngram_dir) || ! boost::filesystem::exists(index_file)) break;
-    
-    if (mpi_rank == 0 && debug)
-      std::cerr << "order: " << order << std::endl;
-    
-    ngram.index.order() = order;
-    
-    context_count_type context_count;
-
-    ngram_context_type ngram_prefix;
-    int                ngram_rank = 0;
-    
-    utils::compress_istream is_index(index_file);
-    std::string line;
-    tokens_type tokens;
-    
-    while (std::getline(is_index, line)) {
-      utils::piece line_piece(line);
-      tokenizer_type tokenizer(line_piece);
-      
-      tokens.clear();
-      tokens.insert(tokens.end(), tokenizer.begin(), tokenizer.end());
-      
-      if (static_cast<int>(tokens.size()) != order + 1)
-	throw std::runtime_error(std::string("invalid google ngram format...") + index_file.string());
-      
-      const path_type path_ngram = ngram_dir / static_cast<std::string>(tokens.front());
-      
-      if (! boost::filesystem::exists(path_ngram))
-	throw std::runtime_error(std::string("invalid google ngram format... no file: ") + path_ngram.string());
-      
-      if (debug >= 2)
-	std::cerr << "\tfile: " << path_ngram.string() << std::endl;
-      
-      utils::compress_istream is(path_ngram, 1024 * 1024);
-      
-      while (std::getline(is, line)) {
-	utils::piece line_piece(line);
-	tokenizer_type tokenizer(line_piece);
-	
-	tokens.clear();
-	tokens.insert(tokens.end(), tokenizer.begin(), tokenizer.end());
-	
-	// invalid ngram...?
-	if (static_cast<int>(tokens.size()) != order + 1)
-	  continue;
-	
-	// check if the rank of this ngram data is mpi_rank...
-	if (order == 2) {
-	  context_count.first.clear();
-	  tokens_type::const_iterator titer_end = tokens.end() - 1;
-	  for (tokens_type::const_iterator titer = tokens.begin(); titer != titer_end; ++ titer)
-	    context_count.first.push_back(vocab_map[escape_word(*titer)]);
-	  
-	  if (ngram.index.shard_index(context_count.first.begin(), context_count.first.end()) == mpi_rank) {
-	    context_count.second = utils::lexical_cast<count_type>(tokens.back());
-	    
-	    queue.push_swap(context_count);
-	  }
-	  
-	} else {
-	  
-	  if (ngram_prefix.empty() || ! std::equal(ngram_prefix.begin(), ngram_prefix.end(), tokens.begin())) {
-	    ngram_rank = shard_index(ngram, vocab_map, tokens);
-	    
-	    ngram_prefix.clear();
-	    ngram_prefix.insert(ngram_prefix.end(), tokens.begin(), tokens.begin() + 2);
-	  }	
-  
-	  if (ngram_rank == mpi_rank) {
-	    context_count.first.clear();
-	    tokens_type::const_iterator titer_end = tokens.end() - 1;
-	    for (tokens_type::const_iterator titer = tokens.begin(); titer != titer_end; ++ titer)
-	      context_count.first.push_back(vocab_map[escape_word(*titer)]);
-	    
-	    context_count.second = utils::lexical_cast<count_type>(tokens.back());
-	    
-	    queue.push_swap(context_count);
-	  }
-	}
-      }
-    }
-  }
-  
-  // termination!
-  queue.push(std::make_pair(context_type(), count_type(0)));
-  thread->join();
-}
-
 int getoptions(int argc, char** argv)
 {
   const int mpi_rank = MPI::COMM_WORLD.Get_rank();
@@ -1095,8 +962,6 @@ int getoptions(int argc, char** argv)
     ("output", po::value<path_type>(&output_file), "output in binary format")
 
     ("prog",   po::value<path_type>(&prog_name),   "this binary")
-    
-    ("unique", po::bool_switch(&unique),                                             "unique counts (i.e. ngram counts from LDC/GSK)")
     
     ("debug", po::value<int>(&debug)->implicit_value(1), "debug level")
     ("help", "help message");

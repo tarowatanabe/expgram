@@ -47,48 +47,35 @@ namespace expgram
       typedef utils::packed_vector_mapped<count_type, std::allocator<count_type> > count_set_type;
       
     public:
-      ShardData() : counts(), modified(), offset(0) {}
-      ShardData(const path_type& path) : counts(), modified(), offset(0) { open(path); }
+      ShardData() : counts(), offset(0) {}
+      ShardData(const path_type& path) : counts(), offset(0) { open(path); }
       
     public:
       void open(const path_type& path);
       void write(const path_type& file) const;
-      path_type path() const { return __counts().path().parent_path(); }
+      path_type path() const { return counts.path().parent_path(); }
       
       void close() { clear(); }
       void clear()
       {
 	counts.clear();
-	modified.clear();
 	offset = 0;
       }
       
-      count_type count(size_type pos) const { return counts[pos - offset]; }
-      count_type count_modified(size_type pos) const { return modified[pos - offset]; }
-      //count_type operator[](size_type pos) const { return __counts()[pos - offset]; }
+      count_type operator[](size_type pos) const { return counts[pos - offset]; }
       
-      size_type size() const { return __counts().size() + offset; }
+      size_type size() const { return counts.size() + offset; }
       
-      bool is_modified() const { return modified.is_open(); }
-      
-      stat_type stat_counts() const
+      stat_type stat() const
       {
 	return stat_type(counts.size_bytes(), counts.size_compressed(), counts.size_cache());
       }
       
-      stat_type stat_modified() const
-      {
-	return stat_type(modified.size_bytes(), modified.size_compressed(), modified.size_cache());
-      }
-      
-    private:
-      const count_set_type& __counts() const { return (modified.is_open() ? modified : counts); }
-
     public:
       count_set_type counts;
-      count_set_type modified;
       size_type      offset;
     };
+    
     typedef ShardData                                                      shard_data_type;
     typedef std::vector<shard_data_type, std::allocator<shard_data_type> > shard_data_set_type;
     typedef NGramIndex                                                     shard_index_type;
@@ -99,8 +86,7 @@ namespace expgram
     NGramCounts(const int _debug=0) : debug(_debug) { clear(); }
     NGramCounts(const path_type& path,
 		const size_type shard_size=16,
-		const bool unique=false,
-		const int _debug=0)  : debug(_debug) { open(path, shard_size, unique); }
+		const int _debug=0)  : debug(_debug) { open(path, shard_size); }
     
   public:
     template <typename Iterator>
@@ -121,17 +107,24 @@ namespace expgram
     {
       const size_type shard_index = index.shard_index(first, last);
       std::pair<Iterator, size_type> result = index.traverse(shard_index, first, last);
-      return (result.first == last && result.second != size_type(-1) ? counts[shard_index].count(result.second) : count_type(0));
+      return (result.first == last && result.second != size_type(-1) ? counts[shard_index][result.second] : count_type(0));
     }
     
+    template <typename Iterator>
+    count_type modified(Iterator first, Iterator last) const
+    {
+      const size_type shard_index = index.shard_index(first, last);
+      std::pair<Iterator, size_type> result = index.traverse(shard_index, first, last);
+      return (result.first == last && result.second != size_type(-1) ? types[shard_index][result.second] : count_type(0));
+    }
+
   public:
     path_type path() const { return index.path().parent_path(); }
     size_type size() const { return index.size(); }
     bool empty() const { return index.empty(); }
     
     void open(const path_type& path,
-	      const size_type shard_size=16,
-	      const bool unique=false);
+	      const size_type shard_size=16);
 
     void open_shard(const path_type& path, int shard);
 
@@ -143,6 +136,7 @@ namespace expgram
     {
       index.clear();
       counts.clear();
+      types.clear();
     }
     
     void write(const path_type& path) const;
@@ -151,16 +145,7 @@ namespace expgram
     void estimate(ngram_type& ngram, const bool remove_unk=false) const;
     
     bool is_open() const { return index.is_open(); }
-    bool is_modified() const
-    {
-      if (counts.empty()) return false;
-      
-      shard_data_set_type::const_iterator iter_end = counts.end();
-      for (shard_data_set_type::const_iterator iter = counts.begin(); iter != iter_end; ++ iter)
-	if (! iter->is_modified())
-	  return false;
-      return true;
-    }
+    bool is_modified() const { return ! types.empty(); }
     
     stat_type stat_index() const { return index.stat_index(); }
     stat_type stat_pointer() const { return index.stat_pointer(); }
@@ -170,26 +155,26 @@ namespace expgram
     {
       stat_type stat;
       for (size_type shard = 0; shard < counts.size(); ++ shard)
-	stat += counts[shard].stat_counts();
+	stat += counts[shard].stat();
       return stat;
     }
     stat_type stat_modified() const 
     {
       stat_type stat;
-      for (size_type shard = 0; shard < counts.size(); ++ shard)
-	stat += counts[shard].stat_modified();
+      for (size_type shard = 0; shard < types.size(); ++ shard)
+	stat += types[shard].stat();
       return stat;
     }
     
   private:
     void open_binary(const path_type& path);
     void open_google(const path_type& path,
-		     const size_type shard_size=16,
-		     const bool unique=false);
+		     const size_type shard_size=16);
     
   public:
     shard_index_type    index;
     shard_data_set_type counts;
+    shard_data_set_type types;
     
     int debug;
   };

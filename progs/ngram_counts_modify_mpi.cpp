@@ -71,6 +71,10 @@ int main(int argc, char** argv)
       ngram_type ngram(debug);
       ngram.open_shard(ngram_file, mpi_rank);
       
+      // prepare types structure...
+      ngram.types.reserve(mpi_size);
+      ngram.types.resize(mpi_size);
+      
       ngram_modify_reducer(ngram, comm_parent);
       
       if (mpi_rank == 0)
@@ -269,7 +273,7 @@ void ngram_modify_mapper(const ngram_type& ngram, intercomm_type& reducer)
       
       // BOS handling...
       if (mpi_rank == 0 && order_prev == 1 && context.front() == bos_id)
-	unigrams[context.front()] += ngram.counts[mpi_rank].count(pos_context);
+	unigrams[context.front()] += ngram.counts[mpi_rank][pos_context];
       
       for (size_type pos = pos_first; pos != pos_last; ++ pos) {
 	context.back() = ngram.index[mpi_rank][pos];
@@ -290,7 +294,7 @@ void ngram_modify_mapper(const ngram_type& ngram, intercomm_type& reducer)
 	  
 	  std::ostream_iterator<char> iter(*stream[shard]);
 	  
-	  if (! karma::generate(iter, +(id_generator << ' ') << count_generator << '\n', context, ngram.counts[mpi_rank].count(pos)))
+	  if (! karma::generate(iter, +(id_generator << ' ') << count_generator << '\n', context, ngram.counts[mpi_rank][pos]))
 	    throw std::runtime_error("failed generation");
 	}
       }
@@ -432,7 +436,7 @@ void ngram_modify_reducer(ngram_type& ngram, intercomm_type& mapper)
   
   // dump the last order...
   for (size_type pos = ngram.index[mpi_rank].position_size(); pos < ngram.counts[mpi_rank].size(); ++ pos) {
-    const count_type count = ngram.counts[mpi_rank].count(pos);
+    const count_type count = ngram.counts[mpi_rank][pos];
     os.write((char*) &count, sizeof(count_type));
   }
   os.pop();
@@ -444,8 +448,8 @@ void ngram_modify_reducer(ngram_type& ngram, intercomm_type& mapper)
   
   utils::tempfile::permission(path);
   
-  //ngram.counts[mpi_rank].counts.close();
-  ngram.counts[mpi_rank].modified.open(path);
+  ngram.types[mpi_rank].offset = ngram.counts[mpi_rank].offset;
+  ngram.types[mpi_rank].counts.open(path);
 }
 
 int getoptions(int argc, char** argv)

@@ -1,4 +1,6 @@
 2012-8-x
+	* INCOMPATIBLE: ngram-counts now separately store modified counts (and data structure has changed!)
+	* INCOMPATIBLE: Estimate lower-order ngram model at the same time.
 	* Removed unused data structure
 	* Support the latest sparsehash and gperftools (actually, they are renamed)
 

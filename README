@@ -90,6 +90,7 @@ API: Sample codes exists at sample directory, ngram.cc and ngram_counts.cc
 		operator()(first, last) : return ngram count. if an ngram [first, last) does not exist, return zero.
 		
 		count(first, last) : synonym to operator()(first, last)
+		modified(first, last) : returnn "modified" ngram count for KN smoothing (when estimated...)
 		
 		exists(first, last) : check whether a particular ngram exists or not.
 		

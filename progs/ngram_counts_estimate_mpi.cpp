@@ -156,7 +156,7 @@ int main(int argc, char** argv)
     if (static_cast<int>(ngram_counts.index.size()) != mpi_size)
       throw std::runtime_error("MPI universe size do not match with ngram shard size");
     
-    if (! ngram_counts.counts[mpi_rank].is_modified())
+    if (! ngram_counts.is_modified())
       throw std::runtime_error("ngram counts is nod modified...");
     
     shard_data_type shard_data(ngram_counts.index[mpi_rank].size(), ngram_counts.index[mpi_rank].position_size());
@@ -171,7 +171,7 @@ int main(int argc, char** argv)
     
     estimate_ngram(ngram_counts, shard_data, discounts, remove_unk);
     
-    // final dumpts...
+    // final dump...
     ngram_type ngram;
     ngram.index = ngram_counts.index;
     
@@ -180,8 +180,8 @@ int main(int argc, char** argv)
     ngram.logprobs.resize(ngram.index.size());
     ngram.backoffs.resize(ngram.index.size());
     
-    ngram.logprobs[mpi_rank].offset = ngram_counts.counts[mpi_rank].offset;
-    ngram.backoffs[mpi_rank].offset = ngram_counts.counts[mpi_rank].offset;
+    ngram.logprobs[mpi_rank].offset = ngram_counts.types[mpi_rank].offset;
+    ngram.backoffs[mpi_rank].offset = ngram_counts.types[mpi_rank].offset;
     
     ngram.smooth = shard_data.smooth;
     
@@ -255,7 +255,7 @@ void estimate_discounts(const ngram_counts_type& ngram,
     const size_type pos_last  = ngram.index[mpi_rank].offsets[order];
     
     for (size_type pos = pos_first; pos != pos_last; ++ pos) {
-      const count_type count = ngram.counts[mpi_rank].count_modified(pos);
+      const count_type count = ngram.types[mpi_rank][pos];
       if (count && (order == 1 || ! remove_unk || ngram.index[mpi_rank][pos] != unk_id))
 	++ count_of_counts[order][count];
     }
@@ -340,7 +340,7 @@ void estimate_unigram(const ngram_counts_type& ngram,
     for (size_type pos = 0; pos < ngram.index[0].offsets[1]; ++ pos) {
       if (id_type(pos) == bos_id) continue;
       
-      const count_type count = ngram.counts[0].count_modified(pos);
+      const count_type count = ngram.types[0][pos];
       
       // when remove-unk is enabled, we treat it as zero_events
       if (count == 0 || (remove_unk && id_type(pos) == unk_id)) {
@@ -363,7 +363,7 @@ void estimate_unigram(const ngram_counts_type& ngram,
       for (size_type pos = 0; pos < ngram.index[0].offsets[1]; ++ pos) {
 	if (id_type(pos) == bos_id) continue;
       
-	const count_type count = ngram.counts[0].count_modified(pos);
+	const count_type count = ngram.types[0][pos];
       
 	if (count == 0 || (remove_unk && id_type(pos) == unk_id)) continue;
       
@@ -399,7 +399,7 @@ void estimate_unigram(const ngram_counts_type& ngram,
 	// if we set remove_unk, then zero events will be incremented when we actually observed UNK
 	const double logdistribute = utils::mathop::log(discounted_mass) - utils::mathop::log(zero_events);
 	for (size_type pos = 0; pos < ngram.index[0].offsets[1]; ++ pos)
-	  if (id_type(pos) != bos_id && (ngram.counts[0].count_modified(pos) == 0 || (remove_unk && id_type(pos) == unk_id)))
+	  if (id_type(pos) != bos_id && (ngram.types[0][pos] == 0 || (remove_unk && id_type(pos) == unk_id)))
 	    shard_data.logprobs[pos] = logdistribute;
 	if (shard_data.smooth == boost::numeric::bounds<logprob_type>::lowest())
 	  shard_data.smooth = logdistribute;
@@ -558,7 +558,7 @@ struct EstimateBigramMapper
       
       for (size_type pos = pos_first; pos != pos_last; ++ pos) {
 	const id_type    id = ngram.index[mpi_rank][pos];
-	const count_type count = ngram.counts[mpi_rank].count_modified(pos);
+	const count_type count = ngram.types[mpi_rank][pos];
 	
 	if (remove_unk && id == unk_id) continue;
 	
@@ -1250,7 +1250,7 @@ struct EstimateNGramMapper
 	logprob_event_set_type::iterator liter = lowers.begin();
 	for (size_type pos = pos_first; pos != pos_last; ++ pos, ++ liter) {
 	  if (remove_unk && ngram.index[shard][pos] == unk_id) continue;
-	  if (ngram.counts[shard].count_modified(pos) == 0) continue;
+	  if (ngram.types[shard][pos] == 0) continue;
 	  
 	  context.back() = ngram.index[shard][pos];
 	  
@@ -1361,7 +1361,7 @@ struct EstimateNGramReducer
 	  
 	logprob_event_set_type::iterator liter = lowers.begin();
 	for (size_type pos = pos_first; pos != pos_last; ++ pos, ++ liter) {
-	  const count_type count = ngram.counts[shard].count_modified(pos);
+	  const count_type count = ngram.types[shard][pos];
 
 	  if (remove_unk && ngram.index[shard][pos] == unk_id) continue;
 	    
@@ -1392,7 +1392,7 @@ struct EstimateNGramReducer
 	  
 	  logprob_event_set_type::const_iterator liter = lowers.begin();
 	  for (size_type pos = pos_first; pos != pos_last; ++ pos, ++ liter) {
-	    const count_type count = ngram.counts[shard].count_modified(pos);
+	    const count_type count = ngram.types[shard][pos];
 	      
 	    if (remove_unk && ngram.index[shard][pos] == unk_id) continue;
 	    if (count == 0) continue;
@@ -1432,7 +1432,7 @@ struct EstimateNGramReducer
 	    shard_data.backoffs[pos_context] = utils::mathop::log(numerator) - utils::mathop::log(denominator);
 	  else {
 	    for (size_type pos = pos_first; pos != pos_last; ++ pos) 
-	      if (ngram.counts[shard].count_modified(pos) && ((! remove_unk) || (ngram.index[shard][pos] != unk_id)))
+	      if (ngram.types[shard][pos] && ((! remove_unk) || (ngram.index[shard][pos] != unk_id)))
 		shard_data.logprobs[pos] -= logsum;
 	  }
 	}

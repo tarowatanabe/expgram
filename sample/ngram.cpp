@@ -151,6 +151,7 @@ int main(int argc, char** argv)
 		      << " is-root-shard: " << result_logprob.first.is_root_shard()
 		      << " is-root-node: " << result_logprob.first.is_root_node()
 		      << " logprob: " << result_logprob.second
+		      << " logbound: " << result_logbound.second
 		      << " order: " << ngram.index.order(result_logprob.first)
 	      
 		      << std::endl;

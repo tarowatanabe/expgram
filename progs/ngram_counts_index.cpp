@@ -16,8 +16,6 @@ path_type output_file;
 
 int shards = 4;
 
-bool unique = false;
-
 int debug = 0;
 
 int getoptions(int argc, char** argv);
@@ -31,7 +29,7 @@ int main(int argc, char** argv)
     if (output_file.empty())
       throw std::runtime_error(std::string("no output?"));
     
-    expgram::NGramCounts ngram(ngram_file, shards, unique, debug);
+    expgram::NGramCounts ngram(ngram_file, shards, debug);
     ngram.write(output_file);
   }
   catch (std::exception& err) {
@@ -52,8 +50,6 @@ int getoptions(int argc, char** argv)
     
     ("shard",  po::value<int>(&shards)->default_value(shards),                 "# of shards (or # of threads)")
 
-    ("unique", po::bool_switch(&unique),                                             "unique counts (i.e. ngram counts from LDC/GSK)")
-    
     ("debug", po::value<int>(&debug)->implicit_value(1), "debug level")
     ("help", "help message");
   

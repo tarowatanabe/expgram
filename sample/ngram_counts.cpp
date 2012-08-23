@@ -24,7 +24,6 @@ typedef expgram::Vocab vocab_type;
 
 path_type ngram_file = "-";
 
-bool unique = false;
 int shards = 4;
 
 int debug = 0;
@@ -37,7 +36,7 @@ int main(int argc, char** argv)
     if (getoptions(argc, argv) != 0) 
       return 1;
     
-    expgram::NGramCounts ngram(ngram_file, shards, unique, debug);
+    expgram::NGramCounts ngram(ngram_file, shards, debug);
     
     std::string  line;
     tokens_type  tokens;
@@ -71,9 +70,7 @@ int getoptions(int argc, char** argv)
   po::options_description desc("options");
   desc.add_options()
     ("ngram",  po::value<path_type>(&ngram_file)->default_value(ngram_file),   "ngram counts in Google format or indexed binary")
-    
-    ("unique", po::bool_switch(&unique),                                       "unique counts (i.e. ngram counts from LDC/GSK)")
-    
+        
     ("shard",  po::value<int>(&shards)->default_value(shards),                 "# of shards (or # of threads)")
     
     ("debug", po::value<int>(&debug)->implicit_value(1), "debug level")

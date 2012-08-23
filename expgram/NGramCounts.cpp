@@ -135,7 +135,7 @@ namespace expgram
 	  
 	  // BOS handling...
 	  if (shard == 0 && order_prev == 1 && context.front() == bos_id)
-	    unigrams[context.front()] += ngram.counts[shard].count(pos_context);
+	    unigrams[context.front()] += ngram.counts[shard][pos_context];
 	  
 	  for (size_type pos = pos_first; pos != pos_last; ++ pos) {
 	    context.back() = ngram.index[shard][pos];
@@ -147,7 +147,7 @@ namespace expgram
 												       count_type(1)));
 	    
 	    if (context.front() == bos_id && order_prev + 1 != max_order)
-	      queues[ngram.index.shard_index(context.begin(), context.end())]->push(std::make_pair(context, ngram.counts[shard].count(pos)));
+	      queues[ngram.index.shard_index(context.begin(), context.end())]->push(std::make_pair(context, ngram.counts[shard][pos]));
 	  }
 	}
       }
@@ -249,7 +249,7 @@ namespace expgram
       
       // dump the last order...
       for (size_type pos = ngram.index[shard].position_size(); pos < ngram.counts[shard].size(); ++ pos) {
-	const count_type count = ngram.counts[shard].count(pos);
+	const count_type count = ngram.counts[shard][pos];
 	os.write((char*) &count, sizeof(count_type));
       }
       os.pop();
@@ -260,8 +260,9 @@ namespace expgram
       
       utils::tempfile::permission(path);
       
-      //ngram.counts[shard].counts.close();
-      ngram.counts[shard].modified.open(path);
+      // set up offset and counts!
+      ngram.types[shard].offset = ngram.counts[shard].offset;
+      ngram.types[shard].counts.open(path);
     }
   };
   
@@ -281,10 +282,14 @@ namespace expgram
     
     if (counts.empty())
       throw std::runtime_error("no indexed counts?");
-
+    
     // already modified?
     if (is_modified())
       return;
+    
+    // allocate types...
+    types.reserve(index.size());
+    types.resize(index.size());
     
     queue_ptr_set_type  queues(index.size());
     thread_ptr_set_type threads_mapper(index.size());
@@ -327,10 +332,12 @@ namespace expgram
     typedef std::vector<discount_type, std::allocator<discount_type> > discount_set_type;
     
     typedef std::vector<logprob_type, std::allocator<logprob_type> > logprob_shard_type;
+    typedef std::vector<logprob_type, std::allocator<logprob_type> > logbound_shard_type;
     typedef std::vector<logprob_type, std::allocator<logprob_type> > backoff_shard_type;
     
-    typedef std::vector<logprob_shard_type, std::allocator<logprob_shard_type> > logprob_shard_set_type;
-    typedef std::vector<backoff_shard_type, std::allocator<backoff_shard_type> > backoff_shard_set_type;
+    typedef std::vector<logprob_shard_type, std::allocator<logprob_shard_type> >   logprob_shard_set_type;
+    typedef std::vector<logbound_shard_type, std::allocator<logbound_shard_type> > logbound_shard_set_type;
+    typedef std::vector<backoff_shard_type, std::allocator<backoff_shard_type> >   backoff_shard_set_type;
     
     typedef std::vector<size_type, std::allocator<size_type> > offset_set_type;
     
@@ -354,16 +361,19 @@ namespace expgram
     typedef map_reduce_type::count_map_type count_map_type;
     
     const ngram_type& ngram;
-    count_map_type& count_of_counts;
+    count_map_type& cc_types;
+    count_map_type& cc_counts;
     int shard;
     bool remove_unk;
     
     NGramCountsEstimateDiscountMapper(const ngram_type& _ngram,
-				      count_map_type&   _count_of_counts,
+				      count_map_type&   _cc_types,
+				      count_map_type&   _cc_counts,
 				      const int         _shard,
 				      const bool        _remove_unk)
       : ngram(_ngram),
-	count_of_counts(_count_of_counts),
+	cc_types(_cc_types),
+	cc_counts(_cc_counts),
 	shard(_shard),
 	remove_unk(_remove_unk) {}
     
@@ -372,18 +382,30 @@ namespace expgram
       //const id_type bos_id = ngram.index.vocab()[vocab_type::BOS];
       const id_type unk_id = ngram.index.vocab()[vocab_type::UNK];
 
-      count_of_counts.clear();
-      count_of_counts.reserve(ngram.index.order() + 1);
-      count_of_counts.resize(ngram.index.order() + 1);
+      cc_types.clear();
+      cc_types.reserve(ngram.index.order() + 1);
+      cc_types.resize(ngram.index.order() + 1);
+      
+      cc_counts.clear();
+      cc_counts.reserve(ngram.index.order() + 1);
+      cc_counts.resize(ngram.index.order() + 1);
       
       for (int order = (shard == 0 ? 1 : 2); order <= ngram.index.order(); ++ order) {
 	const size_type pos_first = ngram.index[shard].offsets[order - 1];
 	const size_type pos_last  = ngram.index[shard].offsets[order];
 	
+	// count-of-count for type-counts
 	for (size_type pos = pos_first; pos != pos_last; ++ pos) {
-	  const count_type count = ngram.counts[shard].count_modified(pos);
+	  const count_type count = ngram.types[shard][pos];
 	  if (count && (order == 1 || ! remove_unk || ngram.index[shard][pos] != unk_id))
-	    ++ count_of_counts[order][count];
+	    ++ cc_types[order][count];
+	}
+	
+	// count-of-count for raw-counts
+	for (size_type pos = pos_first; pos != pos_last; ++ pos) {
+	  const count_type count = ngram.counts[shard][pos];
+	  if (count && (order == 1 || ! remove_unk || ngram.index[shard][pos] != unk_id))
+	    ++ cc_counts[order][count];
 	}
       }
     }
@@ -403,13 +425,16 @@ namespace expgram
     typedef map_reduce_type::prob_type    prob_type;
     typedef map_reduce_type::logprob_type logprob_type;
     
-    typedef map_reduce_type::discount_set_type      discount_set_type;
-    typedef map_reduce_type::logprob_shard_set_type logprob_shard_set_type;
-    typedef map_reduce_type::backoff_shard_set_type backoff_shard_set_type;
+    typedef map_reduce_type::discount_set_type       discount_set_type;
+    typedef map_reduce_type::logprob_shard_set_type  logprob_shard_set_type;
+    typedef map_reduce_type::logbound_shard_set_type logbound_shard_set_type;
+    typedef map_reduce_type::backoff_shard_set_type  backoff_shard_set_type;
     
     const ngram_type&        ngram;
     const discount_set_type& discounts;
+    const discount_set_type& discounts_raw;
     logprob_shard_set_type&  logprobs;
+    logbound_shard_set_type& logbounds;
     backoff_shard_set_type&  backoffs;
     int                      shard;
     bool                     remove_unk;
@@ -417,14 +442,18 @@ namespace expgram
     
     NGramCountsEstimateBigramMapper(const ngram_type&        _ngram,
 				    const discount_set_type& _discounts,
+				    const discount_set_type& _discounts_raw,
 				    logprob_shard_set_type&  _logprobs,
+				    logbound_shard_set_type& _logbounds,
 				    backoff_shard_set_type&  _backoffs,
 				    const int                _shard,
 				    const bool               _remove_unk,
 				    const int                _debug)
       : ngram(_ngram),
 	discounts(_discounts),
+	discounts_raw(_discounts_raw),
 	logprobs(_logprobs),
+	logbounds(_logbounds),
 	backoffs(_backoffs),
 	shard(_shard),
 	remove_unk(_remove_unk),
@@ -445,11 +474,66 @@ namespace expgram
       for (size_type pos_context = pos_context_first; pos_context < pos_context_last; ++ pos_context)
 	if (static_cast<int>(id_type(pos_context) % ngram.index.size()) == shard) {
 	  
+	  if (ngram.index.order() > 2) {
+	    // estiamte logbounds...
+	    count_type total = 0;
+	    count_type observed = 0;
+	    count_type min2 = 0;
+	    count_type min3 = 0;
+	    
+	    for (size_type shard = 0; shard != ngram.index.size(); ++ shard) {
+	      const size_type pos_first = ngram.index[shard].children_first(pos_context);
+	      const size_type pos_last  = ngram.index[shard].children_last(pos_context);
+	    
+	      for (size_type pos = pos_first; pos != pos_last; ++ pos) {
+		if (remove_unk && ngram.index[shard][pos] == unk_id) continue;
+		
+		const count_type count = ngram.counts[shard][pos];
+		
+		if (count == 0) continue;
+		
+		total += count;
+		++ observed;
+		min2 += (count >= discounts_raw[order].mincount2);
+		min3 += (count >= discounts_raw[order].mincount3);
+	      }
+	    }
+	    
+	    if (total > 0) {
+	      for (size_type shard = 0; shard != ngram.index.size(); ++ shard) {
+		const size_type pos_first = ngram.index[shard].children_first(pos_context);
+		const size_type pos_last  = ngram.index[shard].children_last(pos_context);
+
+		const size_type offset = ngram.counts[shard].offset;
+	      
+		for (size_type pos = pos_first; pos != pos_last; ++ pos) {
+		  const id_type    id = ngram.index[shard][pos];
+		  
+		  if (remove_unk && id == unk_id) continue;
+		  
+		  const count_type count = ngram.counts[shard][pos];
+
+		  if (count == 0) continue;
+		
+		  const prob_type discount = discounts_raw[order].discount(count, total, observed);
+		  const prob_type prob = (discount * count / total);
+		
+		  const prob_type lower_order_weight = discounts_raw[order].lower_order_weight(total, observed, min2, min3);
+		  const logprob_type lower_order_logprob = logprobs[0][id];
+		  const prob_type lower_order_prob = utils::mathop::exp(double(lower_order_logprob));
+		  const prob_type prob_combined = prob + lower_order_weight * lower_order_prob;
+		  const logprob_type logprob = utils::mathop::log(prob_combined);
+		  
+		  logbounds[shard][pos - offset] = logprob;
+		}
+	      }
+	    }
+	  }
+	  
 	  count_type total = 0;
 	  count_type observed = 0;
 	  count_type min2 = 0;
 	  count_type min3 = 0;
-	  count_type zero_events = 0;
 	  
 	  double logsum_lower_order = boost::numeric::bounds<double>::lowest();
 	  
@@ -459,15 +543,13 @@ namespace expgram
 	    
 	    for (size_type pos = pos_first; pos != pos_last; ++ pos) {
 	      const id_type    id = ngram.index[shard][pos];
-	      const count_type count = ngram.counts[shard].count_modified(pos);
 	      
 	      // simply treat it as a special zero event
 	      if (remove_unk && id == unk_id) continue;
 	      
-	      if (count == 0) {
-		++ zero_events;
-		continue;
-	      }
+	      const count_type count = ngram.types[shard][pos];
+
+	      if (count == 0) continue;
 	      
 	      total += count;
 	      ++ observed;
@@ -488,13 +570,15 @@ namespace expgram
 	      const size_type pos_first = ngram.index[shard].children_first(pos_context);
 	      const size_type pos_last  = ngram.index[shard].children_last(pos_context);
 
-	      const size_type offset = ngram.counts[shard].offset;
+	      const size_type offset = ngram.types[shard].offset;
 	      
 	      for (size_type pos = pos_first; pos != pos_last; ++ pos) {
 		const id_type    id = ngram.index[shard][pos];
-		const count_type count = ngram.counts[shard].count_modified(pos);
 		
 		if (remove_unk && id == unk_id) continue;
+		
+		const count_type count = ngram.types[shard][pos];
+		
 		if (count == 0) continue;
 		
 		const prob_type discount = discounts[order].discount(count, total, observed);
@@ -535,10 +619,10 @@ namespace expgram
 		const size_type pos_first = ngram.index[shard].children_first(pos_context);
 		const size_type pos_last  = ngram.index[shard].children_last(pos_context);
 
-		const size_type offset = ngram.counts[shard].offset;
+		const size_type offset = ngram.types[shard].offset;
 		
 		for (size_type pos = pos_first; pos != pos_last; ++ pos)
-		  if (ngram.counts[shard].count_modified(pos) && ((! remove_unk) || (ngram.index[shard][pos] != unk_id)))
+		  if (ngram.types[shard][pos] && ((! remove_unk) || (ngram.index[shard][pos] != unk_id)))
 		    logprobs[shard][pos - offset] -= logsum;
 	      }
 	    }
@@ -561,14 +645,17 @@ namespace expgram
     typedef map_reduce_type::prob_type    prob_type;
     typedef map_reduce_type::logprob_type logprob_type;
     
-    typedef map_reduce_type::discount_set_type      discount_set_type;
-    typedef map_reduce_type::logprob_shard_set_type logprob_shard_set_type;
-    typedef map_reduce_type::backoff_shard_set_type backoff_shard_set_type;
-    typedef map_reduce_type::offset_set_type        offset_set_type;
+    typedef map_reduce_type::discount_set_type       discount_set_type;
+    typedef map_reduce_type::logprob_shard_set_type  logprob_shard_set_type;
+    typedef map_reduce_type::logbound_shard_set_type logbound_shard_set_type;
+    typedef map_reduce_type::backoff_shard_set_type  backoff_shard_set_type;
+    typedef map_reduce_type::offset_set_type         offset_set_type;
 
     const ngram_type&        ngram;
     const discount_set_type& discounts;
+    const discount_set_type& discounts_raw;
     logprob_shard_set_type&  logprobs;
+    logbound_shard_set_type& logbounds;
     backoff_shard_set_type&  backoffs;
     offset_set_type&         offsets;
     int                      shard;
@@ -577,7 +664,9 @@ namespace expgram
     
     NGramCountsEstimateMapper(const ngram_type&        _ngram,
 			      const discount_set_type& _discounts,
+			      const discount_set_type& _discounts_raw,
 			      logprob_shard_set_type&  _logprobs,
+			      logbound_shard_set_type& _logbounds,
 			      backoff_shard_set_type&  _backoffs,
 			      offset_set_type&         _offsets,
 			      const int                _shard,
@@ -585,7 +674,9 @@ namespace expgram
 			      const int                _debug)
       : ngram(_ngram),
 	discounts(_discounts),
-	logprobs(_logprobs),
+	discounts_raw(_discounts_raw),
+        logprobs(_logprobs),
+        logbounds(_logbounds),
 	backoffs(_backoffs),
 	offsets(_offsets),
 	shard(_shard),
@@ -599,7 +690,7 @@ namespace expgram
       for (/**/; first != last - 1; ++ first) {
 	const int order = last - first;
 	const size_type shard_index = ngram.index.shard_index(first, last);
-	const size_type offset = ngram.counts[shard_index].offset;
+	const size_type offset = ngram.types[shard_index].offset;
 	
 	const size_type shard_index_backoff = size_type((order == 2) - 1) & shard_index;
 	const size_type offset_backoff = size_type((order == 2) - 1) & offset;
@@ -630,7 +721,7 @@ namespace expgram
       typedef std::vector<id_type, std::allocator<id_type> >           context_type;
       typedef std::vector<logprob_type, std::allocator<logprob_type> > logprob_set_type;
 
-      const size_type offset = ngram.counts[shard].offset;
+      const size_type offset = ngram.types[shard].offset;
 
       //const id_type bos_id = ngram.index.vocab()[vocab_type::BOS];
       const id_type unk_id = ngram.index.vocab()[vocab_type::UNK];
@@ -664,40 +755,91 @@ namespace expgram
 	  for (size_type pos_curr = pos_context; pos_curr != size_type(-1); pos_curr = ngram.index[shard].parent(pos_curr), -- citer_curr)
 	    *citer_curr = ngram.index[shard][pos_curr];
 	  
+	  
+	  lowers.resize(pos_last - pos_first);
+	  
+	  // first, compute lower-order ngram probabilities...
+	  logprob_set_type::iterator liter = lowers.begin();
+	  for (size_type pos = pos_first; pos != pos_last; ++ pos, ++ liter) {
+	    const id_type id = ngram.index[shard][pos];
+	    
+	    if (remove_unk && id == unk_id) continue;
+	    
+	    context.back() = id;
+	    
+	    *liter = logprob_backoff(context.begin() + 1, context.end());
+	  }
+	  
+	  // estimate for logbound...
+	  if (ngram.index.order() > order) {
+	    count_type total = 0;
+	    count_type observed = 0;
+	    count_type min2 = 0;
+	    count_type min3 = 0;
+	    
+	    for (size_type pos = pos_first; pos != pos_last; ++ pos) {
+	      if (remove_unk && ngram.index[shard][pos] == unk_id) continue;
+	      
+	      const count_type count = ngram.counts[shard][pos];
+	      
+	      if (count == 0) continue;
+	      
+	      total += count;
+	      ++ observed;
+	      min2 += (count >= discounts_raw[order].mincount2);
+	      min3 += (count >= discounts_raw[order].mincount3);
+	    }
+
+	    if (total > 0) {
+	      logprob_set_type::const_iterator liter = lowers.begin();
+	      
+	      for (size_type pos = pos_first; pos != pos_last; ++ pos, ++ liter) {
+		if (remove_unk && ngram.index[shard][pos] == unk_id) continue;
+		
+		const count_type count = ngram.counts[shard][pos];
+		
+		if (count == 0) continue;
+		
+		const prob_type discount = discounts_raw[order].discount(count, total, observed);
+		const prob_type prob = (discount * count / total);
+		
+		const prob_type lower_order_weight = discounts_raw[order].lower_order_weight(total, observed, min2, min3);
+		const logprob_type lower_order_logprob = *liter;
+		const prob_type lower_order_prob = utils::mathop::exp(double(lower_order_logprob));
+		const prob_type prob_combined = prob + lower_order_weight * lower_order_prob;
+		const logprob_type logprob = utils::mathop::log(prob_combined);
+		
+		logbounds[shard][pos - offset] = logprob;
+	      }
+	    }
+	  }
+	  
 	  count_type total = 0;
 	  count_type observed = 0;
 	  count_type min2 = 0;
 	  count_type min3 = 0;
-	  count_type zero_events = 0;
 	  
-	  lowers.resize(pos_last - pos_first);
 	  double logsum_lower_order = boost::numeric::bounds<double>::lowest();
 	  
-	  logprob_set_type::iterator liter = lowers.begin();
-	  for (size_type pos = pos_first; pos != pos_last; ++ pos, ++ liter) {
-	    const count_type count = ngram.counts[shard].count_modified(pos);
-
-	    if (remove_unk && ngram.index[shard][pos] == unk_id) continue;
-	    
-	    if (count == 0) {
-	      ++ zero_events;
-	      continue;
+	  {
+	    logprob_set_type::const_iterator liter = lowers.begin();
+	    for (size_type pos = pos_first; pos != pos_last; ++ pos, ++ liter) {
+	      if (remove_unk && ngram.index[shard][pos] == unk_id) continue;
+	      
+	      const count_type count = ngram.types[shard][pos];
+	      
+	      if (count == 0) continue;
+	      
+	      total += count;
+	      ++ observed;
+	      min2 += (count >= discounts[order].mincount2);
+	      min3 += (count >= discounts[order].mincount3);
+	      
+	      logsum_lower_order = utils::mathop::logsum(logsum_lower_order, double(*liter));
 	    }
-	    
-	    total += count;
-	    ++ observed;
-	    min2 += (count >= discounts[order].mincount2);
-	    min3 += (count >= discounts[order].mincount3);
-	    
-	    context.back() = ngram.index[shard][pos];
-	    
-	    const logprob_type logprob_lower_order = logprob_backoff(context.begin() + 1, context.end());
-	    logsum_lower_order = utils::mathop::logsum(logsum_lower_order, double(logprob_lower_order));
-	    *liter = logprob_lower_order;
 	  }
 	  
 	  if (total == 0) continue;
-	  
 	  
 	  double logsum = 0.0;
 	  for (/**/; logsum >= 0.0; ++ total) {
@@ -705,9 +847,10 @@ namespace expgram
 	    
 	    logprob_set_type::const_iterator liter = lowers.begin();
 	    for (size_type pos = pos_first; pos != pos_last; ++ pos, ++ liter) {
-	      const count_type count = ngram.counts[shard].count_modified(pos);
-	      
 	      if (remove_unk && ngram.index[shard][pos] == unk_id) continue;
+	      
+	      const count_type count = ngram.types[shard][pos];
+
 	      if (count == 0) continue;
 	      
 	      const prob_type discount = discounts[order].discount(count, total, observed);
@@ -743,7 +886,7 @@ namespace expgram
 	      backoffs[shard][pos_context - offset] = utils::mathop::log(numerator) - utils::mathop::log(denominator);
 	    else {
 	      for (size_type pos = pos_first; pos != pos_last; ++ pos) 
-		if (ngram.counts[shard].count_modified(pos) && ((! remove_unk) ||(ngram.index[shard][pos] != unk_id)))
+		if (ngram.types[shard][pos] && ((! remove_unk) ||(ngram.index[shard][pos] != unk_id)))
 		  logprobs[shard][pos - offset] -= logsum;
 	    }
 	  }
@@ -759,73 +902,100 @@ namespace expgram
   {
     typedef NGramCountsEstimateMapReduce map_reduce_type;
     
-    typedef map_reduce_type::discount_set_type      discount_set_type;
-    typedef map_reduce_type::logprob_shard_type     logprob_shard_type;
-    typedef map_reduce_type::logprob_shard_set_type logprob_shard_set_type;
-    typedef map_reduce_type::backoff_shard_type     backoff_shard_type;
-    typedef map_reduce_type::backoff_shard_set_type backoff_shard_set_type;
-    typedef map_reduce_type::offset_set_type        offset_set_type;
-    typedef map_reduce_type::count_map_type         count_map_type;
+    typedef map_reduce_type::discount_set_type       discount_set_type;
+    typedef map_reduce_type::logprob_shard_type      logprob_shard_type;
+    typedef map_reduce_type::logprob_shard_set_type  logprob_shard_set_type;
+    typedef map_reduce_type::logbound_shard_type     logbound_shard_type;
+    typedef map_reduce_type::logbound_shard_set_type logbound_shard_set_type;
+    typedef map_reduce_type::backoff_shard_type      backoff_shard_type;
+    typedef map_reduce_type::backoff_shard_set_type  backoff_shard_set_type;
+    typedef map_reduce_type::offset_set_type         offset_set_type;
+    typedef map_reduce_type::count_map_type          count_map_type;
     
     typedef map_reduce_type::thread_type            thread_type;
     typedef map_reduce_type::thread_ptr_set_type    thread_ptr_set_type;
     
     // collect count of counts...
     count_map_type count_of_counts(index.order() + 1);
+    count_map_type count_of_counts_raw(index.order() + 1);
+    
     {
       typedef NGramCountsEstimateDiscountMapper mapper_type;
 
+      std::vector<count_map_type, std::allocator<count_map_type> > types(index.size());
       std::vector<count_map_type, std::allocator<count_map_type> > counts(index.size());
+      
       thread_ptr_set_type threads(index.size());
       for (size_type shard = 0; shard != index.size(); ++ shard)
-	threads[shard].reset(new thread_type(mapper_type(*this, counts[shard], shard, remove_unk)));
+	threads[shard].reset(new thread_type(mapper_type(*this, types[shard], counts[shard], shard, remove_unk)));
       
       for (size_type shard = 0; shard != index.size(); ++ shard) {
 	threads[shard]->join();
 	
 	for (int order = 1; order <= index.order(); ++ order) {
+	  count_map_type::value_type::const_iterator titer_end = types[shard][order].end();
+	  for (count_map_type::value_type::const_iterator titer = types[shard][order].begin(); titer != titer_end; ++ titer)
+	    count_of_counts[order][titer->first] += titer->second;
+	  
 	  count_map_type::value_type::const_iterator citer_end = counts[shard][order].end();
 	  for (count_map_type::value_type::const_iterator citer = counts[shard][order].begin(); citer != citer_end; ++ citer)
-	    count_of_counts[order][citer->first] += citer->second;
+	    count_of_counts_raw[order][citer->first] += citer->second;
 	}
       }
     }
     
     // distounts
     discount_set_type discounts(index.order() + 1);
+    discount_set_type discounts_raw(index.order() + 1);
     
-    for (int order = 1; order <= index.order(); ++ order)
+    for (int order = 1; order <= index.order(); ++ order) {
       discounts[order].estimate(count_of_counts[order].begin(), count_of_counts[order].end());
+      discounts_raw[order].estimate(count_of_counts_raw[order].begin(), count_of_counts_raw[order].end());
+    }
     count_of_counts.clear();
+    count_of_counts_raw.clear();
     
-    if (debug)
+    if (debug) {
       for (int order = 1; order <= index.order(); ++ order)
-	std::cerr << "order: " << order << ' ' << discounts[order] << std::endl;
+	std::cerr << "type counts: order: " << order << ' ' << discounts[order] << std::endl;
+      
+      for (int order = 1; order <= index.order(); ++ order)
+	std::cerr << "raw counts:  order: " << order << ' ' << discounts_raw[order] << std::endl;
+    }
     
     // assignment for index...
     ngram.index = index;
     ngram.logprobs.reserve(index.size());
+    ngram.logbounds.reserve(index.size());
     ngram.backoffs.reserve(index.size());
+    
     ngram.logprobs.resize(index.size());
+    ngram.logbounds.resize(index.size());
     ngram.backoffs.resize(index.size());
+    
     for (size_type shard = 0; shard != index.size(); ++ shard) {
-      ngram.logprobs[shard].offset = counts[shard].offset;
-      ngram.backoffs[shard].offset = counts[shard].offset;
+      ngram.logprobs[shard].offset  = types[shard].offset;
+      ngram.logbounds[shard].offset = types[shard].offset;
+      ngram.backoffs[shard].offset  = types[shard].offset;
     }
     ngram.smooth = boost::numeric::bounds<logprob_type>::lowest();
     
     // we will allocate large memory here...
-    logprob_shard_set_type logprobs(index.size());
-    backoff_shard_set_type backoffs(index.size());
+    logprob_shard_set_type  logprobs(index.size());
+    logbound_shard_set_type logbounds(index.size());
+    backoff_shard_set_type  backoffs(index.size());
     for (size_type shard = 0; shard != index.size(); ++ shard) {
       logprobs[shard].clear();
       backoffs[shard].clear();
       
-      logprobs[shard].reserve(index[shard].size() - counts[shard].offset);
-      logprobs[shard].resize(index[shard].size() - counts[shard].offset, expgram::NGram::logprob_min());
+      logprobs[shard].reserve(index[shard].size() - types[shard].offset);
+      logprobs[shard].resize(index[shard].size() - types[shard].offset, expgram::NGram::logprob_min());
+
+      logbounds[shard].reserve(index[shard].position_size() - types[shard].offset);
+      logbounds[shard].resize(index[shard].position_size() - types[shard].offset, expgram::NGram::logprob_min());
       
-      backoffs[shard].reserve(index[shard].position_size() - counts[shard].offset);
-      backoffs[shard].resize(index[shard].position_size() - counts[shard].offset, 0.0);
+      backoffs[shard].reserve(index[shard].position_size() - types[shard].offset);
+      backoffs[shard].resize(index[shard].position_size() - types[shard].offset, 0.0);
     }
     
     {
@@ -845,7 +1015,7 @@ namespace expgram
       for (size_type pos = 0; pos < index[0].offsets[1]; ++ pos) {
 	if (id_type(pos) == bos_id) continue;
 	
-	const count_type count = counts[0].count_modified(pos);
+	const count_type count = types[0][pos];
 	
 	// when remove-unk is enabled, we treat it as zero_events
 	if (count == 0 || (remove_unk && id_type(pos) == unk_id)) {
@@ -868,7 +1038,7 @@ namespace expgram
 	for (size_type pos = 0; pos < index[0].offsets[1]; ++ pos) {
 	  if (id_type(pos) == bos_id) continue;
 	  
-	  const count_type count = counts[0].count_modified(pos);
+	  const count_type count = types[0][pos];
 	  
 	  if (count == 0 || (remove_unk && id_type(pos) == unk_id)) continue;
 	  
@@ -906,7 +1076,7 @@ namespace expgram
 	  
 	  const double logdistribute = utils::mathop::log(discounted_mass) - utils::mathop::log(zero_events);
 	  for (size_type pos = 0; pos < index[0].offsets[1]; ++ pos)
-	    if (id_type(pos) != bos_id && (counts[0].count_modified(pos) == 0 || (remove_unk && id_type(pos) == unk_id)))
+	    if (id_type(pos) != bos_id && (types[0][pos] == 0 || (remove_unk && id_type(pos) == unk_id)))
 	      logprobs[0][pos] = logdistribute;
 	  if (ngram.smooth == boost::numeric::bounds<logprob_type>::lowest())
 	    ngram.smooth = logdistribute;
@@ -926,9 +1096,49 @@ namespace expgram
       // fallback to uniform distribution...
       if (ngram.smooth == boost::numeric::bounds<logprob_type>::lowest())
 	ngram.smooth = utils::mathop::log(uniform_distribution);
-
+            
       if (debug)
 	std::cerr << "\tsmooth: " << ngram.smooth << std::endl;
+            
+      
+      if (index.order() > 1) {
+	// estimate for logbound...!
+	count_type total = 0;
+	count_type observed = 0;
+	count_type min2 = 0;
+	count_type min3 = 0;
+	
+	for (size_type pos = 0; pos < index[0].offsets[1]; ++ pos) {
+	  if (id_type(pos) == bos_id) continue;
+	  
+	  const count_type count = counts[0][pos];
+	
+	  // when remove-unk is enabled, we treat it as zero_events
+	  if (count == 0 || (remove_unk && id_type(pos) == unk_id)) continue;
+	
+	  total += count;
+	  ++ observed;
+	  min2 += (count >= discounts_raw[1].mincount2);
+	  min3 += (count >= discounts_raw[1].mincount3);
+	}
+	
+	for (size_type pos = 0; pos < index[0].offsets[1]; ++ pos) {
+	  if (id_type(pos) == bos_id) continue;
+	  
+	  const count_type count = counts[0][pos];
+	  
+	  if (count == 0 || (remove_unk && id_type(pos) == unk_id)) continue;
+	  
+	  const prob_type discount = discounts_raw[1].discount(count, total, observed);
+	  const prob_type prob = (discount * count / total);
+	  const prob_type lower_order_weight = discounts_raw[1].lower_order_weight(total, observed, min2, min3);
+	  const prob_type lower_order_prob = uniform_distribution;
+	  const prob_type prob_combined = prob + lower_order_weight * lower_order_prob;
+	  const logprob_type logprob = utils::mathop::log(prob_combined);
+	  
+	  logbounds[0][pos] = logprob;
+	}
+      }
     }
     
     {
@@ -940,7 +1150,7 @@ namespace expgram
       
       thread_ptr_set_type threads(index.size());
       for (size_type shard = 0; shard != threads.size(); ++ shard)
-	threads[shard].reset(new thread_type(mapper_type(*this, discounts, logprobs, backoffs, shard, remove_unk, debug)));
+	threads[shard].reset(new thread_type(mapper_type(*this, discounts, discounts_raw, logprobs, logbounds, backoffs, shard, remove_unk, debug)));
       
       for (size_type shard = 0; shard != threads.size(); ++ shard)
 	threads[shard]->join();
@@ -959,7 +1169,7 @@ namespace expgram
       }
       
       for (size_type shard = 0; shard != threads.size(); ++ shard)
-	threads[shard].reset(new thread_type(mapper_type(*this, discounts, logprobs, backoffs, offsets, shard, remove_unk, debug)));
+	threads[shard].reset(new thread_type(mapper_type(*this, discounts, discounts_raw, logprobs, logbounds, backoffs, offsets, shard, remove_unk, debug)));
       
       for (size_type shard = 0; shard != threads.size(); ++ shard)
 	threads[shard]->join();
@@ -967,38 +1177,47 @@ namespace expgram
     
     // finalize...
     for (size_type shard = 0; shard != index.size(); ++ shard) {
-      const path_type tmp_dir      = utils::tempfile::tmp_dir();
-      const path_type path_logprob = utils::tempfile::file_name(tmp_dir / "expgram.logprob.XXXXXX");
-      const path_type path_backoff = utils::tempfile::file_name(tmp_dir / "expgram.backoff.XXXXXX");
+      const path_type tmp_dir       = utils::tempfile::tmp_dir();
+      const path_type path_logprob  = utils::tempfile::file_name(tmp_dir / "expgram.logprob.XXXXXX");
+      const path_type path_logbound = utils::tempfile::file_name(tmp_dir / "expgram.logbound.XXXXXX");
+      const path_type path_backoff  = utils::tempfile::file_name(tmp_dir / "expgram.backoff.XXXXXX");
       
       utils::tempfile::insert(path_logprob);
+      utils::tempfile::insert(path_logbound);
       utils::tempfile::insert(path_backoff);
       
       dump_file(path_logprob, logprobs[shard]);
+      dump_file(path_logbound, logbounds[shard]);
       dump_file(path_backoff, backoffs[shard]);
       
       ::sync();
       
       while (! boost::filesystem::exists(path_logprob))
 	boost::thread::yield();
+      while (! boost::filesystem::exists(path_logbound))
+	boost::thread::yield();      
       while (! boost::filesystem::exists(path_backoff))
 	boost::thread::yield();
-
+      
       utils::tempfile::permission(path_logprob);
+      utils::tempfile::permission(path_logbound);
       utils::tempfile::permission(path_backoff);
       
       ngram.logprobs[shard].logprobs.open(path_logprob);
+      ngram.logbounds[shard].logprobs.open(path_logbound);
       ngram.backoffs[shard].logprobs.open(path_backoff);
       
       logprobs[shard].clear();
+      logbounds[shard].clear();
       backoffs[shard].clear();
       
       logprob_shard_type(logprobs[shard]).swap(logprobs[shard]);
+      logbound_shard_type(logbounds[shard]).swap(logbounds[shard]);
       backoff_shard_type(backoffs[shard]).swap(backoffs[shard]);
     }
     
     // compute upper bounds...
-    ngram.bounds();
+    //ngram.bounds();
   }
   
   struct NGramCountsDumpMapReduce
@@ -1093,7 +1312,7 @@ namespace expgram
 	  
 	  word_set_type& words = context_count.second;
 	  for (size_type pos = pos_first; pos != pos_last; ++ pos) {
-	    const count_type count = ngram.counts[shard].count(pos);
+	    const count_type count = ngram.counts[shard][pos];
 	    
 	    if (count > 0)
 	      words.push_back(std::make_pair(ngram.index[shard][pos], count));
@@ -1163,7 +1382,7 @@ namespace expgram
     // unigrams
 
     for (size_type pos = 0; pos < index[0].offsets[1]; ++ pos) {
-      const count_type count = counts[0].count(pos);
+      const count_type count = counts[0][pos];
       if (count > 0) {
 	const id_type id(pos);
 	
@@ -1246,9 +1465,6 @@ namespace expgram
       throw std::runtime_error("no offset?");
     offset = utils::lexical_cast<size_type>(oiter->second);
     
-    if (boost::filesystem::exists(rep.path("modified")))
-      modified.open(rep.path("modified"));
-    
     counts.open(rep.path("counts"));
   }
   
@@ -1259,12 +1475,8 @@ namespace expgram
     if (path() == file) return;
     
     repository_type rep(file, repository_type::write);
-
-    if (modified.is_open())
-      modified.write(rep.path("modified"));
     
-    if (counts.is_open())
-      counts.write(rep.path("counts"));
+    counts.write(rep.path("counts"));
     
     rep["offset"] = utils::lexical_cast<std::string>(offset);
   }
@@ -1414,7 +1626,7 @@ namespace expgram
     threads.clear();
   }
   
-  void NGramCounts::open(const path_type& path, const size_type shard_size, const bool unique)
+  void NGramCounts::open(const path_type& path, const size_type shard_size)
   {
     if (! boost::filesystem::exists(path))
       throw std::runtime_error(std::string("no file: ") + path.string());
@@ -1427,7 +1639,7 @@ namespace expgram
     if (boost::filesystem::exists(path / "prop.list"))
       open_binary(path);
     else
-      open_google(path, shard_size, unique);
+      open_google(path, shard_size);
   }
 
   void NGramCounts::write_prepare(const path_type& file) const
@@ -1440,8 +1652,12 @@ namespace expgram
       repository_type rep(file, repository_type::write);
       
       index.write_prepare(rep.path("index"));
+      
       if (! counts.empty())
 	write_shards_prepare(rep.path("count"), counts);
+      
+      if (! types.empty())
+	write_shards_prepare(rep.path("type"), types);
     }
     
     ::sync();
@@ -1459,8 +1675,12 @@ namespace expgram
     repository_type rep(file, repository_type::read);
     
     index.write_shard(rep.path("index"), shard);
+    
     if (! counts.empty())
       write_shards(rep.path("count"), counts, shard);
+    
+    if (! types.empty())
+      write_shards(rep.path("type"), types, shard);
   }
 
   void NGramCounts::write(const path_type& file) const
@@ -1472,8 +1692,12 @@ namespace expgram
     repository_type rep(file, repository_type::write);
     
     index.write(rep.path("index"));
+    
     if (! counts.empty())
       write_shards(rep.path("count"), counts);
+
+    if (! types.empty())
+      write_shards(rep.path("type"), types);
   }
 
   void NGramCounts::open_shard(const path_type& path, int shard)
@@ -1485,8 +1709,12 @@ namespace expgram
     repository_type rep(path, repository_type::read);
     
     index.open_shard(rep.path("index"), shard);
+    
     if (boost::filesystem::exists(rep.path("count")))
       open_shards(rep.path("count"), counts, shard);
+
+    if (boost::filesystem::exists(rep.path("type")))
+      open_shards(rep.path("type"), types, shard);
   }
 
   void NGramCounts::open_binary(const path_type& path)
@@ -1498,8 +1726,12 @@ namespace expgram
     repository_type rep(path, repository_type::read);
     
     index.open(rep.path("index"));
+    
     if (boost::filesystem::exists(rep.path("count")))
       open_shards(rep.path("count"), counts);
+    
+    if (boost::filesystem::exists(rep.path("type")))
+      open_shards(rep.path("type"), types);
   }
   
   static const std::string& __BOS = static_cast<const std::string&>(Vocab::BOS);
@@ -1520,146 +1752,6 @@ namespace expgram
     else
       return __word;
   }
-  
-  struct NGramCountsIndexUniqueMapReduce
-  {
-    typedef expgram::NGramCounts ngram_type;
-    
-    typedef ngram_type::size_type       size_type;
-    typedef ngram_type::difference_type difference_type;
-    
-    typedef ngram_type::count_type      count_type;
-    typedef ngram_type::word_type       word_type;
-    typedef ngram_type::id_type         id_type;
-    typedef ngram_type::vocab_type      vocab_type;
-    
-    typedef ngram_type::path_type                              path_type;
-    typedef std::vector<path_type, std::allocator<path_type> > path_set_type;
-    
-    typedef boost::iostreams::filtering_ostream ostream_type;
-    
-    typedef std::vector<id_type, std::allocator<id_type> > context_type;
-    typedef std::pair<context_type, count_type>            context_count_type;
-
-    typedef std::vector<std::string, std::allocator<std::string> > ngram_context_type;
-
-    typedef std::vector<id_type, std::allocator<id_type> > vocab_map_type;
-    
-    typedef utils::lockfree_list_queue<context_count_type, std::allocator<context_count_type> > queue_type;
-    typedef boost::shared_ptr<queue_type>                                                  queue_ptr_type;
-    typedef std::vector<queue_ptr_type, std::allocator<queue_ptr_type> >                   queue_ptr_set_type;
-    
-    typedef boost::thread                                                  thread_type;
-    typedef boost::shared_ptr<thread_type>                                 thread_ptr_type;
-    typedef std::vector<thread_ptr_type, std::allocator<thread_ptr_type> > thread_ptr_set_type;
-  };
-  
-#if 0
-  // it seems to be already defined at ModifyMapReduce...
-  inline
-  void swap(NGramCountsIndexUniqueMapReduce::context_count_type& x,
-	    NGramCountsIndexUniqueMapReduce::context_count_type& y)
-  {
-    x.first.swap(y.first);
-    std::swap(x.second, y.second);
-  }
-#endif
-  
-  // unique-mapper/reducer work like ngram-index-reducer
-  
-  struct NGramCountsIndexUniqueReducer
-  {
-    typedef NGramCountsIndexUniqueMapReduce map_reduce_type;
-
-    typedef map_reduce_type::ngram_type      ngram_type;
-    
-    typedef map_reduce_type::size_type       size_type;
-    typedef map_reduce_type::difference_type difference_type;
-    
-    typedef map_reduce_type::word_type       word_type;
-    typedef map_reduce_type::vocab_type      vocab_type;
-    typedef map_reduce_type::id_type         id_type;
-
-    typedef map_reduce_type::path_type       path_type;
-    typedef map_reduce_type::path_set_type   path_set_type;
-    
-    
-    typedef map_reduce_type::context_type       context_type;
-    typedef map_reduce_type::ngram_context_type ngram_context_type;
-
-    typedef map_reduce_type::count_type         count_type;
-    typedef map_reduce_type::context_count_type context_count_type;
-    
-    typedef map_reduce_type::queue_type         queue_type;
-    typedef map_reduce_type::ostream_type       ostream_type;
-
-    typedef map_reduce_type::vocab_map_type     vocab_map_type;
-    
-    typedef std::pair<id_type, count_type>                                 word_count_type;
-    typedef std::vector<word_count_type, std::allocator<word_count_type> > word_count_set_type;
-    
-    typedef NGramCountsIndexer<ngram_type> indexer_type;
-    
-    ngram_type&           ngram;
-    queue_type&           queue;
-    ostream_type&         os_count;
-    int                   shard;
-    int                   debug;
-    
-    NGramCountsIndexUniqueReducer(ngram_type&           _ngram,
-				  queue_type&           _queue,
-				  ostream_type&         _os_count,
-				  const int             _shard,
-				  const int             _debug)
-      : ngram(_ngram),
-	queue(_queue),
-	os_count(_os_count),
-	shard(_shard),
-	debug(_debug) {}
-    
-    void operator()()
-    {
-      indexer_type indexer;
-
-      context_count_type  context_count;
-      context_type        prefix;
-      word_count_set_type words;
-      
-      // we will start from bigram... unigrams...
-      int order = 2;
-      
-      while (1) {
-	
-	queue.pop_swap(context_count);
-	if (context_count.first.empty()) break;
-	
-	const context_type& context = context_count.first;
-	const count_type&   count   = context_count.second;
-	
-	if (context.size() != prefix.size() + 1 || ! std::equal(prefix.begin(), prefix.end(), context.begin())) {
-	  if (! words.empty()) {
-	    indexer(shard, ngram, prefix, words);
-	    words.clear();
-	    
-	    if (static_cast<int>(context.size()) != order)
-	      indexer(shard, ngram, os_count, debug);
-	  }
-	  
-	  prefix.clear();
-	  prefix.insert(prefix.end(), context.begin(), context.end() - 1);
-	  order = context.size();
-	}
-	
-	words.push_back(std::make_pair(context.back(), count));
-      }
-      
-      // perform final indexing...
-      if (! words.empty()) {
-	indexer(shard, ngram, prefix, words);
-	indexer(shard, ngram, os_count, debug);
-      }
-    }
-  };
 
   struct NGramCountsIndexMapReduce
   {
@@ -2018,8 +2110,7 @@ namespace expgram
   };
   
   void NGramCounts::open_google(const path_type& path,
-				const size_type shard_size,
-				const bool unique)
+				const size_type shard_size)
   {
     typedef boost::iostreams::filtering_ostream                              ostream_type;
     typedef boost::shared_ptr<ostream_type>                                  ostream_ptr_type;
@@ -2031,7 +2122,7 @@ namespace expgram
     typedef boost::tokenizer<utils::space_separator, utils::piece::const_iterator, utils::piece> tokenizer_type;
     
     typedef NGramCountsIndexMapReduce::vocab_map_type vocab_map_type;
-    
+
     clear();
     
     index.reserve(shard_size);
@@ -2140,222 +2231,110 @@ namespace expgram
     counts[0].offset = 0;
     
     // second, ngrams...
-    if (unique) {
-      typedef NGramCountsIndexUniqueMapReduce map_reduce_type;
-      typedef NGramCountsIndexUniqueReducer   reducer_type;
+    // we need to map/reduce counts, since counts are not unique!
       
-      typedef map_reduce_type::thread_type         thread_type;
-      typedef map_reduce_type::thread_ptr_set_type thread_ptr_set_type;
+    typedef NGramCountsIndexMapReduce map_reduce_type;
+    typedef NGramCountsIndexMapper    mapper_type;
+    typedef NGramCountsIndexReducer   reducer_type;
       
-      typedef map_reduce_type::queue_type          queue_type;
-      typedef map_reduce_type::queue_ptr_set_type  queue_ptr_set_type;
+    typedef map_reduce_type::queue_type              queue_type;
+    typedef map_reduce_type::queue_ptr_set_type      queue_ptr_set_type;
       
-      typedef map_reduce_type::context_type        context_type;
+    typedef map_reduce_type::thread_type             thread_type;
+    typedef map_reduce_type::thread_ptr_set_type     thread_ptr_set_type;
       
-      queue_ptr_set_type   queues(shard_size);
-      thread_ptr_set_type  threads(shard_size);
-      for (size_type shard = 0; shard != shard_size; ++ shard) {
-	queues[shard].reset(new queue_type(1024 * 64));
-	threads[shard].reset(new thread_type(reducer_type(*this, *queues[shard], *os_counts[shard], shard, debug)));
-      }
+    typedef map_reduce_type::path_set_type           path_set_type;
       
-      for (int order = 2; /**/; ++ order) {
-	std::ostringstream stream_ngram;
-	stream_ngram << order << "gms";
+    for (int order = 2; /**/; ++ order) {
+      std::ostringstream stream_ngram;
+      stream_ngram << order << "gms";
 	
-	std::ostringstream stream_index;
-	stream_index << order << "gm.idx";
+      std::ostringstream stream_index;
+      stream_index << order << "gm.idx";
 	
-	const path_type ngram_dir = path / stream_ngram.str();
-	const path_type index_file = ngram_dir / stream_index.str();
+      const path_type ngram_dir = path / stream_ngram.str();
+      const path_type index_file = ngram_dir / stream_index.str();
 	
-	if (! boost::filesystem::exists(ngram_dir) || ! boost::filesystem::exists(index_file)) break;
+      if (! boost::filesystem::exists(ngram_dir) || ! boost::filesystem::exists(index_file)) break;
 	
-	if (debug)
-	  std::cerr << "order: " << order << std::endl;
-
-	index.order() = order;
-	
+      path_set_type paths_ngram;
+      {
 	utils::compress_istream is_index(index_file);
 	std::string line;
 	tokens_type tokens;
-	context_type context;
 	while (std::getline(is_index, line)) {
 	  utils::piece line_piece(line);
 	  tokenizer_type tokenizer(line_piece);
-	  
+	    
 	  tokens.clear();
 	  tokens.insert(tokens.end(), tokenizer.begin(), tokenizer.end());
-	  
+	    
+	  if (tokens.empty()) continue;
+	    
 	  if (static_cast<int>(tokens.size()) != order + 1)
 	    throw std::runtime_error(std::string("invalid google ngram format...") + index_file.string());
-	  
+	    
 	  const path_type path_ngram = ngram_dir / static_cast<std::string>(tokens.front());
-	  
-	  if (! boost::filesystem::exists(path_ngram))
-	    throw std::runtime_error(std::string("invalid google ngram format... no file: ") + path_ngram.string());
-
+	    
 	  if (debug >= 2)
 	    std::cerr << "\tfile: " << path_ngram.string() << std::endl;
-	  
-	  utils::compress_istream is(path_ngram, 1024 * 1024);
-	  
-	  while (std::getline(is, line)) {
-	    utils::piece line_piece(line);
-	    tokenizer_type tokenizer(line_piece);
 	    
-	    tokens.clear();
-	    tokens.insert(tokens.end(), tokenizer.begin(), tokenizer.end());
+	  if (! boost::filesystem::exists(path_ngram))
+	    throw std::runtime_error(std::string("invalid google ngram format... no file: ") + path_ngram.string());
 	    
-	    // invalid ngram...?
-	    if (static_cast<int>(tokens.size()) != order + 1)
-	      continue;
-	    
-	    context.clear();
-	    tokens_type::const_iterator titer_end = tokens.end() - 1;
-	    for (tokens_type::const_iterator titer = tokens.begin(); titer != titer_end; ++ titer) {
-	      const id_type id = escape_word(*titer).id();
-	      
-	      if (id >= vocab_map.size() || vocab_map[id] == id_type(-1))
-		throw std::runtime_error("invalid vocabulary");
-	      
-	      context.push_back(vocab_map[id]);
-	    }
-	    
-	    const size_type shard = index.shard_index(context.begin(), context.end());
-	    queues[shard]->push(std::make_pair(context, utils::lexical_cast<count_type>(tokens.back())));
-	  }	  
+	  paths_ngram.push_back(path_ngram);
 	}
       }
-      
-      // termination...
-      for (size_type shard = 0; shard != index.size(); ++ shard)
-	queues[shard]->push(std::make_pair(context_type(), count_type(0)));
+	
+      if (paths_ngram.empty()) break;
+	
+      if (debug)
+	std::cerr << "order: " << order << std::endl;
 
-      for (size_type shard = 0; shard != index.size(); ++ shard) {
-	threads[shard]->join();
-	os_counts[shard].reset();
-      }
-
-      ::sync();
-      
-      for (size_type shard = 0; shard != index.size(); ++ shard) {
-	while (! shard_data_type::count_set_type::exists(path_counts[shard]))
-	  boost::thread::yield();
+      index.order() = order;
 	
-	utils::tempfile::permission(path_counts[shard]);
+      std::vector<path_set_type, std::allocator<path_set_type> > paths(shard_size);
 	
-	counts[shard].counts.open(path_counts[shard]);
-      }
-      threads.clear();
-      queues.clear();
-    } else {
-      // we need to map/reduce counts, since counts are not unique!
-      
-      typedef NGramCountsIndexMapReduce map_reduce_type;
-      typedef NGramCountsIndexMapper    mapper_type;
-      typedef NGramCountsIndexReducer   reducer_type;
-      
-      typedef map_reduce_type::queue_type              queue_type;
-      typedef map_reduce_type::queue_ptr_set_type      queue_ptr_set_type;
-      
-      typedef map_reduce_type::thread_type             thread_type;
-      typedef map_reduce_type::thread_ptr_set_type     thread_ptr_set_type;
-      
-      typedef map_reduce_type::path_set_type           path_set_type;
-      
-      for (int order = 2; /**/; ++ order) {
-	std::ostringstream stream_ngram;
-	stream_ngram << order << "gms";
+      for (size_type i = 0; i < paths_ngram.size(); ++ i)
+	paths[i % paths.size()].push_back(paths_ngram[i]);
 	
-	std::ostringstream stream_index;
-	stream_index << order << "gm.idx";
+      // map-reduce here!
+      queue_ptr_set_type      queues(index.size(), index.size());
+      thread_ptr_set_type     threads_mapper(index.size());
+      thread_ptr_set_type     threads_reducer(index.size());
 	
-	const path_type ngram_dir = path / stream_ngram.str();
-	const path_type index_file = ngram_dir / stream_index.str();
+      for (size_type i = 0; i != shard_size; ++ i)
+	for (size_type j = 0; j != shard_size; ++ j)
+	  queues(i, j).reset(new queue_type(1024 * 32));
 	
-	if (! boost::filesystem::exists(ngram_dir) || ! boost::filesystem::exists(index_file)) break;
+      // first, reducer...
+      for (size_type shard = 0; shard != shard_size; ++ shard)
+	threads_reducer[shard].reset(new thread_type(reducer_type(*this, vocab_map, queues, *os_counts[shard], shard, debug)));
 	
-	path_set_type paths_ngram;
-	{
-	  utils::compress_istream is_index(index_file);
-	  std::string line;
-	  tokens_type tokens;
-	  while (std::getline(is_index, line)) {
-	    utils::piece line_piece(line);
-	    tokenizer_type tokenizer(line_piece);
-	    
-	    tokens.clear();
-	    tokens.insert(tokens.end(), tokenizer.begin(), tokenizer.end());
-	    
-	    if (tokens.empty()) continue;
-	    
-	    if (static_cast<int>(tokens.size()) != order + 1)
-	      throw std::runtime_error(std::string("invalid google ngram format...") + index_file.string());
-	    
-	    const path_type path_ngram = ngram_dir / static_cast<std::string>(tokens.front());
-	    
-	    if (debug >= 2)
-	      std::cerr << "\tfile: " << path_ngram.string() << std::endl;
-	    
-	    if (! boost::filesystem::exists(path_ngram))
-	      throw std::runtime_error(std::string("invalid google ngram format... no file: ") + path_ngram.string());
-	    
-	    paths_ngram.push_back(path_ngram);
-	  }
-	}
+      // second, mapper...
+      for (size_type shard = 0; shard != shard_size; ++ shard)
+	threads_mapper[shard].reset(new thread_type(mapper_type(*this, vocab_map, paths[shard], queues, shard, debug)));
 	
-	if (paths_ngram.empty()) break;
-	
-	if (debug)
-	  std::cerr << "order: " << order << std::endl;
-
-	index.order() = order;
-	
-	std::vector<path_set_type, std::allocator<path_set_type> > paths(shard_size);
-	
-	for (size_type i = 0; i < paths_ngram.size(); ++ i)
-	  paths[i % paths.size()].push_back(paths_ngram[i]);
-	
-	// map-reduce here!
-	queue_ptr_set_type      queues(index.size(), index.size());
-	thread_ptr_set_type     threads_mapper(index.size());
-	thread_ptr_set_type     threads_reducer(index.size());
-	
-	for (size_type i = 0; i != shard_size; ++ i)
-	  for (size_type j = 0; j != shard_size; ++ j)
-	    queues(i, j).reset(new queue_type(1024 * 32));
-	
-	// first, reducer...
-	for (size_type shard = 0; shard != shard_size; ++ shard)
-	  threads_reducer[shard].reset(new thread_type(reducer_type(*this, vocab_map, queues, *os_counts[shard], shard, debug)));
-	
-	// second, mapper...
-	for (size_type shard = 0; shard != shard_size; ++ shard)
-	  threads_mapper[shard].reset(new thread_type(mapper_type(*this, vocab_map, paths[shard], queues, shard, debug)));
-	
-	// termination...
-	for (size_type shard = 0; shard != shard_size; ++ shard)
-	  threads_mapper[shard]->join();
-	for (size_type shard = 0; shard != shard_size; ++ shard)
-	  threads_reducer[shard]->join();
-      }
-      
       // termination...
       for (size_type shard = 0; shard != shard_size; ++ shard)
-	os_counts[shard].reset();
-
-      ::sync();
+	threads_mapper[shard]->join();
+      for (size_type shard = 0; shard != shard_size; ++ shard)
+	threads_reducer[shard]->join();
+    }
       
-      for (size_type shard = 0; shard != shard_size; ++ shard) {
+    // termination...
+    for (size_type shard = 0; shard != shard_size; ++ shard)
+      os_counts[shard].reset();
+    
+    ::sync();
+    
+    for (size_type shard = 0; shard != shard_size; ++ shard) {
+      while (! shard_data_type::count_set_type::exists(path_counts[shard]))
+	boost::thread::yield();
 	
-	while (! shard_data_type::count_set_type::exists(path_counts[shard]))
-	  boost::thread::yield();
+      utils::tempfile::permission(path_counts[shard]);
 	
-	utils::tempfile::permission(path_counts[shard]);
-	
-	counts[shard].counts.open(path_counts[shard]);
-      }
+      counts[shard].counts.open(path_counts[shard]);
     }
   }
   
