@@ -74,7 +74,7 @@ int main(int argc, char** argv)
       ngram.open_shard(ngram_file, mpi_rank);
 
       if (! ngram.logbounds.empty())
-	return;
+	return 1;
       
       // set up logbounds...
       ngram.logbounds.reserve(ngram.index.size());
@@ -119,7 +119,7 @@ int main(int argc, char** argv)
 	throw std::runtime_error("MPI universe size do not match with ngram shard size");
       
       if (! ngram.logbounds.empty())
-	return;
+	return 1;
       
       ngram_bound_mapper(ngram, comm_child);
       
