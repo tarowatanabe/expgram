@@ -5,8 +5,71 @@ The target is to index Google's ngrams into 10GB.
 Among ngram compression mentioned in [1], we do not implement block-wise compression (or gzip every 8k-byte)
 for efficiency reason. 
 Also, this toolkit implements large scale ngram language model proposed by Goolge [2].
+In order to support better rest cost estimation, particulary used in SMT systems, this toolkit also implements better
+upper bound estimates by correctly estimating lower-order ngram language models [3].
 
-Brief descriptions:
+Basically, you have only to use ngram.py which encapsulate all the routimes to estimate LM:
+
+Usage: ngram.py [options]
+
+Options:
+  --counts=COUNTS       counts in Google format
+  --counts-list=COUNTS_LIST
+                        list of ngram counts either in Google format or in a
+                        plain format
+  --corpus=CORPUS       corpus
+  --corpus-list=CORPUS_LIST
+                        list of corpus
+  --order=ORDER         ngram order (default: 5)
+  --output=OUTPUT       ngram output
+  --cutoff=CUTOFF       count cutoff threshold (default: 1 == keep all the
+                        counts)
+  --tokenizer=TOKENIZER
+                        tokenizer applied to data
+  --remove-unk          remove unk from lm estimation
+  --erase-temporary     erase temporary allocated disk space
+  --expgram-dir=DIRECTORY
+                        expgram directory
+  --mpi-dir=DIRECTORY   MPI directory
+  --max-malloc=MALLOC   maximum memory in GB (default: 8)
+  --mpi=MPI             # of processes for MPI-based parallel processing.
+                        Identical to --np for mpirun
+  --mpi-host=HOSTS      list of hosts to run job. Identical to --host for
+                        mpirun
+  --mpi-host-file=FILE  host list file to run job. Identical to --hostfile for
+                        mpirun
+  --threads=THREADS     # of thrads for thread-based parallel processing
+  --pbs                 PBS for launching processes
+  --pbs-queue=NAME      PBS queue for launching processes (default: ltg)
+  --debug=DEBUG         
+  -h, --help            show this help message and exit
+
+For instance, you can run:
+
+./ngram.py --expgram-dir <installed expgram>
+	   --corpus <corpus> or --corpus-list <list of corpus> or --counts-list <list of counts>
+	   --output <prefix of lm name>
+	   --order  <order of ngram lm>
+
+This will dump 4 models:
+     <prefix>.counts		indexed counts
+     <prefix>.modified		indexed counts with modified counts for modified-KN smoothing
+     <prefix>.lm		estiamted LM
+     <prefix>.lm.quantize	8-bit quantized LM
+
+or, if you already have count data organized into Google format, simply run
+
+./ngram.py --expgram-dir <installed expgram>
+	   --counts <counts in Google format>
+	   --output <prefix of lm name>
+	   --order  <order of ngram lm>
+
+This will dump 3 models:
+     <prefix>.modified		indexed counts with modified counts for modified-KN smoothing
+     <prefix>.lm		estiamted LM
+     <prefix>.lm.quantize	8-bit quantized LM
+
+Brief descriptions of binaries:
 
       ngram_vocab
         Compute vocabulary (unigram with count). From this file, you can create count thresholded word-list, for instance, by
@@ -29,11 +92,12 @@ Brief descriptions:
 	perform ngram probabilities estimation. If not indexed, perfomr indexing. If not modified, perform counts modification.
 
       ngram_index
-	ngram indexer from arpa format
+	ngram indexer from arpa format. For instance, you can use srilm to estimate your LM, and index it as an expgram format.
 
       ngram_bound
 	ngram upper bound estimator. Compute upper bounds for ngrams. You do not have to run this, since ngram_index will
 	compute upper bounds simultaneously. It remains here for compatibility with mpi version (see below).
+	This is not required any more if you estimate your LM using this toolkit.
 
       ngram_quantize
 	perform quantization for ngram probabilities, backoffs and upper bounds. If not indexed, perform indexing.
@@ -41,7 +105,7 @@ Brief descriptions:
       ngram_stat/ngram_counts_stat
 	dump statistics on storage size
 
-      expgram_clearn
+      expgram_clean
 	If you found spurious data on your temporary directory, run this to clean up the data. 
 	REMARK: make sure you are not runnning other expgram tools!
 
@@ -150,5 +214,18 @@ References:
   publisher = {Association for Computational Linguistics},
   pages     = {858--867},
   url       = {http://www.aclweb.org/anthology/D/D07/D07-1090}
+}
+
+[3]
+@InProceedings{heafield-koehn-lavie:2012:EMNLP-CoNLL,
+  author    = {Heafield, Kenneth  and  Koehn, Philipp  and  Lavie, Alon},
+  title     = {Language Model Rest Costs and Space-Efficient Storage},
+  booktitle = {Proceedings of the 2012 Joint Conference on Empirical Methods in Natural Language Processing and Computational Natural Language Learning},
+  month     = {July},
+  year      = {2012},
+  address   = {Jeju Island, Korea},
+  publisher = {Association for Computational Linguistics},
+  pages     = {1169--1178},
+  url       = {http://www.aclweb.org/anthology/D12-1107}
 }
 

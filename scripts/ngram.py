@@ -16,6 +16,8 @@ opt_parser = OptionParser(
     option_list=[
         make_option("--counts", default="", action="store", type="string",
                     help="counts in Google format"),
+        make_option("--counts-list", default="", action="store", type="string",
+                    help="list of ngram counts either in Google format or in a plain format"),
         make_option("--corpus", default="", action="store", type="string",
                     help="corpus"),
         make_option("--corpus-list", default="", action="store", type="string",
@@ -248,9 +250,10 @@ class Expgram:
 		raise ValueError, binprog + ' does not exist'
 
 class Corpus:
-    def __init__(self, corpus="", corpus_list=""):
+    def __init__(self, corpus="", corpus_list="", counts_list=""):
         self.corpus      = corpus
         self.corpus_list = corpus_list
+        self.counts_list = counts_list
         
 
 class Vocab:
@@ -278,8 +281,11 @@ class Vocab:
         
         if os.path.exists(corpus.corpus):
             command += " --corpus \"%s\"" %(corpus.corpus)
-        if os.path.exists(corpus.corpus_list):
-            command += " --corpus-list \"%s\"" %(corpus.corpus_list)
+        if os.path.exists(corpus.corpus_list) or os.path.exists(corpus.counts_list):
+            if os.path.exists(corpus.corpus_list):
+                command += " --corpus-list \"%s\"" %(corpus.corpus_list)
+            if os.path.exists(corpus.counts_list):
+                command += " --counts-list \"%s\"" %(corpus.counts_list)
         else:
             command += " --map-line"
 
@@ -350,8 +356,11 @@ class Extract:
         
         if os.path.exists(corpus.corpus):
             command += " --corpus \"%s\"" %(corpus.corpus)
-        if os.path.exists(corpus.corpus_list):
-            command += " --corpus-list \"%s\"" %(corpus.corpus_list)
+        if os.path.exists(corpus.corpus_list) or os.path.exists(corpus.counts_list):
+            if os.path.exists(corpus.corpus_list):
+                command += " --corpus-list \"%s\"" %(corpus.corpus_list)
+            if os.path.exists(corpus.counts_list):
+                command += " --counts-list \"%s\"" %(corpus.counts_list)
         else:
             command += " --map-line"
         
@@ -593,7 +602,7 @@ class Quantize:
 if not options.output:
     raise ValueError, "no output for ngram language model"
 
-if not options.counts and not options.corpus and not options.corpus_list:
+if not options.counts and not options.corpus and not options.corpus_list and not options.counts_list:
     raise ValueError, "no corpus?"
 
 if options.counts and not os.path.exists(options.counts):
@@ -602,6 +611,12 @@ if options.corpus and not os.path.exists(options.corpus):
     raise ValueError, "no corpus? %s" %(options.corpus)
 if options.corpus_list and not os.path.exists(options.corpus_list):
     raise ValueError, "no corpus list? %s" %(options.corpus_list)
+if options.counts_list and not os.path.exists(options.counts_list):
+    raise ValueError, "no counts list? %s" %(options.counts_list)
+
+if options.counts:
+    if options.corpus or options.corpus_list or options.counts_list:
+        raise ValueError, "counts is supplied, but do we need to collect counts from corpus/corpus-list/counts-list?"
 
 if options.tokenizer and not os.path.exists(options.tokenizer):
     raise ValueError, "no tokenizer? %s" %(options.tokenizer)
@@ -620,7 +635,8 @@ if options.pbs:
     pbs = PBS(queue=options.pbs_queue)
 
 corpus = Corpus(corpus=options.corpus,
-                corpus_list=options.corpus_list)
+                corpus_list=options.corpus_list,
+                counts_list=options.counts_list)
 
 extract = None
 
@@ -642,6 +658,7 @@ else:
         print "compute vocabulary started  @", time.ctime()
         vocab.run()
         print "compute vocabulary finished @", time.ctime()
+        print "vocabulary:", vocab.vocab
 
     extract = Extract(expgram=expgram,
                       corpus=corpus,
@@ -656,7 +673,7 @@ else:
     print "extract counts started  @", time.ctime()
     extract.run()
     print "extract counts finished @", time.ctime()
-    
+    print "extracted counts:", extract.ngram
 
 index = Index(expgram=expgram,
               output=options.output,
@@ -668,6 +685,7 @@ index = Index(expgram=expgram,
 print "index counts started  @", time.ctime()
 index.run()
 print "index counts finished @", time.ctime()
+print "indexed counts:", index.ngram
 
 modify = Modify(expgram=expgram,
                 output=options.output,
@@ -679,6 +697,7 @@ modify = Modify(expgram=expgram,
 print "modify counts started  @", time.ctime()
 modify.run()
 print "modify counts finished @", time.ctime()
+print "modified counts:", modify.ngram
 
 estimate = Estimate(expgram=expgram,
                     output=options.output,
@@ -691,7 +710,7 @@ estimate = Estimate(expgram=expgram,
 print "estimate language model started  @", time.ctime()
 estimate.run()
 print "estimate language model finished @", time.ctime()
-
+print "language model:", estimate.ngram
 
 quantize = Quantize(expgram=expgram,
                     output=options.output,
@@ -708,4 +727,3 @@ print "quantized language model:", quantize.ngram
 if options.erase_temporary:
     shutil.rmtree(index.ngram)
     shutil.rmtree(modify.ngram)
-    shutil.rmtree(estimate.ngram)
