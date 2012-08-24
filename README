@@ -180,6 +180,9 @@ Requirements:
 Optional Libraries:
 	Better parallel training:
 	MPI (Open MPI)			http://www.open-mpi.org
+	    REMARK: Under Linux, it is recommended not to use memory managers in open-mpi, which may conflict with your
+                    favorite memory managers, such as jemalloc/tcmalloc. To disable this, for instance, you
+                    can edit "openmpi-mca-params.conf" and add(or disable) mca by, "memory = ^ptmalloc2"
 
 	Fast malloc replacement (recommended for Linux):
 	jemalloc  			http://www.canonware.com/jemalloc/
@@ -188,6 +191,8 @@ Optional Libraries:
 Included codes:
 	Murmurhash2
 		All code is released to the public domain. For business purposes, Murmurhash is under the MIT license. 
+
+	boost.m4
 
 References:
 [1]
