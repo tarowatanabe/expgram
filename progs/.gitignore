@@ -28,25 +28,25 @@ libtool
 
 
 
-ngram
-ngram_index
-ngram_dump
-ngram_quantize
-ngram_bound
-ngram_stat
-ngram_perplexity
-ngram_counts_extract
-ngram_counts_index
-ngram_counts_modify
-ngram_counts_dump
-ngram_counts_estimate
-ngram_counts_stat
-ngram_vocab
+expgram
+expgram_index
+expgram_dump
+expgram_quantize
+expgram_bound
+expgram_stat
+expgram_perplexity
+expgram_counts_extract
+expgram_counts_index
+expgram_counts_modify
+expgram_counts_dump
+expgram_counts_estimate
+expgram_counts_stat
+expgram_vocab
 expgram_clean
-ngram_quantize_mpi
-ngram_bound_mpi
-ngram_counts_extract_mpi
-ngram_counts_index_mpi
-ngram_counts_modify_mpi
-ngram_counts_estimate_mpi
-ngram_vocab_mpi
+expgram_quantize_mpi
+expgram_bound_mpi
+expgram_counts_extract_mpi
+expgram_counts_index_mpi
+expgram_counts_modify_mpi
+expgram_counts_estimate_mpi
+expgram_vocab_mpi

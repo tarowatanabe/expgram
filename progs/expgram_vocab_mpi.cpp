@@ -23,7 +23,7 @@
 
 #include <utils/compress_stream.hpp>
 
-#include "ngram_vocab_impl.hpp"
+#include "expgram_vocab_impl.hpp"
 
 #include <utils/mpi.hpp>
 #include <utils/mpi_stream.hpp>

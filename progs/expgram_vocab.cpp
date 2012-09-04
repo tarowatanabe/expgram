@@ -19,7 +19,7 @@
 
 #include <utils/compress_stream.hpp>
 
-#include "ngram_vocab_impl.hpp"
+#include "expgram_vocab_impl.hpp"
 
 typedef GoogleNGramCounts::path_type     path_type;
 typedef GoogleNGramCounts::path_set_type path_set_type;
@@ -212,7 +212,7 @@ void accumulate_counts(const path_set_type& __paths,
     counts_thread_type  counts_thread(num_threads);
     
     std::vector<boost::shared_ptr<subprocess_type> > subprocess(path_filter.empty() ? 0 : num_threads);
-    for (int shard = 0; shard < subprocess.size(); ++ shard)
+    for (size_t shard = 0; shard != subprocess.size(); ++ shard)
       subprocess[shard].reset(new subprocess_type(path_filter));
     
     for (int shard = 0; shard < num_threads; ++ shard) {
@@ -279,7 +279,7 @@ void accumulate_counts(const path_set_type& __paths,
     counts_thread_type  counts_thread(num_threads);
     
     std::vector<boost::shared_ptr<subprocess_type> > subprocess(path_filter.empty() ? 0 : num_threads);
-    for (int shard = 0; shard < subprocess.size(); ++ shard)
+    for (size_t shard = 0; shard != subprocess.size(); ++ shard)
       subprocess[shard].reset(new subprocess_type(path_filter));
     
     for (int shard = 0; shard < num_threads; ++ shard) {
@@ -341,7 +341,7 @@ void accumulate_corpus(const path_set_type& paths,
     counts_thread_type  counts_thread(num_threads);
 
     std::vector<boost::shared_ptr<subprocess_type> > subprocess(path_filter.empty() ? 0 : num_threads);
-    for (int shard = 0; shard < subprocess.size(); ++ shard)
+    for (size_t shard = 0; shard != subprocess.size(); ++ shard)
       subprocess[shard].reset(new subprocess_type(path_filter));
     
     for (int shard = 0; shard < num_threads; ++ shard) {
@@ -407,7 +407,7 @@ void accumulate_corpus(const path_set_type& paths,
     counts_thread_type  counts_thread(num_threads);
     
     std::vector<boost::shared_ptr<subprocess_type> > subprocess(path_filter.empty() ? 0 : num_threads);
-    for (int shard = 0; shard < subprocess.size(); ++ shard)
+    for (size_t shard = 0; shard != subprocess.size(); ++ shard)
       subprocess[shard].reset(new subprocess_type(path_filter));
     
     for (int shard = 0; shard < num_threads; ++ shard) {

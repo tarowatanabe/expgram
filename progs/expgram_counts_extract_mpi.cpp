@@ -23,7 +23,7 @@
 
 #include <utils/compress_stream.hpp>
 
-#include "ngram_counts_extract_impl.hpp"
+#include "expgram_counts_extract_impl.hpp"
 
 #include <utils/mpi.hpp>
 #include <utils/mpi_stream.hpp>

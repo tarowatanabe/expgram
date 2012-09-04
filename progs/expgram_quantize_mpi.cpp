@@ -56,7 +56,7 @@ int main(int argc, char** argv)
     ngram_type ngram(debug);
     ngram.open_shard(ngram_file, mpi_rank);
 
-    if (ngram.index.size() != mpi_size)
+    if (static_cast<int>(ngram.index.size()) != mpi_size)
       throw std::runtime_error("MPI universe size do not match with ngram shard size");
     
     ngram_quantize(ngram);

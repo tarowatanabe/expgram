@@ -229,17 +229,17 @@ class Expgram:
         
 	
         for binprog in (## vocabulary
-                        'ngram_vocab', 'ngram_vocab_mpi',
+                        'expgram_vocab', 'expgram_vocab_mpi',
                         
                         ## counts...
-                        'ngram_counts_extract',  'ngram_counts_extract_mpi',
-                        'ngram_counts_index',    'ngram_counts_index_mpi',
-                        'ngram_counts_modify',   'ngram_counts_modify_mpi',
-                        'ngram_counts_estimate', 'ngram_counts_estimate_mpi',
+                        'expgram_counts_extract',  'expgram_counts_extract_mpi',
+                        'expgram_counts_index',    'expgram_counts_index_mpi',
+                        'expgram_counts_modify',   'expgram_counts_modify_mpi',
+                        'expgram_counts_estimate', 'expgram_counts_estimate_mpi',
                         
                         ## final post-processing
-                        'ngram_bound',    'ngram_bound_mpi',
-                        'ngram_quantize', 'ngram_quantize_mpi',):
+                        'expgram_bound',    'expgram_bound_mpi',
+                        'expgram_quantize', 'expgram_quantize_mpi',):
 	    
 	    for bindir in self.bindirs:
 		prog = os.path.join(bindir, binprog)
@@ -275,9 +275,9 @@ class Vocab:
 
         command = ""
         if mpi:
-            command = "%s" %(expgram.ngram_vocab_mpi)
+            command = "%s" %(expgram.expgram_vocab_mpi)
         else:
-            command = "%s" %(expgram.ngram_vocab)
+            command = "%s" %(expgram.expgram_vocab)
         
         if os.path.exists(corpus.corpus):
             command += " --corpus \"%s\"" %(corpus.corpus)
@@ -295,7 +295,7 @@ class Vocab:
             command += " --filter \"%s\"" %(tokenizer)
 
         if mpi:
-            command += " --prog %s" %(expgram.ngram_vocab_mpi)
+            command += " --prog %s" %(expgram.expgram_vocab_mpi)
         else:
             command += " --threads %d" %(threads)
 
@@ -350,9 +350,9 @@ class Extract:
         
         command = ""
         if mpi:
-            command = "%s" %(expgram.ngram_counts_extract_mpi)
+            command = "%s" %(expgram.expgram_counts_extract_mpi)
         else:
-            command = "%s" %(expgram.ngram_counts_extract)
+            command = "%s" %(expgram.expgram_counts_extract)
         
         if os.path.exists(corpus.corpus):
             command += " --corpus \"%s\"" %(corpus.corpus)
@@ -377,7 +377,7 @@ class Extract:
         command += " --max-malloc %g" %(max_malloc)
 
         if mpi:
-            command += " --prog %s" %(expgram.ngram_counts_extract_mpi)
+            command += " --prog %s" %(expgram.expgram_counts_extract_mpi)
         else:
             command += " --threads %d" %(threads)
 
@@ -420,15 +420,15 @@ class Index:
         
         command = ""
         if mpi:
-            command = "%s" %(expgram.ngram_counts_index_mpi)
+            command = "%s" %(expgram.expgram_counts_index_mpi)
         else:
-            command = "%s" %(expgram.ngram_counts_index)
+            command = "%s" %(expgram.expgram_counts_index)
 
         command += " --ngram \"%s\"" %(extract.ngram)
         command += " --output \"%s\"" %(self.ngram)
         
         if mpi:
-            command += " --prog %s" %(expgram.ngram_counts_index_mpi)
+            command += " --prog %s" %(expgram.expgram_counts_index_mpi)
         else:
             command += " --shard %d" %(threads)
 
@@ -470,16 +470,16 @@ class Modify:
         
         command = ""
         if mpi:
-            command = "%s" %(expgram.ngram_counts_modify_mpi)
+            command = "%s" %(expgram.expgram_counts_modify_mpi)
         else:
-            command = "%s" %(expgram.ngram_counts_modify)
+            command = "%s" %(expgram.expgram_counts_modify)
 
         command += " --ngram \"%s\"" %(index.ngram)
         command += " --output \"%s\"" %(self.ngram)
         
         
         if mpi:
-            command += " --prog %s" %(expgram.ngram_counts_modify_mpi)
+            command += " --prog %s" %(expgram.expgram_counts_modify_mpi)
 
         if debug >= 2:
             command += " --debug %d" %(debug)
@@ -518,9 +518,9 @@ class Estimate:
         
         command = ""
         if mpi:
-            command = "%s" %(expgram.ngram_counts_estimate_mpi)
+            command = "%s" %(expgram.expgram_counts_estimate_mpi)
         else:
-            command = "%s" %(expgram.ngram_counts_estimate)
+            command = "%s" %(expgram.expgram_counts_estimate)
 
         command += " --ngram \"%s\"" %(modify.ngram)
         command += " --output \"%s\"" %(self.ngram)
@@ -529,7 +529,7 @@ class Estimate:
             command += " --remove-unk"
         
         if mpi:
-            command += " --prog %s" %(expgram.ngram_counts_estimate_mpi)
+            command += " --prog %s" %(expgram.expgram_counts_estimate_mpi)
 
         if debug >= 2:
             command += " --debug %d" %(debug)
@@ -568,15 +568,15 @@ class Quantize:
         
         command = ""
         if mpi:
-            command = "%s" %(expgram.ngram_quantize_mpi)
+            command = "%s" %(expgram.expgram_quantize_mpi)
         else:
-            command = "%s" %(expgram.ngram_quantize)
+            command = "%s" %(expgram.expgram_quantize)
 
         command += " --ngram \"%s\"" %(estimate.ngram)
         command += " --output \"%s\"" %(self.ngram)
         
         if mpi:
-            command += " --prog %s" %(expgram.ngram_quantize_mpi)
+            command += " --prog %s" %(expgram.expgram_quantize_mpi)
 
         if debug >= 2:
             command += " --debug %d" %(debug)

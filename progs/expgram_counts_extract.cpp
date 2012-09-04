@@ -19,7 +19,7 @@
 
 #include <utils/compress_stream.hpp>
 
-#include "ngram_counts_extract_impl.hpp"
+#include "expgram_counts_extract_impl.hpp"
 
 typedef GoogleNGramCounts::path_type     path_type;
 typedef GoogleNGramCounts::path_set_type path_set_type;
