@@ -246,8 +246,8 @@ class Expgram:
 		if os.path.exists(prog):
 		    setattr(self, binprog, prog)
 		    break
-	    if not hasattr(self, binprog):
-		raise ValueError, binprog + ' does not exist'
+	    #if not hasattr(self, binprog):
+	    #	raise ValueError, binprog + ' does not exist'
 
 class Corpus:
     def __init__(self, corpus="", corpus_list="", counts_list=""):
