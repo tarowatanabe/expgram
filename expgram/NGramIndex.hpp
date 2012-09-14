@@ -175,6 +175,12 @@ namespace expgram
       void write(const path_type& file) const;
       void write(const path_type& file, const int write_order) const;
       
+      void populate()
+      {
+	ids.populate();
+	positions.populate();
+      }
+
     public:
       id_type operator[](size_type pos) const { return index(pos); }
       id_type index(size_type pos) const { return (pos < offsets[1] ? id_type(pos) : ids[pos - offsets[1]]); }
@@ -731,6 +737,14 @@ namespace expgram
 	  sum += __shards[shard].offsets[order] - __shards[shard].offsets[order - 1];
 	return sum;
       }
+    }
+
+    void populate()
+    {
+      shard_set_type::iterator siter_end = __shards.end();
+      for (shard_set_type::iterator siter = __shards.begin(); siter != siter_end; ++ siter)
+	siter->populate();
+      __vocab.populate();
     }
     
     stat_type stat_index() const

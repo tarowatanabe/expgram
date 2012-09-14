@@ -515,6 +515,8 @@ namespace succinctdb
     void open(const path_type& path) { __impl.open(path); }
     void clear() { __impl.clear(); }
     void close() { __impl.close(); }
+
+    void populate() { __impl.populate(); }
     
     bool empty() const { return __impl.empty(); }
     size_type size() const { return __impl.size(); }
@@ -559,6 +561,8 @@ namespace succinctdb
     void open(const path_type& path) { __impl.open(path); }
     void clear() { __impl.clear(); }
     void close() { __impl.close(); }
+
+    void populate() { __impl.populate(); }
     
     bool empty() const { return __impl.empty(); }
     size_type size() const { return __impl.size(); }
@@ -609,10 +613,12 @@ namespace succinctdb
     
     typedef utils::succinct_vector_mapped<bit_alloc_type> position_set_type;
     typedef utils::succinct_vector_mapped<bit_alloc_type> index_map_type;
-    //typedef utils::map_file<key_type, key_alloc_type>     index_set_type;
     typedef __succinct_trie_mapped_index<key_type, key_alloc_type> index_set_type;
-    //typedef utils::map_file<data_type, data_alloc_type>   mapped_set_type;
     typedef __succinct_trie_mapped_data<data_type, data_alloc_type> mapped_set_type;
+
+  public:
+    typedef typename index_set_type::const_iterator index_iterator;
+    typedef typename index_set_type::const_iterator const_index_iterator;
 
   public:
     succinct_trie_mapped() {}
@@ -633,6 +639,9 @@ namespace succinctdb
     const_cursor cend(const size_type node_pos) const { return cursor(); }
     const_cursor cbegin() const { return cursor(0, this); }
     const_cursor cend() const { return cursor(); }
+
+    const_index_iterator ibegin(const size_type node_pos) const { return index.begin() + range(node_pos).first; }
+    const_index_iterator iend(const size_type node_pos) const { return index.begin() + range(node_pos).second; }
     
   public:
     static bool exists(const path_type& path)
@@ -679,6 +688,14 @@ namespace succinctdb
       // copy all...
       for (boost::filesystem::directory_iterator iter(path()); iter != iter_end; ++ iter)
 	utils::filesystem::copy_files(*iter, file);
+    }
+    
+    void populate()
+    {
+      positions.populate();
+      index_map.populate();
+      index.populate();
+      mapped.populate();
     }
     
     bool empty() const { return mapped.empty(); }
@@ -1049,11 +1066,13 @@ namespace succinctdb
     
     typedef utils::succinct_vector<bit_alloc_type>  position_set_type;
     typedef utils::succinct_vector<bit_alloc_type>  index_map_type;
-    //typedef std::vector<key_type, key_alloc_type>   index_set_type;
     typedef __succinct_trie_index<key_type, key_alloc_type> index_set_type;
-    //typedef std::vector<data_type, data_alloc_type> mapped_set_type;
     typedef __succinct_trie_data<data_type, data_alloc_type> mapped_set_type;
     
+  public:
+    typedef typename index_set_type::const_iterator index_iterator;
+    typedef typename index_set_type::const_iterator const_index_iterator;
+
   public:
     const_iterator begin(const size_type node_pos) const { return iterator(node_pos, *this); }
     const_iterator end(const size_type node_pos) const { return iterator(*this); }
@@ -1070,6 +1089,9 @@ namespace succinctdb
     const_cursor cbegin() const { return cursor(0, this); }
     const_cursor cend() const { return cursor(); }
     
+    const_index_iterator ibegin(const size_type node_pos) const { return index.begin() + range(node_pos).first; }
+    const_index_iterator iend(const size_type node_pos) const { return index.begin() + range(node_pos).second; }
+
   public:
     bool empty() const { return mapped.empty(); }
     size_type size() const { return mapped.size(); }

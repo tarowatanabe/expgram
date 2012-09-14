@@ -119,6 +119,12 @@ namespace expgram
     }
     void write(const path_type& path) const;
     
+    void populate()
+    {
+      if (__succinct_hash_mapped)
+	__succinct_hash_mapped->populate();
+    }
+
     word_type::id_type operator[](const word_type& word) const
     {
       // we will try twice to extract id for UNK

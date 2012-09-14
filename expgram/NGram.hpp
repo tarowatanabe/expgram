@@ -57,6 +57,12 @@ namespace expgram
       void write(const path_type& file) const;
       path_type path() const { return (quantized.is_open() ? quantized.path().parent_path() : logprobs.path().parent_path()); }
       
+      void populate()
+      {
+	logprobs.populate();
+	quantized.populate();
+      }
+
       void close() { clear(); }
       void clear()
       {
@@ -428,7 +434,22 @@ namespace expgram
       logbounds.clear();
       smooth = utils::mathop::log(1e-7);
     }
-    
+
+    void populate()
+    {
+      index.populate();
+      
+      populate(logprobs.begin(), logprobs.end());
+      populate(backoffs.begin(), backoffs.end());
+      populate(logbounds.begin(), logbounds.end());
+    }
+
+    template <typename Iterator>
+    void populate(Iterator first, Iterator last)
+    {
+      for (/**/; first != last; ++ first)
+	first->populate();
+    }
     
     void quantize();
     void bounds();

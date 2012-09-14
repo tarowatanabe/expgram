@@ -18,7 +18,6 @@ path_type input_file = "-";
 path_type output_file = "-";
 
 int order = 0;
-bool include_oov = false;
 
 int shards = 4;
 int debug = 0;
@@ -41,6 +40,7 @@ int main(int argc, char** argv)
     ngram_type ngram(ngram_file, shards, debug);
     
     double logprob_total = 0.0;
+    double logprob_total_oov = 0.0;
     size_t num_word = 0;
     size_t num_oov = 0;
     size_t num_sentence = 0;
@@ -72,13 +72,17 @@ int main(int argc, char** argv)
 	
 	state = result.first;
 	
-	if (include_oov || ! is_oov)
+	if (! is_oov)
 	  logprob_total += result.second;
+	logprob_total_oov += result.second;
 	
 	num_oov += is_oov;
       }
       
-      logprob_total += ngram.logprob(state, eos_id).second;
+      const float logprob = ngram.logprob(state, eos_id).second;
+      
+      logprob_total     += logprob;
+      logprob_total_oov += logprob;
       
       num_word += sentence.size();
       ++ num_sentence;
@@ -94,6 +98,10 @@ int main(int argc, char** argv)
     os << "logprob = " << logprob_total << " base10 = " << (logprob_total / M_LN10) << std::endl;
     os << "ppl     = " << utils::mathop::exp(- logprob_total / (num_word - num_oov + num_sentence)) << std::endl;
     os << "ppl1    = " << utils::mathop::exp(- logprob_total / (num_word - num_oov)) << std::endl;
+    os << "logprob(+oov) = " << logprob_total_oov << " base10 = " << (logprob_total_oov / M_LN10) << std::endl;
+    os << "ppl(+oov)     = " << utils::mathop::exp(- logprob_total_oov / (num_word + num_sentence)) << std::endl;
+    os << "ppl1(+oov)    = " << utils::mathop::exp(- logprob_total_oov / (num_word)) << std::endl;
+    
   }
   catch (std::exception& err) {
     std::cerr << "error: " << err.what() << std::endl;
@@ -113,7 +121,6 @@ int getoptions(int argc, char** argv)
     ("output", po::value<path_type>(&output_file)->default_value(output_file), "output")
     
     ("order",       po::value<int>(&order)->default_value(order),              "ngram order")
-    ("include-oov", po::bool_switch(&include_oov)->default_value(include_oov), "include OOV for perplexity computation")
     
     ("shard",  po::value<int>(&shards)->default_value(shards),                 "# of shards (or # of threads)")
     ("debug", po::value<int>(&debug)->implicit_value(1), "debug level")
