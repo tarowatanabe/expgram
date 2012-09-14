@@ -18,6 +18,7 @@
 #include <utils/spinlock.hpp>
 #include <utils/piece.hpp>
 #include <utils/chunk_vector.hpp>
+#include <utils/rwticket.hpp>
 
 namespace expgram
 {
@@ -38,8 +39,8 @@ namespace expgram
     typedef boost::filesystem::path path_type;
     
   private:
-    typedef utils::spinlock              mutex_type;
-    typedef utils::spinlock::scoped_lock lock_type;
+    typedef utils::spinlock mutex_type;
+    typedef utils::rwticket ticket_type;
     
   public:
     Word() : __id(__allocate_empty()) { }
@@ -68,7 +69,8 @@ namespace expgram
       if (__id >= maps.size())
 	maps.resize(__id + 1, 0);
       if (! maps[__id]) {
-	lock_type lock(__mutex_data);
+	ticket_type::scoped_reader_lock lock(__mutex);
+	
 	maps[__id] = &(__words()[__id]);
       }
       
@@ -119,7 +121,7 @@ namespace expgram
   public:
     static bool exists(const piece_type& x)
     {
-      lock_type lock(__mutex_index);
+      ticket_type::scoped_reader_lock lock(__mutex);
       
       const word_index_type& index = __index();
       
@@ -127,15 +129,14 @@ namespace expgram
     }
     static size_t allocated()
     {
-      lock_type lock(__mutex_data);
+      ticket_type::scoped_reader_lock lock(__mutex);
       
       return __words().size();
     }
     static void write(const path_type& path);
     
   private:
-    static mutex_type    __mutex_index;
-    static mutex_type    __mutex_data;
+    static ticket_type    __mutex;
     
     static word_map_type& __word_maps();
     
@@ -159,14 +160,13 @@ namespace expgram
     
     static id_type __allocate(const piece_type& x)
     {
-      lock_type lock(__mutex_index);
-
+      ticket_type::scoped_writer_lock lock(__mutex);
+      
       word_index_type& index = __index();
       
       std::pair<word_index_type::iterator, bool> result = index.insert(x);
       
       if (result.second) {
-	lock_type lock(__mutex_data);
 	
 	word_set_type& words = __words();
 	words.push_back(x);
