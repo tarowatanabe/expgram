@@ -1,3 +1,6 @@
+//
+//  Copyright(C) 2009-2011 Taro Watanabe <taro.watanabe@nict.go.jp>
+//
 
 #include <stdint.h>
 
@@ -42,7 +45,7 @@ int main(int argc, char** argv)
   const uint8_t* data[months.size()];
   size_type length[months.size()];
   
-  for (int i = 0; i < months.size(); ++ i) {
+  for (size_t i = 0; i < months.size(); ++ i) {
     data[i] = (const uint8_t*) months[i].c_str();
     length[i] = months[i].size();
     std::cout << "i = " << i << " " << data[i] << std::endl;
@@ -58,10 +61,6 @@ int main(int argc, char** argv)
     succinct_trie_type succinct_trie_stream;
     succinct_trie_stream.build("tmptmp.trie.stream", months.begin(), months.end(), extract_key());
   }
-
-  std::cerr << "trie exists? " << succinct_trie_mapped_type::exists("tmptmp.trie") << std::endl;
-  std::cerr << "trie exists? " << succinct_trie_mapped_type::exists("tmptmp.trie.stream") << std::endl;
-  std::cerr << "trie exists? " << succinct_trie_mapped_type::exists("tmptmp.trie.no") << std::endl;
   
   succinct_trie_mapped_type succinct_trie_mapped("tmptmp.trie");
   succinct_trie_mapped_type succinct_trie_mapped_stream("tmptmp.trie.stream");
@@ -76,7 +75,7 @@ int main(int argc, char** argv)
   std::cout << "size: " << succinct_trie_mapped_stream.size() << std::endl;
   std::cout << "index size: " << succinct_trie_mapped_stream.index_size() << std::endl;
 
-  for (int i = 0; i < months.size(); ++ i) {
+  for (size_t i = 0; i < months.size(); ++ i) {
     size_type node_pos = 0;
     size_type key_pos = 0;
     

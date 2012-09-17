@@ -7,6 +7,7 @@ for efficiency reason.
 Also, this toolkit implements large scale ngram language model proposed by Goolge [2].
 In order to support better rest cost estimation, particulary used in SMT systems, this toolkit also implements better
 upper bound estimates by correctly estimating lower-order ngram language models [3].
+We also supports transducer-like interface motivated by [4] for a faster lm score computation.
 
 Basically, you have only to use expgram.py which encapsulate all the routimes to estimate LM:
 
@@ -237,3 +238,11 @@ References:
   url       = {http://www.aclweb.org/anthology/D12-1107}
 }
 
+[4]
+@inproceedings{37218,
+title = {Unary Data Structures for Language Models},
+author  = {Jeffrey Sorensen and Cyril Allauzen},
+year  = 2011,
+booktitle = {Interspeech 2011},
+pages = {1425-1428}
+}

@@ -28,7 +28,6 @@ libtool
 
 
 
-arc_list_main
 bithack_main
 byte_aligned_code_main
 chunk_vector_main

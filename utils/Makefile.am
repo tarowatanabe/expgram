@@ -23,9 +23,7 @@ libutils_la_LIBADD = \
 
 libutilsincludedir = $(pkgincludedir)/utils
 libutilsinclude_HEADERS = \
-alloc_vector.hpp \
 allocinfo_allocator.hpp \
-arc_list.hpp \
 array_power2.hpp \
 async_device.hpp \
 atomicop.hpp \
@@ -85,7 +83,6 @@ vertical_coded_device.hpp \
 vertical_coded_vector.hpp
 
 noinst_PROGRAMS = \
-arc_list_main \
 bithack_main \
 byte_aligned_code_main \
 chunk_vector_main \
@@ -133,10 +130,6 @@ group_aligned_code.hpp : group_aligned_code_offsets.hpp
 
 group_aligned_code_offsets.hpp : group_aligned_code_offsets.py
 	./group_aligned_code_offsets.py > group_aligned_code_offsets.hpp
-
-arc_list_main_SOURCES = arc_list_main.cpp
-arc_list_main_LDFLAGS = $(BOOST_THREAD_LDFLAGS) 
-arc_list_main_LDADD = $(BOOST_THREAD_LIBS)
 
 bithack_main_SOURCES = bithack_main.cpp
 
