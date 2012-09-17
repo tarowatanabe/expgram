@@ -28,24 +28,24 @@ libtool
 
 
 
-sample_arc_list
-sample_bithack
-sample_byte_aligned_code
-sample_chunk_vector
-sample_compress_stream
-sample_group_aligned_code
-sample_indexed_set
-sample_istream_line_iterator
-sample_lockfree_list_queue
-sample_lockfree_queue
-sample_map_file_allocator
-sample_packed_vector
-sample_simple_vector
-sample_subprocess
-sample_succinct_vector
-sample_tempfile
-sample_vector2
-sample_vertical_coded_vector
+arc_list_main
+bithack_main
+byte_aligned_code_main
+chunk_vector_main
+compress_stream_main
+group_aligned_code_main
+indexed_set_main
+istream_line_iterator_main
+lockfree_list_queue_main
+lockfree_queue_main
+map_file_allocator_main
+packed_vector_main
+simple_vector_main
+subprocess_main
+succinct_vector_main
+tempfile_main
+vector2_main
+vertical_coded_vector_main
 group_aligned_code_offsets.py
 config.h
 config.h.in

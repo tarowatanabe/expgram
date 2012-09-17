@@ -300,6 +300,48 @@ fi
 #    AS_ERROR("no malloc statistics...")
 #fi
 
+
+### clock_gettime
+AC_MSG_CHECKING([for clock_gettime])
+
+AC_TRY_COMPILE(
+[
+#include <time.h>
+], [
+  struct timespec t;
+  clock_gettime(CLOCK_REALTIME, &t);
+  return 0;
+],
+[
+AC_MSG_RESULT([yes])
+AC_DEFINE([HAVE_CLOCK_GETTIME], 1, [Define to 1 if you have the clock_gettime.])
+], [
+AC_MSG_RESULT([no])
+])
+AC_CHECK_LIB([rt], [clock_gettime])
+
+### task_info
+AC_MSG_CHECKING([for thread_info])
+AC_TRY_COMPILE(
+[
+#include <mach/mach_init.h>
+#include <mach/thread_info.h>
+#include <mach/thread_act.h>
+], [
+   kern_return_t error;
+   struct thread_basic_info th_info;
+   mach_msg_type_number_t th_info_count = THREAD_BASIC_INFO_COUNT;
+
+   error = thread_info(mach_thread_self(), THREAD_BASIC_INFO, (thread_info_t)&th_info, &th_info_count);
+   return 0;
+],
+[
+AC_MSG_RESULT([yes])
+AC_DEFINE([HAVE_THREAD_INFO], 1, [Define to 1 if you have the thread_info.])
+], [
+AC_MSG_RESULT([no])
+])
+
 # Checks for header files.
 AC_HEADER_DIRENT
 AC_HEADER_STDC
