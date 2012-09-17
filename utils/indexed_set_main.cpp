@@ -1,3 +1,6 @@
+//
+//  Copyright(C) 2010-2011 Taro Watanabe <taro.watanabe@nict.go.jp>
+//
 
 #include <iostream>
 #include <string>
@@ -7,12 +10,23 @@
 #include <sstream>
 
 #include <utils/indexed_set.hpp>
+#include <utils/indexed_map.hpp>
 
 
 int main (int argc, char** argv)
 {
   srandom(time(0));
 
+  {
+    typedef std::vector<int> vec_type;
+    typedef utils::indexed_map<vec_type, vec_type> indexed_set_type;
+    typedef std::vector<indexed_set_type> indexed_map_type;
+
+    indexed_map_type indexed_map;
+    indexed_map.clear();
+    indexed_map.resize(500);
+  }
+  
   // int ...
   {
     typedef utils::indexed_set<int> indexed_set_type;

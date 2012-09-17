@@ -1,3 +1,6 @@
+//
+//  Copyright(C) 2010-2011 Taro Watanabe <taro.watanabe@nict.go.jp>
+//
 
 #include <iostream>
 
@@ -21,6 +24,8 @@ int main(int argc, char** argv)
   std::cout << "allocated: " << utils::allocinfo().allocated() << std::endl;
   std::cout << "sizeof simple_vector<int>: " << sizeof(utils::simple_vector<int>) << std::endl;
   std::cout << "sizeof simple_vector<string>: " << sizeof(utils::simple_vector<std::string>) << std::endl;
+
+  std::cout << "begin: " << int_vec.begin() << " begin-1: " << (int_vec.begin() - 1) << " end: " << int_vec.end() << std::endl;
   
   str_vec[0] = "January";
   str_vec[1] = "February";
@@ -85,6 +90,43 @@ int main(int argc, char** argv)
   
   std::cout << "size: " << int_vec.size() << std::endl;
   
+  {
+    size_t size = int_vec.size();
+    for (size_t i = 0; i != size; ++ i) {
+      const size_t pos = random() % (size - i);
+      intvec.erase(intvec.begin() + pos);
+      int_vec.erase(int_vec.begin() + pos);
+
+      if (intvec.size() != int_vec.size())
+	std::cout << "size differ: " << intvec.size() << ' ' << int_vec.size() << std::endl;
+
+      if (! std::equal(int_vec.begin(), int_vec.end(), intvec.begin()))
+	std::cerr << "content differ" << std::endl;
+      
+      if (size - i - 1 != int_vec.size())
+	std::cout << "differ: " << (size - i - 1) << ' ' << int_vec.size() << std::endl;
+    }
+  }
+  
+  {
+    std::cout << "size: " << intvec.size() << ' ' << int_vec.size() << std::endl;
+    
+    const size_t size = 1024 * 16;
+    
+    for (size_t i = 0; i != size; ++ i) {
+      const int value = random();
+      const int pos   = random() % (i + 1);
+      
+      intvec.insert(intvec.begin() + pos, value);
+      int_vec.insert(int_vec.begin() + pos, value);
+      
+      if (intvec.size() != int_vec.size())
+	std::cout << "size differ: " << intvec.size() << ' ' << int_vec.size() << std::endl;
+      
+      if (! std::equal(int_vec.begin(), int_vec.end(), intvec.begin()))
+	std::cerr << "content differ" << std::endl;
+    }
+  }
   
   utils::simple_vector<int> intvec2(12, 666);
   utils::simple_vector<int> intvec3(12);

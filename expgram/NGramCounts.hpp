@@ -1,4 +1,7 @@
 // -*- mode: c++ -*-
+//
+//  Copyright(C) 2009-2012 Taro Watanabe <taro.watanabe@nict.go.jp>
+//
 
 #ifndef __EXPGRAM__NGRAM_COUNTS__HPP__
 #define __EXPGRAM__NGRAM_COUNTS__HPP__ 1

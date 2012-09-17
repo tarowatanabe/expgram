@@ -1,3 +1,7 @@
+//
+//  Copyright(C) 2009-2012 Taro Watanabe <taro.watanabe@nict.go.jp>
+//
+
 #include <utils/config.hpp>
 
 #include "Word.hpp"

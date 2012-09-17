@@ -1,9 +1,12 @@
 // -*- mode: c++ -*-
+//
+//  Copyright(C) 2009-2011 Taro Watanabe <taro.watanabe@nict.go.jp>
+//
 
 #ifndef __UTILS__INDEXED_MAP__HPP__
 #define __UTILS__INDEXED_MAP__HPP__ 1
 
-#include <utils/indexed_hashtable.h>
+#include <utils/indexed_hashtable.hpp>
 
 #include <boost/functional/hash/hash.hpp>
 
@@ -18,9 +21,9 @@ namespace utils
   class indexed_map 
   {
   public:
-    typedef Key                                  key_type;
-    typedef Data                                 mapped_type;
-    typedef std::pair<const key_type, mapped_type> value_type;
+    typedef Key                              key_type;
+    typedef Data                             mapped_type;
+    typedef std::pair<key_type, mapped_type> value_type;
     
   private:
     struct extract_key
@@ -39,6 +42,11 @@ namespace utils
     
     typedef mapped_type&      reference;
     typedef const mapped_type& const_reference;
+
+  public:
+    indexed_map(const size_type __size=8, const Hash& __hash=Hash(), const Equal& __equal=Equal())
+      : impl(__size, __hash, __equal) {}
+
   public:
     void assign(const indexed_map& x) { impl.assign(x.impl); }
     void swap(indexed_map& x) { impl.swap(x.impl); }
@@ -47,6 +55,13 @@ namespace utils
     
     inline const value_type& operator[](index_type x) const { return impl[x]; }
     inline       value_type& operator[](index_type x)       { return impl[x]; }
+
+    inline       mapped_type& operator[](const key_type& x)
+    {
+      iterator iter = insert(std::make_pair(x, mapped_type())).first;
+      
+      return impl[iter - begin()].second;
+    }
     
     const_iterator begin() const { return impl.begin(); }
     const_iterator end() const { return impl.end(); }

@@ -1,3 +1,7 @@
+//
+//  Copyright(C) 2009-2012 Taro Watanabe <taro.watanabe@nict.go.jp>
+//
+
 // clear temporary files
 
 #include <boost/filesystem.hpp>

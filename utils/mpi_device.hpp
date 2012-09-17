@@ -1,4 +1,7 @@
 // -*- mode: c++ -*-
+//
+//  Copyright(C) 2009-2011 Taro Watanabe <taro.watanabe@nict.go.jp>
+//
 
 #ifndef __UTILS__MPI_DEVICE__HPP__
 #define __UTILS__MPI_DEVICE__HPP__ 1
@@ -17,6 +20,7 @@
 #include <mpi.h>
 
 #include <utils/mpi_allocator.hpp>
+#include <utils/atomicop.hpp>
 
 namespace utils
 {
@@ -142,7 +146,7 @@ namespace utils
       MPI::Prequest request_size;
       MPI::Prequest request_buffer;
       volatile unsigned int recv_size;
-      size_t buffer_offset;
+      volatile size_t buffer_offset;
       std::vector<char_type, std::allocator<char_type> > buffer;
       
       impl() {}
@@ -211,6 +215,7 @@ namespace utils
     bool test() const { return pimpl->test(); }
     void wait() const { pimpl->wait(); }
     std::streamsize flush(const bool if_filled=false) { return pimpl->flush(if_filled); }
+    std::streamsize committed() const { return pimpl->committed(); }
     void terminate() { pimpl->terminate(); }
     void finalize() { pimpl->finalize(); }
     bool test_terminate() { return pimpl->test_terminate(); }
@@ -218,12 +223,14 @@ namespace utils
   private:
     struct impl
     {
+      typedef std::vector<char, std::allocator<char_type> > buffer_type;
+      
       MPI::Prequest request_size;
       MPI::Prequest request_buffer;
       volatile unsigned int send_size;
-      size_t buffer_offset;
-      std::vector<char_type, std::allocator<char_type> > buffer;
-      std::vector<char_type> buffer_overcommit;
+      volatile size_t buffer_offset;
+      buffer_type buffer;
+      buffer_type buffer_overcommit;
       bool terminate_on_close;
       bool overcommit;
       
@@ -238,6 +245,7 @@ namespace utils
       bool test() const;
       void wait() const;
       std::streamsize flush(const bool if_filled=false);
+      std::streamsize committed() const;
       void terminate();
       void finalize();
       bool test_terminate();
@@ -249,6 +257,8 @@ namespace utils
   
   void mpi_device_sink::impl::wait() const
   {
+    utils::atomicop::memory_barrier();
+    
     if (! is_open())
       return;
 
@@ -261,6 +271,8 @@ namespace utils
 
   void mpi_device_source::impl::wait() const
   {
+    utils::atomicop::memory_barrier();
+    
     if (! is_open())
       return;
 
@@ -273,6 +285,8 @@ namespace utils
   
   bool mpi_device_sink::impl::test() const
   {
+    utils::atomicop::memory_barrier();
+
     if (! is_open())
       return true;
 
@@ -281,6 +295,8 @@ namespace utils
   
   bool mpi_device_source::impl::test() const
   {
+    utils::atomicop::memory_barrier();
+
     if (! is_open()) 
       return true;
     
@@ -335,6 +351,11 @@ namespace utils
 	send_size = std::min(buffer.size(), buffer_overcommit.size());
 	std::copy(buffer_overcommit.begin(), buffer_overcommit.begin() + send_size, buffer.begin());
 	buffer_overcommit.erase(buffer_overcommit.begin(), buffer_overcommit.begin() + send_size);
+	
+	// if the capacity is twice as large as the buffer size, shrink...
+	if (buffer_overcommit.capacity() > (buffer_overcommit.size() << 1))
+	  buffer_type(buffer_overcommit).swap(buffer_overcommit);
+	
 	buffer_offset = buffer_overcommit.size();
 	
 	request_size.Start();
@@ -354,9 +375,16 @@ namespace utils
 	return 0;
     }
   }
+
+  std::streamsize mpi_device_sink::impl::committed() const
+  {
+    return buffer_overcommit.size();
+  }
   
   bool mpi_device_sink::impl::test_terminate()
   {
+    utils::atomicop::memory_barrier();
+
     return send_size == 0;
   }
   
@@ -379,6 +407,8 @@ namespace utils
   
   void mpi_device_sink::impl::finalize()
   {
+    utils::atomicop::memory_barrier();
+
     if (buffer.empty()) return;
     
     if (send_size != 0)
@@ -392,6 +422,8 @@ namespace utils
     
     buffer.clear();
     buffer_overcommit.clear();
+    buffer_type(buffer_overcommit).swap(buffer_overcommit);
+    
     send_size = 0;
     buffer_offset = 0;
     terminate_on_close = true;
@@ -427,6 +459,7 @@ namespace utils
     buffer.resize(std::max(buffer_size, size_t(4)));
     
     buffer_overcommit.clear();
+    buffer_type(buffer_overcommit).swap(buffer_overcommit);
     
     send_size = send_size_type(-1);
     buffer_offset = 0;

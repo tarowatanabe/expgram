@@ -1,3 +1,6 @@
+//
+//  Copyright(C) 2010-2011 Taro Watanabe <taro.watanabe@nict.go.jp>
+//
 
 #include <iostream>
 #include <string>
@@ -85,6 +88,25 @@ struct worker_str
     }
     
     std::cerr << "size:" << vec.size() << " " << vec_chunk.size() << std::endl;
+    
+    
+    vec_chunk.resize(1024 * 4 + 100);
+    vec.resize(1024 * 4 + 100);
+    
+    for (int i = 0; i < 1024 * 4 + 100; ++ i) {
+      sprintf(buffer, "%06d", i);
+      vec[i] = buffer;
+      vec_chunk[i] = buffer;
+    }
+    
+    std::cerr << "size:" << vec.size() << " " << vec_chunk.size() << std::endl;
+    
+    for (int i = 0; i < 1024 * 4 + 100; ++ i) {
+      if (vec[i] != vec_chunk[i])
+	std::cerr << "DIFFER!" << std::endl;
+      if (*(vec.begin() + i) != *(vec_chunk.begin() + i))
+	std::cerr << "DIFFER!" << std::endl;
+    }
     
     std::cout << "finished string..." << std::endl;
   }

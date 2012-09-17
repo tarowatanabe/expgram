@@ -1,3 +1,7 @@
+//
+//  Copyright(C) 2009-2012 Taro Watanabe <taro.watanabe@nict.go.jp>
+//
+
 #include <iostream>
 #include <sstream>
 #include <stdexcept>

@@ -1,3 +1,6 @@
+//
+//  Copyright(C) 2010-2011 Taro Watanabe <taro.watanabe@nict.go.jp>
+//
 
 #include <iostream>
 
@@ -47,7 +50,7 @@ int main(int argc, char** argv)
     {
       std::vector<char>::iterator biter = buffer.begin();
       std::vector<char>::iterator hiter = buffer.begin();
-      for (int j = 0; j < num_sample; ++ j) {
+      for (size_t j = 0; j < num_sample; ++ j) {
 	const uint32_t value = random();
 	
 	const size_t offset = utils::group_aligned_encode(value, &(*hiter), j);
