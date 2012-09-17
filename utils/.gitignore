@@ -41,7 +41,6 @@ sample_lockfree_queue
 sample_map_file_allocator
 sample_packed_vector
 sample_simple_vector
-sample_static_allocator
 sample_subprocess
 sample_succinct_vector
 sample_tempfile

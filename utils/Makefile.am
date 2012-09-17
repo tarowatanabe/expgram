@@ -71,7 +71,6 @@ rwticket.hpp \
 simple_vector.hpp \
 space_separator.hpp \
 spinlock.hpp \
-static_allocator.hpp \
 subprocess.hpp \
 succinct_vector.hpp \
 tempfile.hpp \
@@ -99,7 +98,6 @@ sample_lockfree_queue \
 sample_map_file_allocator \
 sample_packed_vector \
 sample_simple_vector \
-sample_static_allocator \
 sample_subprocess \
 sample_succinct_vector \
 sample_tempfile \
@@ -177,10 +175,6 @@ sample_packed_vector_LDADD = $(BOOST_FILESYSTEM_LIBS) $(BOOST_IOSTREAMS_LIBS) $(
 sample_simple_vector_SOURCES = sample_simple_vector.cpp
 sample_simple_vector_LDFLAGS = $(BOOST_THREAD_LDFLAGS)
 sample_simple_vector_LDADD = $(BOOST_THREAD_LIBS)
-
-sample_static_allocator_SOURCES = sample_static_allocator.cpp
-sample_static_allocator_LDFLAGS = $(BOOST_THREAD_LDFLAGS)
-sample_static_allocator_LDADD = $(BOOST_THREAD_LIBS)
 
 sample_subprocess_SOURCES = sample_subprocess.cpp
 sample_subprocess_LDFLAGS = $(BOOST_IOSTREAMS_LDFLAGS) $(BOOST_THREAD_LDFLAGS) $(BOOST_FILESYSTEM_LDFLAGS)
