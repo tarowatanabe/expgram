@@ -16,6 +16,11 @@ noinst_PROGRAMS = \
 	ngram \
 	ngram_counts
 
+noinst_SCRIPTS = \
+	web1t-en.sh \
+	web1t-ja.sh \
+	web1t-zh.sh
+
 noinst_DATA = .gitignore
 
 .gitignore: Makefile.am
