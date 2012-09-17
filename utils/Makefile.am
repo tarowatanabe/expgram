@@ -8,10 +8,6 @@ LIBUTILS=libutils.la
 lib_LTLIBRARIES = libutils.la
 
 libutils_la_SOURCES = \
-	bitpack8.cpp \
-	bitpack16.cpp \
-	bitpack32.cpp \
-	bitpack64.cpp \
 	malloc_stats.cpp \
 	map_file_allocator.cpp \
 	tempfile.cpp
@@ -35,7 +31,6 @@ async_device.hpp \
 atomicop.hpp \
 base64.hpp \
 bithack.hpp \
-bitpack.hpp \
 bounded_queue.hpp \
 byte_aligned_code.hpp \
 chunk_vector.hpp \
@@ -70,7 +65,6 @@ packed_device.hpp \
 packed_vector.hpp \
 piece.hpp \
 program_options.hpp \
-regex_group.hpp \
 repository.hpp \
 resource.hpp \
 rwticket.hpp \
@@ -94,7 +88,6 @@ vertical_coded_vector.hpp
 noinst_PROGRAMS = \
 sample_arc_list \
 sample_bithack \
-sample_bitpack \
 sample_byte_aligned_code \
 sample_chunk_vector \
 sample_compress_stream \
@@ -114,14 +107,9 @@ sample_vector2 \
 sample_vertical_coded_vector
 
 dist_noinst_SCRIPTS = \
-bitpack_gen.py \
 group_aligned_code_offsets.py
 
 IGNORES = \
-bitpack16_impl.hpp \
-bitpack32_impl.hpp \
-bitpack64_impl.hpp \
-bitpack8_impl.hpp \
 config.h \
 config.h.in \
 group_aligned_code_offsets.hpp \
@@ -141,26 +129,6 @@ noinst_DATA = .gitignore
 	  echo $$bin >> .gitignore; \
 	done
 
-noinst_HEADERS = \
-bitpack_impl.hpp
-
-bitpack8.cpp  : bitpack_impl.hpp bitpack8_impl.hpp
-bitpack16.cpp  : bitpack_impl.hpp bitpack16_impl.hpp
-bitpack32.cpp : bitpack_impl.hpp bitpack32_impl.hpp
-bitpack64.cpp : bitpack_impl.hpp bitpack64_impl.hpp
-
-bitpack8_impl.hpp : bitpack_gen.py
-	./bitpack_gen.py --byte-size 1 > bitpack8_impl.hpp
-
-bitpack16_impl.hpp : bitpack_gen.py
-	./bitpack_gen.py --byte-size 2 > bitpack16_impl.hpp
-
-bitpack32_impl.hpp : bitpack_gen.py
-	./bitpack_gen.py --byte-size 4 > bitpack32_impl.hpp
-
-bitpack64_impl.hpp : bitpack_gen.py
-	./bitpack_gen.py --byte-size 8 > bitpack64_impl.hpp
-
 sample_group_aligned_code.cpp : group_aligned_code.hpp group_aligned_code_offsets.hpp
 
 group_aligned_code.hpp : group_aligned_code_offsets.hpp
@@ -173,9 +141,6 @@ sample_arc_list_LDFLAGS = $(BOOST_THREAD_LDFLAGS)
 sample_arc_list_LDADD = $(BOOST_THREAD_LIBS)
 
 sample_bithack_SOURCES = sample_bithack.cpp
-
-sample_bitpack_SOURCES = sample_bitpack.cpp
-sample_bitpack_LDADD = $(LIBUTILS)
 
 sample_byte_aligned_code_SOURCES = sample_byte_aligned_code.cpp
 
