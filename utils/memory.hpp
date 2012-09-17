@@ -1,9 +1,14 @@
 // -*- mode: c++ -*-
+//
+//  Copyright(C) 2009-2011 Taro Watanabe <taro.watanabe@nict.go.jp>
+//
 
 #ifndef __UTILS__MEMORY__HPP__
 #define __UTILS__MEMORY__HPP__ 1
 
 #include <iterator>
+#include <memory>
+#include <cstring>
 
 #include <boost/type_traits.hpp>
 
@@ -16,7 +21,7 @@ namespace utils
   template <typename Tp>
   inline void __construct_object(Tp* pointer, const Tp& value, boost::true_type)
   {
-    *pointer = value;
+    std::memcpy(pointer, &value, sizeof(Tp));
   }
   
   template <typename Tp>
@@ -28,7 +33,7 @@ namespace utils
   template <typename Tp>
   inline void construct_object(Tp* pointer, const Tp& value)
   {
-    __construct_object(pointer, value, boost::has_trivial_constructor<Tp>());
+    __construct_object(pointer, value, boost::has_trivial_copy<Tp>());
   }
   
   template <typename Tp>
