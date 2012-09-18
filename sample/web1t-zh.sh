@@ -106,6 +106,5 @@ exec {directory to expgram}/expgram.py \
 	--output ngram.$order \
 	--order $order \
 	--remove-unk \
-	--expgram-dir {directory to expgram} \
 	$MPI or $THREAD or $PBS
 	
