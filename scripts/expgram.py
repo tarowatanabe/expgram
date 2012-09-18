@@ -248,11 +248,15 @@ class Expgram:
 	    
 	    for bindir in self.bindirs:
 		prog = os.path.join(bindir, binprog)
-		if os.path.exists(prog):
-		    setattr(self, binprog, prog)
-		    break
-	    #if not hasattr(self, binprog):
-	    #	raise ValueError, binprog + ' does not exist'
+                
+                if not os.path.exists(prog): continue
+                if os.path.isdir(prog): continue
+
+                setattr(self, binprog, prog)
+                break
+            
+	    if not hasattr(self, binprog):
+	    	raise ValueError, binprog + ' does not exist'
 
 class Corpus:
     def __init__(self, corpus="", corpus_list="", counts_list=""):
