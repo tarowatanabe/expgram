@@ -1,4 +1,7 @@
 #!/usr/bin/env python
+#
+#  Copyright(C) 2010-2012 Taro Watanabe <taro.watanabe@nict.go.jp>
+#
 
 #
 #  a wrapper script for expgram!
@@ -205,7 +208,7 @@ class MPI:
         if os.environ.has_key('LD_LIBRARY_PATH'):
             mpirun += ' -x LD_LIBRARY_PATH'
         if os.environ.has_key('DYLD_LIBRARY_PATH'):
-            mpirun += ' -x DYLD_LIBRARY_PATH'
+            mpirun += ' -x DYLD_L`IBRARY_PATH'
 
 	mpirun += ' ' + command
 
