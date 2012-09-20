@@ -262,10 +262,7 @@ class QSub:
         if self.pbs:
             self.pbs.run(str(command), name=name, memory=memory, threads=threads, logfile=logfile)
         else:
-            if logfile:
-                run_command(str(command) + " 2> %s" %(logfile))
-            else:
-                run_command(str(command))
+            run_command(str(command), logfile=logfile)
     
     def mpirun(self, command, name="name", memory=0.0, threads=1, logfile=None):
         if not self.mpi:
@@ -343,6 +340,9 @@ class Vocab:
         self.mpi = mpi
         self.threads = threads
         self.pbs = pbs
+
+        if self.mpi:
+            self.threads = 2
         
         self.max_malloc = max_malloc
 
@@ -380,17 +380,12 @@ class Vocab:
         self.command = command
         
     def run(self):
-        
+        qsub = QSub(mpi=self.mpi, pbs=self.pbs)
+
         if self.mpi:
-            if self.pbs:
-                pbs.run(command=self.command, threads=self.threads, mpi=self.mpi, name="vocab", memory=self.max_malloc, logfile=self.log)
-            else:
-                self.mpi.run(self.command, logfile=self.log)
+            qsub.mpirun(self.command, threads=self.threads, name="vocab", memory=self.max_malloc, logfile=self.log)
         else:
-            if self.pbs:
-                pbs.run(command=self.command, threads=self.threads, name="vocab", memory=self.max_malloc, logfile=self.log)
-            else:
-                run_command(self.command, logfile=self.log)
+            qsub.run(self.command, threads=self.threads, name="vocab", memory=self.max_malloc, logfile=self.log)
         
         fp = open(self.vocab, 'w')
         for line in open(self.counts):
@@ -417,9 +412,11 @@ class Extract:
         self.mpi = mpi
         self.threads = threads
         self.pbs = pbs
+
+        if self.mpi:
+            self.threads = 2
         
         self.max_malloc = max_malloc
-        
         
         command = ""
         if mpi:
@@ -462,17 +459,12 @@ class Extract:
         self.command = command
 
     def run(self):
+        qsub = QSub(mpi=self.mpi, pbs=self.pbs)
+
         if self.mpi:
-            if self.pbs:
-                pbs.run(command=self.command, threads=self.threads, mpi=self.mpi, name="extract", memory=self.max_malloc, logfile=self.log)
-            else:
-                self.mpi.run(self.command, logfile=self.log)
-                
+            qsub.mpirun(self.command, threads=self.threads, name="extract", memory=self.max_malloc, logfile=self.log)
         else:
-            if self.pbs:
-                pbs.run(command=self.command, threads=self.threads, name="extract", memory=self.max_malloc, logfile=self.log)
-            else:
-                run_command(self.command, logfile=self.log)
+            qsub.run(self.command, threads=self.threads, name="extract", memory=self.max_malloc, logfile=self.log)
 
 class Index:
 
@@ -487,6 +479,9 @@ class Index:
         self.mpi = mpi
         self.threads = threads
         self.pbs = pbs
+
+        if self.mpi:
+            self.threads = 2
         
         self.max_malloc = max_malloc
 
@@ -513,16 +508,12 @@ class Index:
         self.command = command
 
     def run(self):
+        qsub = QSub(mpi=self.mpi, pbs=self.pbs)
+
         if self.mpi:
-            if self.pbs:
-                pbs.run(command=self.command, threads=self.threads, mpi=self.mpi, name="index", memory=self.max_malloc, logfile=self.log)
-            else:
-                self.mpi.run(self.command, logfile=self.log)
+            qsub.mpirun(self.command, threads=self.threads, name="index", memory=self.max_malloc, logfile=self.log)
         else:
-            if self.pbs:
-                pbs.run(command=self.command, threads=self.threads, name="index", memory=self.max_malloc, logfile=self.log)
-            else:
-                run_command(self.command, logfile=self.log)
+            qsub.run(self.command, threads=self.threads, name="index", memory=self.max_malloc, logfile=self.log)
 
 class Modify:
 
@@ -537,9 +528,11 @@ class Modify:
         self.mpi = mpi
         self.threads = threads
         self.pbs = pbs
+
+        if self.mpi:
+            self.threads = 2
         
         self.max_malloc = max_malloc
-
         
         command = ""
         if mpi:
@@ -549,7 +542,6 @@ class Modify:
 
         command += " --ngram \"%s\"" %(index.ngram)
         command += " --output \"%s\"" %(self.ngram)
-        
         
         if mpi:
             command += " --prog %s" %(expgram.expgram_counts_modify_mpi)
@@ -562,16 +554,12 @@ class Modify:
         self.command = command
 
     def run(self):
+        qsub = QSub(mpi=self.mpi, pbs=self.pbs)
+
         if self.mpi:
-            if self.pbs:
-                pbs.run(command=self.command, threads=self.threads, mpi=self.mpi, name="modify", memory=self.max_malloc, logfile=self.log)
-            else:
-                self.mpi.run(self.command, logfile=self.log)
+            qsub.mpirun(self.command, threads=self.threads, name="modify", memory=self.max_malloc, logfile=self.log)
         else:
-            if self.pbs:
-                pbs.run(command=self.command, threads=self.threads, name="modify", memory=self.max_malloc, logfile=self.log)
-            else:
-                run_command(self.command, logfile=self.log)
+            qsub.run(self.command, threads=self.threads, name="modify", memory=self.max_malloc, logfile=self.log)
 
 class Estimate:
 
@@ -586,6 +574,9 @@ class Estimate:
         self.mpi = mpi
         self.threads = threads
         self.pbs = pbs
+
+        if self.mpi:
+            self.threads = 3
         
         self.max_malloc = max_malloc
         
@@ -612,16 +603,12 @@ class Estimate:
         self.command = command
 
     def run(self):
+        qsub = QSub(mpi=self.mpi, pbs=self.pbs)
+        
         if self.mpi:
-            if self.pbs:
-                pbs.run(command=self.command, threads=self.threads, mpi=self.mpi, name="estimate", memory=self.max_malloc, logfile=self.log)
-            else:
-                self.mpi.run(self.command, logfile=self.log)
+            qsub.mpirun(self.command, threads=self.threads, name="estimate", memory=self.max_malloc, logfile=self.log)
         else:
-            if self.pbs:
-                pbs.run(command=self.command, threads=self.threads, name="estimate", memory=self.max_malloc, logfile=self.log)
-            else:
-                run_command(self.command, logfile=self.log)
+            qsub.run(self.command, threads=self.threads, name="estimate", memory=self.max_malloc, logfile=self.log)
 
 class Quantize:
 
@@ -633,9 +620,12 @@ class Quantize:
         self.ngram = output + '.lm.quantize'
         self.log = self.ngram + '.log'
         
-        self.mpi = mpi
+        self.mpi     = mpi
         self.threads = threads
-        self.pbs = pbs
+        self.pbs     = pbs
+
+        if self.mpi:
+            self.threads = 1
         
         self.max_malloc = max_malloc
         
@@ -659,16 +649,12 @@ class Quantize:
         self.command = command
 
     def run(self):
+        qsub = QSub(mpi=self.mpi, pbs=self.pbs)
+
         if self.mpi:
-            if self.pbs:
-                pbs.run(command=self.command, threads=self.threads, mpi=self.mpi, name="quantize", memory=self.max_malloc, logfile=self.log)
-            else:
-                self.mpi.run(self.command, logfile=self.log)
+            qsub.mpirun(self.command, threads=self.threads, name="quantize", memory=self.max_malloc, logfile=self.log)
         else:
-            if self.pbs:
-                pbs.run(command=self.command, threads=self.threads, name="quantize", memory=self.max_malloc, logfile=self.log)
-            else:
-                run_command(self.command, logfile=self.log)
+            qsub.run(self.command, threads=self.threads, name="quantize", memory=self.max_malloc, logfile=self.log)
 
 if __name__ == '__main__':
     (options, args) = opt_parser.parse_args()
