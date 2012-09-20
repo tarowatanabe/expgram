@@ -9,6 +9,18 @@ order=7
 ### transform the content of LDC2009T08, into the directory, "data"
 orig=LDC2009T08/data
 
+abs_path() {
+  dir__=$1
+  "cd" "$dir__"
+  if test "$?" = "0"; then
+    /bin/pwd
+    "cd" -  &>/dev/null
+  fi
+}
+
+## absolute direcotry
+orig=`abs_path $orig`
+
 if test ! -e data; then
   mkdir data 
 fi
@@ -18,7 +30,7 @@ for ngram in `find $orig -name "*gms"`; do
 
   if test "$basename" != "1gms"; then
     if test ! -e data/$basename; then
-      ln -s ../$ngram data/$basename 
+      ln -s $ngram data/$basename 
     fi
   fi 
 done
@@ -31,7 +43,7 @@ fi
 rm -f data/1gms/vocab.gz
 rm -f data/1gms/vocab_cs.gz
 
-(cd data/1gms && ln -s ../../$orig/1gms/1gm-0000.gz vocab.gz)
+(cd data/1gms && ln -s $orig/1gms/1gm-0000.gz vocab.gz)
 
 zcat data/1gms/vocab.gz | sort -k2 -r -n | gzip -c > data/1gms/vocab_cs.gz
 zcat data/1gms/vocab.gz | gawk 'BEGIN{ sum = 0; } { sum += $2;} END { print sum; }' > data/1gms/total

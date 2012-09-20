@@ -8,6 +8,19 @@ order=5
 
 ## transform!
 orig=LDC2010T06/data
+
+abs_path() {
+  dir__=$1
+  "cd" "$dir__"
+  if test "$?" = "0"; then
+    /bin/pwd
+    "cd" -  &>/dev/null
+  fi
+}
+
+## absolute direcotry
+orig=`abs_path $orig`
+
 if test ! -e data; then
   mkdir data
 fi
@@ -22,7 +35,7 @@ done
 n=1
 echo "order $n"
 
-file_orig=`printf "../../$orig/ngrams-%05d-of-00394.gz" 0`
+file_orig=`printf "$orig/ngrams-%05d-of-00394.gz" 0`
 file_ngram=`printf "data/%dgms/vocab.gz" $n`
 
 ln -sf $file_orig $file_ngram
@@ -35,7 +48,7 @@ echo "order $n"
 
 rm -rf data/${n}gms/${n}gm.idx
 for ((i=1;i<=29;++i)); do
-  file_orig=`printf "../../$orig/ngrams-%05d-of-00394.gz" $i`
+  file_orig=`printf "$orig/ngrams-%05d-of-00394.gz" $i`
   file_ngram=`printf "data/%dgms/%dgm-%04d.gz" $n $n $i`
   
   ln -sf $file_orig $file_ngram
@@ -51,7 +64,7 @@ echo "order $n"
 
 rm -rf data/${n}gms/${n}gm.idx
 for ((i=30;i<=132;++i)); do
-  file_orig=`printf "../../$orig/ngrams-%05d-of-00394.gz" $i`
+  file_orig=`printf "$orig/ngrams-%05d-of-00394.gz" $i`
   file_ngram=`printf "data/%dgms/%dgm-%04d.gz" $n $n $i`
 
   ln -sf $file_orig $file_ngram
@@ -67,7 +80,7 @@ echo "order $n"
 
 rm -rf data/${n}gms/${n}gm.idx
 for ((i=133;i<=267;++i)); do
-  file_orig=`printf "../../$orig/ngrams-%05d-of-00394.gz" $i`
+  file_orig=`printf "$orig/ngrams-%05d-of-00394.gz" $i`
   file_ngram=`printf "data/%dgms/%dgm-%04d.gz" $n $n $i`
 
   ln -sf $file_orig $file_ngram
@@ -83,7 +96,7 @@ echo "order $n"
 
 rm -rf data/${n}gms/${n}gm.idx
 for ((i=268;i<=393;++i)); do
-  file_orig=`printf "../../$orig/ngrams-%05d-of-00394.gz" $i`
+  file_orig=`printf "$orig/ngrams-%05d-of-00394.gz" $i`
   file_ngram=`printf "data/%dgms/%dgm-%04d.gz" $n $n $i`
 
   ln -sf $file_orig $file_ngram

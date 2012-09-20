@@ -5,6 +5,7 @@
 
 shard=16
 order=5
+counts=LDC2006T13
 
 export TMPDIR_SPEC=/var/tmp
 
@@ -13,7 +14,7 @@ THREAD="--threads $shard"
 PBS="--mpi-dir {openmpi directory} --mpi $shard --pbs --pbs-queue {pbs-queue}"
 
 exec {directory to expgram}/expgram.py \
-	--counts LDC2006T13/data \
+	--counts $counts/data \
 	--output ngram.$order \
 	--order $order \
 	--remove-unk \
