@@ -134,10 +134,6 @@ class Program:
         self.args.append(other)
         return self
 
-### dump to stderr
-stdout = sys.stdout
-sys.stdout = sys.stderr
-
 class PBS:
     def __init__(self, queue=""):
         self.queue = queue
@@ -256,6 +252,29 @@ class MPI:
 	mpirun += ' ' + command
 
 	run_command(mpirun, logfile=logfile)
+
+class QSub:
+    def __init__(self, mpi=None, pbs=None):
+        self.mpi = mpi
+        self.pbs = pbs
+        
+    def run(self, command, name="name", memory=0.0, threads=1, logfile=None):
+        if self.pbs:
+            self.pbs.run(str(command), name=name, memory=memory, threads=threads, logfile=logfile)
+        else:
+            if logfile:
+                run_command(str(command) + " 2> %s" %(logfile))
+            else:
+                run_command(str(command))
+    
+    def mpirun(self, command, name="name", memory=0.0, threads=1, logfile=None):
+        if not self.mpi:
+            raise ValueError, "no mpi?"
+
+        if self.pbs:
+            self.pbs.run(str(command), name=name, memory=memory, mpi=self.mpi, logfile=logfile)
+        else:
+            self.mpi.run(str(command), logfile=logfile)
 
 class Expgram:
     def __init__(self, dir=""):
@@ -651,133 +670,137 @@ class Quantize:
             else:
                 run_command(self.command, logfile=self.log)
 
-(options, args) = opt_parser.parse_args()
+if __name__ == '__main__':
+    (options, args) = opt_parser.parse_args()
 
-if not options.output:
-    raise ValueError, "no output for ngram language model"
+    ### dump to stderr
+    stdout = sys.stdout
+    sys.stdout = sys.stderr
 
-if not options.counts and not options.corpus and not options.corpus_list and not options.counts_list:
-    raise ValueError, "no corpus?"
+    if not options.output:
+        raise ValueError, "no output for ngram language model"
 
-if options.counts and not os.path.exists(options.counts):
-    raise ValueError, "no counts? %s" %(options.counts)
-if options.corpus and not os.path.exists(options.corpus):
-    raise ValueError, "no corpus? %s" %(options.corpus)
-if options.corpus_list and not os.path.exists(options.corpus_list):
-    raise ValueError, "no corpus list? %s" %(options.corpus_list)
-if options.counts_list and not os.path.exists(options.counts_list):
-    raise ValueError, "no counts list? %s" %(options.counts_list)
+    if not options.counts and not options.corpus and not options.corpus_list and not options.counts_list:
+        raise ValueError, "no corpus?"
 
-if options.counts:
-    if options.corpus or options.corpus_list or options.counts_list:
-        raise ValueError, "counts is supplied, but do we need to collect counts from corpus/corpus-list/counts-list?"
+    if options.counts and not os.path.exists(options.counts):
+        raise ValueError, "no counts? %s" %(options.counts)
+    if options.corpus and not os.path.exists(options.corpus):
+        raise ValueError, "no corpus? %s" %(options.corpus)
+    if options.corpus_list and not os.path.exists(options.corpus_list):
+        raise ValueError, "no corpus list? %s" %(options.corpus_list)
+    if options.counts_list and not os.path.exists(options.counts_list):
+        raise ValueError, "no counts list? %s" %(options.counts_list)
 
-if options.tokenizer and not os.path.exists(options.tokenizer):
-    raise ValueError, "no tokenizer? %s" %(options.tokenizer)
+    if options.counts:
+        if options.corpus or options.corpus_list or options.counts_list:
+            raise ValueError, "counts is supplied, but do we need to collect counts from corpus/corpus-list/counts-list?"
 
-expgram = Expgram(options.expgram_dir)
+    if options.tokenizer and not os.path.exists(options.tokenizer):
+        raise ValueError, "no tokenizer? %s" %(options.tokenizer)
 
-mpi = None
-if options.mpi_host or options.mpi_host_file or options.mpi > 0:
-    mpi = MPI(dir=options.mpi_dir,
-              hosts=options.mpi_host,
-              hosts_file=options.mpi_host_file,
-              number=options.mpi)
+    expgram = Expgram(options.expgram_dir)
 
-pbs = None
-if options.pbs:
-    pbs = PBS(queue=options.pbs_queue)
+    mpi = None
+    if options.mpi_host or options.mpi_host_file or options.mpi > 0:
+        mpi = MPI(dir=options.mpi_dir,
+                  hosts=options.mpi_host,
+                  hosts_file=options.mpi_host_file,
+                  number=options.mpi)
 
-corpus = Corpus(corpus=options.corpus,
-                corpus_list=options.corpus_list,
-                counts_list=options.counts_list)
+    pbs = None
+    if options.pbs:
+        pbs = PBS(queue=options.pbs_queue)
 
-extract = None
+    corpus = Corpus(corpus=options.corpus,
+                    corpus_list=options.corpus_list,
+                    counts_list=options.counts_list)
 
-if os.path.exists(options.counts):
-    extract = Counts(options.counts)
-else:
-    vocab = None
-    if options.cutoff > 1:
+    extract = None
+    if os.path.exists(options.counts):
+        extract = Counts(options.counts)
+    else:
+        vocab = None
+        if options.cutoff > 1:
         
-        vocab = Vocab(expgram=expgram,
-                      corpus=corpus,
-                      output=options.output,
-                      tokenizer=options.tokenizer,
-                      cutoff=options.cutoff,
-                      max_malloc=options.max_malloc,
-                      threads=options.threads, mpi=mpi, pbs=pbs,
-                      debug=options.debug)
+            vocab = Vocab(expgram=expgram,
+                          corpus=corpus,
+                          output=options.output,
+                          tokenizer=options.tokenizer,
+                          cutoff=options.cutoff,
+                          max_malloc=options.max_malloc,
+                          threads=options.threads, mpi=mpi, pbs=pbs,
+                          debug=options.debug)
+            
+            print "compute vocabulary started  @", time.ctime()
+            vocab.run()
+            print "compute vocabulary finished @", time.ctime()
+            print "vocabulary:", vocab.vocab
         
-        print "compute vocabulary started  @", time.ctime()
-        vocab.run()
-        print "compute vocabulary finished @", time.ctime()
-        print "vocabulary:", vocab.vocab
+        extract = Extract(expgram=expgram,
+                          corpus=corpus,
+                          output=options.output,
+                          vocab=vocab,
+                          order=options.order,
+                          tokenizer=options.tokenizer,
+                          max_malloc=options.max_malloc,
+                          threads=options.threads, mpi=mpi, pbs=pbs,
+                          debug=options.debug)
 
-    extract = Extract(expgram=expgram,
-                      corpus=corpus,
-                      output=options.output,
-                      vocab=vocab,
-                      order=options.order,
-                      tokenizer=options.tokenizer,
-                      max_malloc=options.max_malloc,
-                      threads=options.threads, mpi=mpi, pbs=pbs,
-                      debug=options.debug)
+        print "extract counts started  @", time.ctime()
+        extract.run()
+        print "extract counts finished @", time.ctime()
+        print "extracted counts:", extract.ngram
 
-    print "extract counts started  @", time.ctime()
-    extract.run()
-    print "extract counts finished @", time.ctime()
-    print "extracted counts:", extract.ngram
+    index = Index(expgram=expgram,
+                  output=options.output,
+                  extract=extract,
+                  max_malloc=options.max_malloc,
+                  threads=options.threads, mpi=mpi, pbs=pbs,
+                  debug=options.debug)
 
-index = Index(expgram=expgram,
-              output=options.output,
-              extract=extract,
-              max_malloc=options.max_malloc,
-              threads=options.threads, mpi=mpi, pbs=pbs,
-              debug=options.debug)
+    print "index counts started  @", time.ctime()
+    index.run()
+    print "index counts finished @", time.ctime()
+    print "indexed counts:", index.ngram
 
-print "index counts started  @", time.ctime()
-index.run()
-print "index counts finished @", time.ctime()
-print "indexed counts:", index.ngram
-
-modify = Modify(expgram=expgram,
-                output=options.output,
-                index=index,
-                max_malloc=options.max_malloc,
-                threads=options.threads, mpi=mpi, pbs=pbs,
-                debug=options.debug)
-
-print "modify counts started  @", time.ctime()
-modify.run()
-print "modify counts finished @", time.ctime()
-print "modified counts:", modify.ngram
-
-estimate = Estimate(expgram=expgram,
+    modify = Modify(expgram=expgram,
                     output=options.output,
-                    modify=modify,
-                    remove_unk=options.remove_unk,
+                    index=index,
                     max_malloc=options.max_malloc,
                     threads=options.threads, mpi=mpi, pbs=pbs,
                     debug=options.debug)
 
-print "estimate language model started  @", time.ctime()
-estimate.run()
-print "estimate language model finished @", time.ctime()
-print "language model:", estimate.ngram
+    print "modify counts started  @", time.ctime()
+    modify.run()
+    print "modify counts finished @", time.ctime()
+    print "modified counts:", modify.ngram
+    
+    estimate = Estimate(expgram=expgram,
+                        output=options.output,
+                        modify=modify,
+                        remove_unk=options.remove_unk,
+                        max_malloc=options.max_malloc,
+                        threads=options.threads, mpi=mpi, pbs=pbs,
+                        debug=options.debug)
 
-quantize = Quantize(expgram=expgram,
-                    output=options.output,
-                    estimate=estimate,
-                    max_malloc=options.max_malloc,
-                    threads=options.threads, mpi=mpi, pbs=pbs,
-                    debug=options.debug)
+    print "estimate language model started  @", time.ctime()
+    estimate.run()
+    print "estimate language model finished @", time.ctime()
+    print "language model:", estimate.ngram
+    
+    quantize = Quantize(expgram=expgram,
+                        output=options.output,
+                        estimate=estimate,
+                        max_malloc=options.max_malloc,
+                        threads=options.threads, mpi=mpi, pbs=pbs,
+                        debug=options.debug)
 
-print "quantization started  @", time.ctime()
-quantize.run()
-print "quantization finished @", time.ctime()
-print "quantized language model:", quantize.ngram
-
-if options.erase_temporary:
-    shutil.rmtree(index.ngram)
-    shutil.rmtree(modify.ngram)
+    print "quantization started  @", time.ctime()
+    quantize.run()
+    print "quantization finished @", time.ctime()
+    print "quantized language model:", quantize.ngram
+    
+    if options.erase_temporary:
+        shutil.rmtree(index.ngram)
+        shutil.rmtree(modify.ngram)
