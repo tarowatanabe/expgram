@@ -134,6 +134,10 @@ class Program:
         self.args.append(other)
         return self
 
+    def append(self, other):
+        self.args.append(other)
+        return self
+
 class PBS:
     def __init__(self, queue=""):
         self.queue = queue
@@ -346,36 +350,34 @@ class Vocab:
         
         self.max_malloc = max_malloc
 
-        command = ""
+        command = Program(expgram.expgram_vocab)
         if mpi:
-            command = "%s" %(expgram.expgram_vocab_mpi)
-        else:
-            command = "%s" %(expgram.expgram_vocab)
+            command = Program(expgram.expgram_vocab_mpi)
         
         if os.path.exists(corpus.corpus):
-            command += " --corpus \"%s\"" %(corpus.corpus)
+            command += Option('--corpus', Quoted(corpus.corpus))
         if os.path.exists(corpus.corpus_list) or os.path.exists(corpus.counts_list):
             if os.path.exists(corpus.corpus_list):
-                command += " --corpus-list \"%s\"" %(corpus.corpus_list)
+                command += Option('--corpus-list', Quoted(corpus.corpus_list))
             if os.path.exists(corpus.counts_list):
-                command += " --counts-list \"%s\"" %(corpus.counts_list)
+                command += Option('--counts-list', Quoted(corpus.counts_list))
         else:
-            command += " --map-line"
-
-        command += " --output \"%s\"" %(self.counts)
+            command += Option('--map-line')
+            
+        command += Option('--output', Quoted(self.counts))
         
         if tokenizer:
-            command += " --filter \"%s\"" %(tokenizer)
+            command += Option('--filter', Quoted(tokenizer))
 
         if mpi:
-            command += " --prog %s" %(expgram.expgram_vocab_mpi)
+            command += Option('--prog', Quoted(expgram.expgram_vocab_mpi))
         else:
-            command += " --threads %d" %(threads)
-
+            command += Option('--threads', threads)
+            
         if debug >= 2:
-            command += " --debug %d" %(debug)
+            command += Option('--debug', debug)
         else:
-            command += " --debug"
+            command += Option('--debug')
 
         self.command = command
         
@@ -403,7 +405,7 @@ class Extract:
 
     def __init__(self, expgram=None, corpus=None, output="",
                  vocab=None, order=5,
-                 tokenizer="", max_malloc=4,
+                 tokenizer="", max_malloc=4.0,
                  threads=4, mpi=None, pbs=None, debug=None):
         
         self.ngram = output + '.counts'
@@ -418,44 +420,40 @@ class Extract:
         
         self.max_malloc = max_malloc
         
-        command = ""
+        command = Program(expgram.expgram_counts_extract)
         if mpi:
-            command = "%s" %(expgram.expgram_counts_extract_mpi)
-        else:
-            command = "%s" %(expgram.expgram_counts_extract)
+            command = Program(expgram.expgram_counts_extract_mpi)
         
         if os.path.exists(corpus.corpus):
-            command += " --corpus \"%s\"" %(corpus.corpus)
+            command += Option('--corpus', Quoted(corpus.corpus))
         if os.path.exists(corpus.corpus_list) or os.path.exists(corpus.counts_list):
             if os.path.exists(corpus.corpus_list):
-                command += " --corpus-list \"%s\"" %(corpus.corpus_list)
+                command += Option('--corpus-list', Quoted(corpus.corpus_list))
             if os.path.exists(corpus.counts_list):
-                command += " --counts-list \"%s\"" %(corpus.counts_list)
+                command += Option('--counts-list', Quoted(corpus.counts_list))
         else:
-            command += " --map-line"
+            command += Option('--map-line')
         
-        command += " --output \"%s\"" %(self.ngram)
-        
-        command += " --order %d" %(order)
+        command += Option('--output', Quoted(self.ngram))
+        command += Option('--order', order)
         
         if vocab:
-            command += " --vocab \"%s\"" %(vocab.vocab)
-        
+            command += Option('--vocab', Quoted(vocab.vocab))
         if tokenizer:
-            command += " --filter \"%s\"" %(tokenizer)
+            command += Option('--filter', Quoted(tokenizer))
         
-        command += " --max-malloc %g" %(max_malloc)
+        command += Option('--max-malloc', max_malloc)
 
         if mpi:
-            command += " --prog %s" %(expgram.expgram_counts_extract_mpi)
+            command += Option('--prog', Quoted(expgram.expgram_counts_extract_mpi))
         else:
-            command += " --threads %d" %(threads)
+            command += Option('--threads', threads)
 
         if debug >= 2:
-            command += " --debug %d" %(debug)
+            command += Option('--debug', debug)
         else:
-            command += " --debug"
-
+            command += Option('--debug')
+            
         self.command = command
 
     def run(self):
@@ -486,24 +484,22 @@ class Index:
         self.max_malloc = max_malloc
 
         
-        command = ""
+        command = Program(expgram.expgram_counts_index)
         if mpi:
-            command = "%s" %(expgram.expgram_counts_index_mpi)
-        else:
-            command = "%s" %(expgram.expgram_counts_index)
+            command = Program(expgram.expgram_counts_index_mpi)
 
-        command += " --ngram \"%s\"" %(extract.ngram)
-        command += " --output \"%s\"" %(self.ngram)
+        command += Option('--ngram', Quoted(extract.ngram))
+        command += Option('--output', Quoted(self.ngram))
         
         if mpi:
-            command += " --prog %s" %(expgram.expgram_counts_index_mpi)
+            command += Option('--prog', Quoted(expgram.expgram_counts_index_mpi))
         else:
-            command += " --shard %d" %(threads)
+            command += Option('--shard', threads)
 
         if debug >= 2:
-            command += " --debug %d" %(debug)
+            command += Option('--debug', debug)
         else:
-            command += " --debug"
+            command += Option('--debug')
 
         self.command = command
 
@@ -534,23 +530,21 @@ class Modify:
         
         self.max_malloc = max_malloc
         
-        command = ""
+        command = Program(expgram.expgram_counts_modify)
         if mpi:
-            command = "%s" %(expgram.expgram_counts_modify_mpi)
-        else:
-            command = "%s" %(expgram.expgram_counts_modify)
+            command = Program(expgram.expgram_counts_modify_mpi)
 
-        command += " --ngram \"%s\"" %(index.ngram)
-        command += " --output \"%s\"" %(self.ngram)
+        command += Option('--ngram', Quoted(index.ngram))
+        command += Option('--output', Quoted(self.ngram))
         
         if mpi:
-            command += " --prog %s" %(expgram.expgram_counts_modify_mpi)
+            command += Option('--prog', Quoted(expgram.expgram_counts_modify_mpi))
 
         if debug >= 2:
-            command += " --debug %d" %(debug)
+            command += Option('--debug', debug)
         else:
-            command += " --debug"
-
+            command += Option('--debug')
+            
         self.command = command
 
     def run(self):
@@ -580,25 +574,23 @@ class Estimate:
         
         self.max_malloc = max_malloc
         
-        command = ""
+        command = Program(expgram.expgram_counts_estimate)
         if mpi:
-            command = "%s" %(expgram.expgram_counts_estimate_mpi)
-        else:
-            command = "%s" %(expgram.expgram_counts_estimate)
-
-        command += " --ngram \"%s\"" %(modify.ngram)
-        command += " --output \"%s\"" %(self.ngram)
+            command = Program(expgram.expgram_counts_estimate_mpi)
+            
+        command += Option('--ngram', Quoted(modify.ngram))
+        command += Option('--output', Quoted(self.ngram))
 
         if remove_unk:
-            command += " --remove-unk"
+            command += Option('--remove-unk')
         
         if mpi:
-            command += " --prog %s" %(expgram.expgram_counts_estimate_mpi)
+            command += Option('--prog', Quoted(expgram.expgram_counts_estimate_mpi))
 
         if debug >= 2:
-            command += " --debug %d" %(debug)
+            command += Option('--debug', debug)
         else:
-            command += " --debug"
+            command += Option('--debug')
 
         self.command = command
 
@@ -629,22 +621,20 @@ class Quantize:
         
         self.max_malloc = max_malloc
         
-        command = ""
+        command = Program(expgram.expgram_quantize)
         if mpi:
-            command = "%s" %(expgram.expgram_quantize_mpi)
-        else:
-            command = "%s" %(expgram.expgram_quantize)
-
-        command += " --ngram \"%s\"" %(estimate.ngram)
-        command += " --output \"%s\"" %(self.ngram)
+            command = Program(expgram.expgram_quantize_mpi)
+        
+        command += Option('--ngram', Quoted(estimate.ngram))
+        command += Option('--output', Quoted(self.ngram))
         
         if mpi:
-            command += " --prog %s" %(expgram.expgram_quantize_mpi)
+            command += Option('--prog', Quoted(expgram.expgram_quantize_mpi))
 
         if debug >= 2:
-            command += " --debug %d" %(debug)
+            command += Option('--debug', debug)
         else:
-            command += " --debug"
+            command += Option('--debug')
 
         self.command = command
 
