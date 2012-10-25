@@ -106,11 +106,9 @@ namespace utils
 
     void swap(__indexed_hashtable_bin& x)
     {
-      using namespace std;
-      
-      swap(base, x.base);
-      swap(last, x.last);
-      swap(allocator(), x.allocator());
+      std::swap(base, x.base);
+      std::swap(last, x.last);
+      std::swap(allocator(), x.allocator());
     }
     
   private:
@@ -261,6 +259,7 @@ namespace utils
     typedef Alloc      allocator_type;
     
     typedef size_t     size_type;
+    typedef ptrdiff_t  difference_type;
     
   private:
     typedef __indexed_hashtable_bin<index_type,
@@ -273,6 +272,7 @@ namespace utils
   public:
     typedef       value_type& reference;
     typedef const value_type& const_reference;
+    typedef       value_type* pointer;
     
     struct const_iterator : public node_set_type::const_iterator
     {
@@ -390,8 +390,8 @@ namespace utils
       // not found...
       
       // perform resizing if we store many nodes
-      if (nodes.size() > bins.size())
-	resize(2 * bins.size());
+      if (nodes.size() > bins.size() + (bins.size() >> 2))
+	resize(bins.size() << 1);
       
       // insert at new bins position...
       const index_type pos = key & (bins.size() - 1);

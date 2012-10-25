@@ -22,6 +22,7 @@
 #include <utils/piece.hpp>
 #include <utils/chunk_vector.hpp>
 #include <utils/rwticket.hpp>
+#include <utils/bithack.hpp>
 
 namespace expgram
 {
@@ -69,8 +70,14 @@ namespace expgram
     {
       word_map_type& maps = __word_maps();
       
-      if (__id >= maps.size())
-	maps.resize(__id + 1, 0);
+      if (__id >= maps.size()) {
+	const size_type size = __id + 1;
+	const size_type power2 = utils::bithack::branch(utils::bithack::is_power2(size),
+							size,
+							size_type(utils::bithack::next_largest_power2(size)));
+	maps.reserve(power2);
+	maps.resize(power2, 0);
+      }
       if (! maps[__id]) {
 	ticket_type::scoped_reader_lock lock(__mutex);
 	
