@@ -32,7 +32,6 @@ bithack.hpp \
 bounded_queue.hpp \
 byte_aligned_code.hpp \
 chunk_vector.hpp \
-compact_trie.hpp \
 compress_stream.hpp \
 config.hpp \
 config.h \
@@ -73,6 +72,7 @@ subprocess.hpp \
 succinct_vector.hpp \
 tempfile.hpp \
 thread_specific_ptr.hpp \
+trie.hpp \
 unordered_map.hpp \
 unordered_set.hpp \
 vector2.hpp \

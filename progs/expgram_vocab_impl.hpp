@@ -32,7 +32,6 @@
 
 #include <utils/space_separator.hpp>
 #include <utils/compress_stream.hpp>
-#include <utils/compact_trie.hpp>
 #include <utils/bithack.hpp>
 #include <utils/lockfree_queue.hpp>
 #include <utils/lockfree_list_queue.hpp>
