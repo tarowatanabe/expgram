@@ -471,7 +471,7 @@ class Extract:
         command += Option('--output', Quoted(self.ngram))
         command += Option('--order', order)
         
-        if vocab:
+        if vocab is not None:
             command += Option('--vocab', Quoted(vocab.vocab))
         if tokenizer:
             command += Option('--filter', Quoted(tokenizer))
@@ -710,8 +710,15 @@ if __name__ == '__main__':
         raise ValueError, "no tokenizer? %s" %(options.tokenizer)
 
     check = 0
-    if options.cutoff > 1 and options.kbest > 0 and options.vocab:
-        raise ValueError, "count-cutoff and/or kbest-vocabulary and/or vocab-file are selected. Use one of them"
+    if options.cutoff > 1:
+        check += 1
+    if options.kbest > 0:
+        check += 1
+    if options.vocab:
+        check += 1
+
+    if check > 1:
+        raise ValueError, "count-cutoff and/or kbest-vocabulary and/or vocab-file are selected. Use only one of them"
 
     expgram = Expgram(options.expgram_dir)
 
