@@ -31,6 +31,10 @@ opt_parser = OptionParser(
                     help="ngram output"),
         make_option("--cutoff", default=1, action="store", type="int",
                     help="count cutoff threshold (default: 1 == keep all the counts)"),
+        make_option("--kbest", default=0, action="store", type="int",
+                    help="kbest vocabulary (default: 0 == keep all the counts)"),
+        make_option("--vocab", default="", action="store", type="string",
+                    help="vocabulary"),
         make_option("--tokenizer", default="", action="store",
                     help="tokenizer applied to data"),
         make_option("--remove-unk", default=None, action="store_true",
@@ -338,19 +342,29 @@ class Corpus:
         self.corpus      = corpus
         self.corpus_list = corpus_list
         self.counts_list = counts_list
+
+class VocabFile:
+    def __init__(self, vocab):
+        self.vocab = vocab
         
+        if not os.path.exists(self.vocab):
+            raise ValueError, "no vocabulary file? %s" %(self.vocab)
 
 class Vocab:
     def __init__(self, expgram=None, corpus=None, output="",
-                 tokenizer="", cutoff=2, max_malloc=4,
+                 tokenizer="", cutoff=1, kbest=0, max_malloc=4,
                  threads=4, mpi=None, pbs=None, debug=None):
         
-        self.vocab = output + '.vocab.' + str(cutoff)
+        if kbest:
+            self.vocab = output + '.vocab.' + str(kbest)
+        else:
+            self.vocab = output + '.vocab.' + str(cutoff)
         self.counts = output + '.vocab'
         self.log = self.counts + '.log'
         
         self.cutoff = cutoff
-        
+        self.kbest  = kbest
+
         self.mpi = mpi
         self.threads = threads
         self.pbs = pbs
@@ -398,13 +412,23 @@ class Vocab:
             qsub.mpirun(self.command, threads=self.threads, name="vocab", memory=self.max_malloc, logfile=self.log)
         else:
             qsub.run(self.command, threads=self.threads, name="vocab", memory=self.max_malloc, logfile=self.log)
-        
-        fp = open(self.vocab, 'w')
-        for line in open(self.counts):
-            tokens = line.split()
-            if len(tokens) != 2: continue
-            if int(tokens[1]) >= self.cutoff:
+
+        if self.kbest > 0:
+            fp = open(self.vocab, 'w')
+            i = 0
+            for line in open(self.counts):
+                if i == self.kbest: break
+                tokens = line.split()
+                if len(tokens) != 2: continue
                 fp.write(tokens[0]+'\n')
+                i += 1
+        else:
+            fp = open(self.vocab, 'w')
+            for line in open(self.counts):
+                tokens = line.split()
+                if len(tokens) != 2: continue
+                if int(tokens[1]) >= self.cutoff:
+                    fp.write(tokens[0]+'\n')
 
 class Counts:
 
@@ -685,6 +709,10 @@ if __name__ == '__main__':
     if options.tokenizer and not os.path.exists(options.tokenizer):
         raise ValueError, "no tokenizer? %s" %(options.tokenizer)
 
+    check = 0
+    if options.cutoff > 1 and options.kbest > 0 and options.vocab:
+        raise ValueError, "count-cutoff and/or kbest-vocabulary and/or vocab-file are selected. Use one of them"
+
     expgram = Expgram(options.expgram_dir)
 
     mpi = None
@@ -707,13 +735,13 @@ if __name__ == '__main__':
         extract = Counts(options.counts)
     else:
         vocab = None
-        if options.cutoff > 1:
-        
+        if options.cutoff > 1 or options.kbest > 0:
             vocab = Vocab(expgram=expgram,
                           corpus=corpus,
                           output=options.output,
                           tokenizer=options.tokenizer,
                           cutoff=options.cutoff,
+                          kbest=options.kbest,
                           max_malloc=options.max_malloc,
                           threads=options.threads, mpi=mpi, pbs=pbs,
                           debug=options.debug)
@@ -721,6 +749,10 @@ if __name__ == '__main__':
             print "compute vocabulary started  @", time.ctime()
             vocab.run()
             print "compute vocabulary finished @", time.ctime()
+            print "vocabulary:", vocab.vocab
+            
+        elif options.vocab:
+            vocab = VocabFile(vocab)
             print "vocabulary:", vocab.vocab
         
         extract = Extract(expgram=expgram,
