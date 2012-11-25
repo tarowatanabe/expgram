@@ -1,5 +1,5 @@
 2012-x-x
-
+	* Removed the --expgram-dir requirement for expgram.py by checking the direcotries of installed binaries
 
 2012-9-6
 	* INCOMPATIBLE: ngram-counts now separately store modified counts (and data structure has changed!)

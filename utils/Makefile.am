@@ -32,6 +32,9 @@ bithack.hpp \
 bounded_queue.hpp \
 byte_aligned_code.hpp \
 chunk_vector.hpp \
+compact_hashtable.hpp \
+compact_map.hpp \
+compact_set.hpp \
 compress_stream.hpp \
 config.hpp \
 config.h \
@@ -73,6 +76,7 @@ succinct_vector.hpp \
 tempfile.hpp \
 thread_specific_ptr.hpp \
 trie.hpp \
+trie_compact.hpp \
 unordered_map.hpp \
 unordered_set.hpp \
 vector2.hpp \
