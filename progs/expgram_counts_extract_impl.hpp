@@ -66,7 +66,7 @@ struct GoogleNGramCounts
     word_type operator()() const { return word_type(); }
   };
 
-  typedef utils::trie_compact<word_type, count_type, boost::hash<word_type>, unassigned, std::equal_to<word_type>,
+  typedef utils::trie_compact<word_type, count_type, unassigned, boost::hash<word_type>, std::equal_to<word_type>,
 			      std::allocator<std::pair<const word_type, count_type> > > ngram_count_set_type;
 
   typedef utils::subprocess subprocess_type;
