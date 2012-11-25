@@ -33,7 +33,7 @@
 #include <utils/lexical_cast.hpp>
 #include <utils/space_separator.hpp>
 #include <utils/compress_stream.hpp>
-#include <utils/trie.hpp>
+#include <utils/trie_compact.hpp>
 #include <utils/bithack.hpp>
 #include <utils/lockfree_queue.hpp>
 #include <utils/lockfree_list_queue.hpp>
@@ -61,8 +61,13 @@ struct GoogleNGramCounts
   typedef std::vector<path_type, std::allocator<path_type> >          path_set_type;
   typedef std::vector<path_set_type, std::allocator<path_set_type> >  path_map_type;
   
-  typedef utils::trie<word_type, count_type, boost::hash<word_type>, std::equal_to<word_type>,
-		      std::allocator<std::pair<const word_type, count_type> > > ngram_count_set_type;
+  struct unassigned
+  {
+    word_type operator()() const { return word_type(); }
+  };
+
+  typedef utils::trie_compact<word_type, count_type, boost::hash<word_type>, unassigned, std::equal_to<word_type>,
+			      std::allocator<std::pair<const word_type, count_type> > > ngram_count_set_type;
 
   typedef utils::subprocess subprocess_type;
 

@@ -76,6 +76,7 @@ subprocess.hpp \
 succinct_vector.hpp \
 tempfile.hpp \
 thread_specific_ptr.hpp \
+traits.hpp \
 trie.hpp \
 trie_compact.hpp \
 unordered_map.hpp \
