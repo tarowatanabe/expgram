@@ -32,6 +32,7 @@ bithack.hpp \
 bounded_queue.hpp \
 byte_aligned_code.hpp \
 chunk_vector.hpp \
+compact_func.hpp \
 compact_hashtable.hpp \
 compact_map.hpp \
 compact_set.hpp \
