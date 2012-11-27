@@ -1,5 +1,8 @@
-2012-x-x
+2012-11-27
 	* Removed the --expgram-dir requirement for expgram.py by checking the direcotries of installed binaries
+	* Added options for expgram.py
+	     --kbest for limit the vocabulary to kbest
+	     --vocab for limit the vocabulary specified in a file
 
 2012-9-6
 	* INCOMPATIBLE: ngram-counts now separately store modified counts (and data structure has changed!)
