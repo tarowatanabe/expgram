@@ -613,7 +613,7 @@ class Estimate:
         self.pbs = pbs
 
         if self.mpi:
-            self.threads = 3
+            self.threads = 2
         
         self.max_malloc = max_malloc
         
