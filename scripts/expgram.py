@@ -367,13 +367,16 @@ class Vocab:
         
         self.cutoff = cutoff
         self.kbest  = kbest
-
+        
         self.mpi = mpi
         self.threads = threads
         self.pbs = pbs
-
+        
         if self.mpi:
-            self.threads = 2
+            self.threads = 1
+            
+            if tokenizer:
+                self.threads += 1
         
         self.max_malloc = max_malloc
 
@@ -453,7 +456,10 @@ class Extract:
         self.pbs = pbs
 
         if self.mpi:
-            self.threads = 2
+            self.threads = 1
+            
+            if tokenizer:
+                self.threads += 1
         
         self.max_malloc = max_malloc
         
