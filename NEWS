@@ -1,3 +1,6 @@
+2012-12-x
+	* Added --prefix when running via mpirun for locating binaries/libraries
+
 2012-11-27
 	* Removed the --expgram-dir requirement for expgram.py by checking the direcotries of installed binaries
 	* Added options for expgram.py
