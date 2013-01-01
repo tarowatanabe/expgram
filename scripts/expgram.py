@@ -374,9 +374,6 @@ class Vocab:
         
         if self.mpi:
             self.threads = 1
-            
-            if tokenizer:
-                self.threads += 1
         
         self.max_malloc = max_malloc
 
