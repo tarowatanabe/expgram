@@ -83,6 +83,8 @@ namespace utils
 	::dup2(pout[1], STDOUT_FILENO);
 	::close(pout[1]);
 	
+	__pid = ::getpid();
+	
 	::execlp("sh", "sh", "-c", sh_command.c_str(), (char*) 0);
 	
 	::_exit(errno);  // not exit(errno)!
@@ -131,6 +133,8 @@ namespace utils
 	::dup2(pout[1], STDOUT_FILENO);
 	::close(pout[1]);
 	
+	__pid = ::getpid();
+
 #if BOOST_FILESYSTEM_VERSION == 2
 	::execlp(command.file_string().c_str(), command.file_string().c_str(), (char*) 0);
 #else
@@ -162,10 +166,16 @@ namespace utils
       
       if (__pid >= 0) {
 	int status = 0;
-	int ret = 0;
 	do {
-	  ret = ::waitpid(__pid, &status, 0);
-	} while ((ret == -1 && errno == EINTR) || (ret != -1 && !WIFEXITED(status)));
+	  const int ret = ::waitpid(__pid, &status, 0);
+	  
+	  if (ret == __pid)
+	    break;
+	  else if (ret < 0 && errno == EINTR)
+	    continue;
+	  else // error...
+	    break; 
+	} while (true);
 	
 	__pid = -1;
       }
