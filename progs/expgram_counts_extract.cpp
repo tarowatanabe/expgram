@@ -232,7 +232,7 @@ void accumulate_counts(const path_set_type& __paths,
 	if (! line.empty()) {
 	  lines.push_back(line);
 	  
-	  if (lines.size() >= 1024 * 4) {
+	  if (lines.size() >= 1024 * 32) {
 	    queue.push_swap(lines);
 	    lines.clear();
 	  }

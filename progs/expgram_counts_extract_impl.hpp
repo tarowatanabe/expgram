@@ -183,13 +183,16 @@ struct GoogleNGramCounts
 	
 	thread.join();
       } else {
-	while (1) {
+	const size_t iteration_mask = (1 << 2) - 1;
+	for (size_t iteration = 0;/**/; ++ iteration)  {
 	  queue.pop_swap(lines);
 	  if (lines.empty()) break;
 	  
 	  __task(lines.begin(), lines.end(), vocabulary, counts, path, paths, max_malloc);
 	  
-	  if (! counts.empty() && utils::malloc_stats::used() > size_t(max_malloc * 1024 * 1024 * 1024)) {
+	  if ((iteration & iteration_mask) == iteration_mask
+	      && ! counts.empty()
+	      && utils::malloc_stats::used() > size_t(max_malloc * 1024 * 1024 * 1024)) {
 	    GoogleNGramCounts::dump_counts(counts, path, paths);
 	    counts.clear();
 	  }
@@ -718,7 +721,7 @@ struct GoogleNGramCounts
       
       const int max_order = paths.size();
       
-      // every 4096 iterations, we will check for memory boundary
+      // every 1024 * 8 iterations, we will check for memory boundary
       const size_t iteration_mask = (1 << 13) - 1;
       for (size_t iteration = 0; first != last; ++ first, ++ iteration) {
 	utils::piece line_piece(*first);
@@ -798,8 +801,8 @@ struct GoogleNGramCounts
       
       const int max_order = paths.size();
       
-      // every 1024 * 8 iterations, we will check for memory boundary
-      const size_t iteration_mask = (1 << 13) - 1;
+      // every 1024 * 32 iterations, we will check for memory boundary
+      const size_t iteration_mask = (1 << 15) - 1;
       
       for (size_t iteration = 0; first != last; ++ first, ++ iteration) {
 	utils::piece line_piece(*first);
