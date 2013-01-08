@@ -20,6 +20,7 @@ typedef boost::filesystem::path path_type;
 path_type ngram_file;
 path_type input_file = "-";
 path_type output_file = "-";
+path_type temporary_dir = "";
 
 int order = 0;
 
@@ -33,6 +34,9 @@ int main(int argc, char** argv)
   try {
     if (getoptions(argc, argv) != 0) 
       return 1;
+
+    if (! temporary_dir.empty())
+      ::setenv("TMPDIR_SPEC", temporary_dir.string().data(), 1);
 
     typedef expgram::NGram    ngram_type;
     typedef expgram::Word     word_type;
@@ -120,9 +124,10 @@ int getoptions(int argc, char** argv)
   
   po::options_description desc("options");
   desc.add_options()
-    ("ngram",  po::value<path_type>(&ngram_file)->default_value(ngram_file),   "ngram in ARPA or binary format")
-    ("input",  po::value<path_type>(&input_file)->default_value(input_file),   "input")
-    ("output", po::value<path_type>(&output_file)->default_value(output_file), "output")
+    ("ngram",     po::value<path_type>(&ngram_file)->default_value(ngram_file),   "ngram in ARPA or binary format")
+    ("input",     po::value<path_type>(&input_file)->default_value(input_file),   "input")
+    ("output",    po::value<path_type>(&output_file)->default_value(output_file), "output")
+    ("temporary", po::value<path_type>(&temporary_dir),                           "temporary directory")    
     
     ("order",       po::value<int>(&order)->default_value(order),              "ngram order")
     

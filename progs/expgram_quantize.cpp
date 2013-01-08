@@ -16,6 +16,7 @@ typedef boost::filesystem::path path_type;
 
 path_type ngram_file = "-";
 path_type output_file;
+path_type temporary_dir = "";
 
 int shards = 4;
 int debug = 0;
@@ -27,6 +28,9 @@ int main(int argc, char** argv)
   try {
     if (getoptions(argc, argv) != 0) 
       return 1;
+
+    if (! temporary_dir.empty())
+      ::setenv("TMPDIR_SPEC", temporary_dir.string().data(), 1);
 
     if (output_file.empty())
       throw std::runtime_error("no output file?");
@@ -50,8 +54,9 @@ int getoptions(int argc, char** argv)
   
   po::options_description desc("options");
   desc.add_options()
-    ("ngram",  po::value<path_type>(&ngram_file)->default_value(ngram_file),   "ngram in ARPA or binary format")
-    ("output", po::value<path_type>(&output_file)->default_value(output_file), "output in binary format")
+    ("ngram",     po::value<path_type>(&ngram_file)->default_value(ngram_file),   "ngram in ARPA or binary format")
+    ("output",    po::value<path_type>(&output_file)->default_value(output_file), "output in binary format")
+    ("temporary", po::value<path_type>(&temporary_dir),                           "temporary directory")
     
     ("shard",  po::value<int>(&shards)->default_value(shards),                 "# of shards (or # of threads)")
     

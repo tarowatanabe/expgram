@@ -30,6 +30,7 @@ typedef ngram_type::id_type         id_type;
 
 path_type ngram_file;
 path_type output_file;
+path_type temporary_dir = "";
 
 path_type prog_name;
 
@@ -48,6 +49,9 @@ int main(int argc, char** argv)
   try {
     if (getoptions(argc, argv) != 0) 
       return 1;
+
+    if (! temporary_dir.empty())
+      ::setenv("TMPDIR_SPEC", temporary_dir.string().data(), 1);
     
     if (ngram_file.empty() || ! boost::filesystem::exists(ngram_file))
       throw std::runtime_error("no ngram file?");
@@ -250,8 +254,9 @@ int getoptions(int argc, char** argv)
   
   po::options_description desc("options");
   desc.add_options()
-    ("ngram",  po::value<path_type>(&ngram_file),  "ngram language model")
-    ("output", po::value<path_type>(&output_file), "output")
+    ("ngram",     po::value<path_type>(&ngram_file)->default_value(ngram_file),   "ngram language model in expgram format")
+    ("output",    po::value<path_type>(&output_file)->default_value(output_file), "output in expgram format")
+    ("temporary", po::value<path_type>(&temporary_dir),                           "temporary directory")
     
     ("prog",   po::value<path_type>(&prog_name),   "this binary")
     

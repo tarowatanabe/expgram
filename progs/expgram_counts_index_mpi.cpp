@@ -49,6 +49,7 @@ typedef utils::mpi_intercomm intercomm_type;
 
 path_type ngram_file;
 path_type output_file;
+path_type temporary_dir = "";
 
 path_type prog_name;
 
@@ -95,6 +96,9 @@ int main(int argc, char** argv)
       
       if (getoptions(argc, argv) != 0) 
 	return 1;
+
+      if (! temporary_dir.empty())
+	::setenv("TMPDIR_SPEC", temporary_dir.string().data(), 1);
       
       ngram_type ngram;
       
@@ -144,6 +148,9 @@ int main(int argc, char** argv)
       // getoptions...
       if (getoptions(argc, argv) != 0) 
 	return 1;
+      
+      if (! temporary_dir.empty())
+	::setenv("TMPDIR_SPEC", temporary_dir.string().data(), 1);
       
       if (ngram_file.empty() || ! boost::filesystem::exists(ngram_file))
 	throw std::runtime_error(std::string("no ngram file? ") + ngram_file.string());
@@ -966,9 +973,10 @@ int getoptions(int argc, char** argv)
   
   po::options_description desc("options");
   desc.add_options()
-    ("ngram",  po::value<path_type>(&ngram_file),  "ngram counts in Google ngram format")
-    ("output", po::value<path_type>(&output_file), "output in binary format")
-
+    ("ngram",     po::value<path_type>(&ngram_file)->default_value(ngram_file),   "ngram counts in Google format")
+    ("output",    po::value<path_type>(&output_file)->default_value(output_file), "output in binary format")
+    ("temporary", po::value<path_type>(&temporary_dir),                           "temporary directory")
+    
     ("prog",   po::value<path_type>(&prog_name),   "this binary")
     
     ("debug", po::value<int>(&debug)->implicit_value(1), "debug level")

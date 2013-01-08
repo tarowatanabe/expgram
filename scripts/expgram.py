@@ -531,6 +531,9 @@ class Index:
 
         command += Option('--ngram', Quoted(extract.ngram))
         command += Option('--output', Quoted(self.ngram))
+
+        if os.environ.has_key('TMPDIR_SPEC') and os.environ['TMPDIR_SPEC']:
+            command += " --temporary \"%s\"" %(os.environ['TMPDIR_SPEC'])
         
         if mpi:
             command += Option('--prog', Quoted(expgram.expgram_counts_index_mpi))
@@ -578,6 +581,9 @@ class Modify:
         command += Option('--ngram', Quoted(index.ngram))
         command += Option('--output', Quoted(self.ngram))
         
+        if os.environ.has_key('TMPDIR_SPEC') and os.environ['TMPDIR_SPEC']:
+            command += " --temporary \"%s\"" %(os.environ['TMPDIR_SPEC'])
+
         if mpi:
             command += Option('--prog', Quoted(expgram.expgram_counts_modify_mpi))
 
@@ -621,6 +627,9 @@ class Estimate:
             
         command += Option('--ngram', Quoted(modify.ngram))
         command += Option('--output', Quoted(self.ngram))
+        
+        if os.environ.has_key('TMPDIR_SPEC') and os.environ['TMPDIR_SPEC']:
+            command += " --temporary \"%s\"" %(os.environ['TMPDIR_SPEC'])
 
         if remove_unk:
             command += Option('--remove-unk')
@@ -668,6 +677,9 @@ class Quantize:
         
         command += Option('--ngram', Quoted(estimate.ngram))
         command += Option('--output', Quoted(self.ngram))
+
+        if os.environ.has_key('TMPDIR_SPEC') and os.environ['TMPDIR_SPEC']:
+            command += " --temporary \"%s\"" %(os.environ['TMPDIR_SPEC'])
         
         if mpi:
             command += Option('--prog', Quoted(expgram.expgram_quantize_mpi))
