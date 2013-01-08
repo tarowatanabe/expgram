@@ -107,8 +107,13 @@ int main(int argc, char** argv)
       if (! prog_name.empty() && ! boost::filesystem::exists(prog_name))
 	throw std::runtime_error(std::string("no binary? ") + prog_name.string());
       
+      std::vector<int, std::allocator<int> > error_codes(mpi_size, MPI_SUCCESS);
       const std::string name = (boost::filesystem::exists(prog_name) ? prog_name.string() : std::string(argv[0]));
-      utils::mpi_intercomm comm_child(MPI::COMM_WORLD.Spawn(name.c_str(), &(*args.begin()), mpi_size, MPI::INFO_NULL, 0));
+      utils::mpi_intercomm comm_child(MPI::COMM_WORLD.Spawn(name.c_str(), &(*args.begin()), mpi_size, MPI::INFO_NULL, 0, &(*error_codes.begin())));
+      
+      for (size_t i = 0; i != error_codes.size(); ++ i)
+	if (error_codes[i] != MPI_SUCCESS)
+	  throw std::runtime_error("one of children failed to launch!");
       
       ngram_type ngram(debug);
       ngram.open_shard(ngram_file, mpi_rank);
