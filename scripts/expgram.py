@@ -43,13 +43,16 @@ opt_parser = OptionParser(
         make_option("--erase-temporary", default=None, action="store_true",
                     help="erase temporary allocated disk space"),
         
+        
         # expgram Expgram directory
         make_option("--expgram-dir", default="", action="store", type="string",
                     metavar="DIRECTORY", help="expgram directory"),
         # MPI Implementation.. if different from standard location...
         make_option("--mpi-dir", default="", action="store", type="string",
                     metavar="DIRECTORY", help="MPI directory"),
-
+        # temporary dir
+        make_option("--temporary-dir", default="", action="store", type="string",
+                    metavar="DIRECTORY", help="expgram directory"),
         ## max-malloc
         make_option("--max-malloc", default=8, action="store", type="float",
                     metavar="MALLOC", help="maximum memory in GB (default: 8)"),
@@ -507,7 +510,7 @@ class Extract:
 
 class Index:
 
-    def __init__(self, expgram=None, output="",
+    def __init__(self, expgram=None, output="", temporary="",
                  extract=None,
                  max_malloc=4,
                  threads=4, mpi=None, pbs=None, debug=None):
@@ -532,8 +535,8 @@ class Index:
         command += Option('--ngram', Quoted(extract.ngram))
         command += Option('--output', Quoted(self.ngram))
 
-        if os.environ.has_key('TMPDIR_SPEC') and os.environ['TMPDIR_SPEC']:
-            command += " --temporary \"%s\"" %(os.environ['TMPDIR_SPEC'])
+        if temporary:
+            command += Option('--temporary', Quoted(temporary))
         
         if mpi:
             command += Option('--prog', Quoted(expgram.expgram_counts_index_mpi))
@@ -557,7 +560,7 @@ class Index:
 
 class Modify:
 
-    def __init__(self, expgram=None, output="",
+    def __init__(self, expgram=None, output="", temporary="",
                  index=None,
                  max_malloc=4,
                  threads=4, mpi=None, pbs=None, debug=None):
@@ -581,8 +584,8 @@ class Modify:
         command += Option('--ngram', Quoted(index.ngram))
         command += Option('--output', Quoted(self.ngram))
         
-        if os.environ.has_key('TMPDIR_SPEC') and os.environ['TMPDIR_SPEC']:
-            command += " --temporary \"%s\"" %(os.environ['TMPDIR_SPEC'])
+        if temporary:
+            command += Option('--temporary', Quoted(temporary))
 
         if mpi:
             command += Option('--prog', Quoted(expgram.expgram_counts_modify_mpi))
@@ -604,7 +607,7 @@ class Modify:
 
 class Estimate:
 
-    def __init__(self, expgram=None, output="",
+    def __init__(self, expgram=None, output="", temporary="",
                  modify=None, remove_unk=None,
                  max_malloc=4,
                  threads=4, mpi=None, pbs=None, debug=None):
@@ -628,8 +631,8 @@ class Estimate:
         command += Option('--ngram', Quoted(modify.ngram))
         command += Option('--output', Quoted(self.ngram))
         
-        if os.environ.has_key('TMPDIR_SPEC') and os.environ['TMPDIR_SPEC']:
-            command += " --temporary \"%s\"" %(os.environ['TMPDIR_SPEC'])
+        if temporary:
+            command += Option('--temporary', Quoted(temporary))
 
         if remove_unk:
             command += Option('--remove-unk')
@@ -654,7 +657,7 @@ class Estimate:
 
 class Quantize:
 
-    def __init__(self, expgram=None, output="",
+    def __init__(self, expgram=None, output="", temporary="",
                  estimate=None,
                  max_malloc=4,
                  threads=4, mpi=None, pbs=None, debug=None):
@@ -678,8 +681,8 @@ class Quantize:
         command += Option('--ngram', Quoted(estimate.ngram))
         command += Option('--output', Quoted(self.ngram))
 
-        if os.environ.has_key('TMPDIR_SPEC') and os.environ['TMPDIR_SPEC']:
-            command += " --temporary \"%s\"" %(os.environ['TMPDIR_SPEC'])
+        if temporary:
+            command += Option('--temporary', Quoted(temporary))
         
         if mpi:
             command += Option('--prog', Quoted(expgram.expgram_quantize_mpi))
@@ -727,6 +730,10 @@ if __name__ == '__main__':
 
     if options.tokenizer and not os.path.exists(options.tokenizer):
         raise ValueError, "no tokenizer? %s" %(options.tokenizer)
+
+    if not options.temporary_dir:
+        if os.environ.has_key('TMPDIR_SPEC') and os.environ['TMPDIR_SPEC']:
+            options.temporary_dir = os.environ['TMPDIR_SPEC']
 
     check = 0
     if options.cutoff > 1:
@@ -798,6 +805,7 @@ if __name__ == '__main__':
 
     index = Index(expgram=expgram,
                   output=options.output,
+                  temporary=options.temporary_dir,
                   extract=extract,
                   max_malloc=options.max_malloc,
                   threads=options.threads, mpi=mpi, pbs=pbs,
@@ -810,6 +818,7 @@ if __name__ == '__main__':
 
     modify = Modify(expgram=expgram,
                     output=options.output,
+                    temporary=options.temporary_dir,
                     index=index,
                     max_malloc=options.max_malloc,
                     threads=options.threads, mpi=mpi, pbs=pbs,
@@ -822,6 +831,7 @@ if __name__ == '__main__':
     
     estimate = Estimate(expgram=expgram,
                         output=options.output,
+                        temporary=options.temporary_dir,
                         modify=modify,
                         remove_unk=options.remove_unk,
                         max_malloc=options.max_malloc,
@@ -835,6 +845,7 @@ if __name__ == '__main__':
     
     quantize = Quantize(expgram=expgram,
                         output=options.output,
+                        temporary=options.temporary_dir,
                         estimate=estimate,
                         max_malloc=options.max_malloc,
                         threads=options.threads, mpi=mpi, pbs=pbs,
