@@ -1074,8 +1074,11 @@ void estimate_bigram(const ngram_counts_type& ngram,
   typedef map_reduce_type::thread_type     thread_type;
   typedef map_reduce_type::thread_ptr_type thread_ptr_type;
 
-  typedef utils::mpi_istream_simple istream_type;
-  typedef utils::mpi_ostream_simple ostream_type;
+  //typedef utils::mpi_istream_simple istream_type;
+  //typedef utils::mpi_ostream_simple ostream_type;
+
+  typedef utils::mpi_istream istream_type;
+  typedef utils::mpi_ostream ostream_type;
   
   typedef boost::shared_ptr<istream_type> istream_ptr_type;
   typedef boost::shared_ptr<ostream_type> ostream_ptr_type;
@@ -1849,8 +1852,11 @@ void estimate_ngram(const ngram_counts_type& ngram,
   typedef std::deque<logprob_event_type, std::allocator<logprob_event_type> > pending_set_type;
   typedef std::vector<pending_set_type, std::allocator<pending_set_type> >    pending_map_type;
   
-  typedef utils::mpi_istream_simple istream_type;
-  typedef utils::mpi_ostream_simple ostream_type;
+  //typedef utils::mpi_istream_simple istream_type;
+  //typedef utils::mpi_ostream_simple ostream_type;
+
+  typedef utils::mpi_istream istream_type;
+  typedef utils::mpi_ostream ostream_type;
   
   typedef boost::shared_ptr<istream_type> istream_ptr_type;
   typedef boost::shared_ptr<ostream_type> ostream_ptr_type;
