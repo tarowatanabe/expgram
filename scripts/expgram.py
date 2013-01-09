@@ -262,7 +262,7 @@ class MPI:
         if os.environ.has_key('LD_LIBRARY_PATH'):
             mpirun += ' -x LD_LIBRARY_PATH'
         if os.environ.has_key('DYLD_LIBRARY_PATH'):
-            mpirun += ' -x DYLD_L`IBRARY_PATH'
+            mpirun += ' -x DYLD_LIBRARY_PATH'
 
 	mpirun += ' ' + command
 
