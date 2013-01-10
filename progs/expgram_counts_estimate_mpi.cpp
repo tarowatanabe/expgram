@@ -1966,12 +1966,12 @@ void estimate_ngram(const ngram_counts_type& ngram,
 	  stream.write((char*) &static_cast<const logprob_type&>(pending_logprob[rank].front()), sizeof(logprob_type));
 	  pending_logprob[rank].pop_front();
 	}
-	stream.pop();
 	
+	stream.pop();
 	if (! buffer.empty()) {
-	  ostream_logprob[rank]->write(buffer);
-	  found = true;
-	}
+          ostream_logprob[rank]->write(buffer);
+          found = true;
+        }
       }
     
     // send ngram request... we will write ngram...
@@ -1991,9 +1991,9 @@ void estimate_ngram(const ngram_counts_type& ngram,
 	}
 	
 	if (! buffer.empty()) {
-	  ostream_ngram[rank]->write(buffer);
-	  found = true;
-	}
+          ostream_ngram[rank]->write(buffer);
+          found = true;
+        }
       }
     
     // receive ngram results..
