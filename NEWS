@@ -1,3 +1,6 @@
+2013-x-x
+	* Potential bugfix for deadlock in MPI-based ngram LM estimation
+
 2013-1-9
 	* Added --temporary-dir option for exgram.py to specify temporary directory
 	* Added --temporary option to specify temporary directory
