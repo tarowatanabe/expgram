@@ -1,4 +1,4 @@
-2013-x-x
+2013-1-10
 	* Potential bugfix for deadlock in MPI-based ngram LM estimation
 
 2013-1-9
