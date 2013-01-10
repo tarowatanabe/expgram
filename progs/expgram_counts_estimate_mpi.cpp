@@ -1789,7 +1789,6 @@ struct EstimateNGramServer
     
     context_logprob_type context_logprob;
     pending_set_type pendings;
-    pending_set_type pendings_new;
     
     int finished = 0;
     
@@ -1805,26 +1804,18 @@ struct EstimateNGramServer
 	    logprob(context_logprob, pendings);
 
 	  while (! pendings.empty() && pendings.begin()->first < utils::atomicop::fetch_and_add(shard_data.offset, size_type(0))) {
-	    logprob(pendings.begin()->second, pendings_new);
+	    std::swap(context_logprob, pendings.begin()->second);
 	    pendings.erase(pendings.begin());
-	    
-	    if (! pendings_new.empty()) {
-	      pendings.insert(pendings_new.begin(), pendings_new.end());
-	      pendings_new.clear();
-	    }
+	    logprob(context_logprob, pendings);
 	  }
-	    
+	  
 	  found = true;
 	}
       
       while (! pendings.empty() && pendings.begin()->first < utils::atomicop::fetch_and_add(shard_data.offset, size_type(0))) {
-	logprob(pendings.begin()->second, pendings_new);
+	std::swap(context_logprob, pendings.begin()->second);
 	pendings.erase(pendings.begin());
-	
-	if (! pendings_new.empty()) {
-	  pendings.insert(pendings_new.begin(), pendings_new.end());
-	  pendings_new.clear();
-	}
+	logprob(context_logprob, pendings);
 	
 	found = true;
       }
