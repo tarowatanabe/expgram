@@ -1787,9 +1787,9 @@ struct EstimateNGramServer
   {
     typedef std::multimap<size_type, context_logprob_type, std::less<size_type>, std::allocator<std::pair<const size_type, context_logprob_type> > > pending_set_type;
     
-    
     context_logprob_type context_logprob;
     pending_set_type pendings;
+    pending_set_type pendings_new;
     
     int finished = 0;
     
@@ -1803,18 +1803,28 @@ struct EstimateNGramServer
 	    ++ finished;
 	  else
 	    logprob(context_logprob, pendings);
-	  
-	  if (! pendings.empty() && pendings.begin()->first < utils::atomicop::fetch_and_add(shard_data.offset, size_type(0))) {
-	    logprob(pendings.begin()->second, pendings);
+
+	  while (! pendings.empty() && pendings.begin()->first < utils::atomicop::fetch_and_add(shard_data.offset, size_type(0))) {
+	    logprob(pendings.begin()->second, pendings_new);
 	    pendings.erase(pendings.begin());
+	    
+	    if (! pendings_new.empty()) {
+	      pendings.insert(pendings_new.begin(), pendings_new.end());
+	      pendings_new.clear();
+	    }
 	  }
-	  
+	    
 	  found = true;
 	}
       
       while (! pendings.empty() && pendings.begin()->first < utils::atomicop::fetch_and_add(shard_data.offset, size_type(0))) {
-	logprob(pendings.begin()->second, pendings);
+	logprob(pendings.begin()->second, pendings_new);
 	pendings.erase(pendings.begin());
+	
+	if (! pendings_new.empty()) {
+	  pendings.insert(pendings_new.begin(), pendings_new.end());
+	  pendings_new.clear();
+	}
 	
 	found = true;
       }
