@@ -17,6 +17,7 @@
 #include <utils/tempfile.hpp>
 #include <utils/packed_device.hpp>
 #include <utils/lexical_cast.hpp>
+#include <utils/unordered_map.hpp>
 
 #include "NGram.hpp"
 #include "Quantizer.hpp"
@@ -403,11 +404,17 @@ namespace expgram
     
     typedef map_reduce_type::logprob_map_type logprob_map_type;
     
+    typedef utils::unordered_map<logprob_type, size_type, boost::hash<logprob_type>, std::equal_to<logprob_type>,
+				 std::allocator<std::pair<const logprob_type, size_type> > >::type hashed_type;
+
     typedef std::map<logprob_type, size_type, std::less<logprob_type>,
 		     std::allocator<std::pair<const logprob_type, size_type> > > logprob_counts_type;
-    typedef std::map<logprob_type, quantized_type, std::less<logprob_type>,
-		     std::allocator<std::pair<const logprob_type, quantized_type> > > codemap_type;
+    //typedef std::map<logprob_type, quantized_type, std::less<logprob_type>,
+    //                 std::allocator<std::pair<const logprob_type, quantized_type> > > codemap_type;
     
+    typedef utils::unordered_map<logprob_type, quantized_type, boost::hash<logprob_type>, std::equal_to<logprob_type>,
+				 std::allocator<std::pair<const logprob_type, quantized_type> > >::type codemap_type;
+
     ngram_type& ngram;
     int         shard;
     int         debug;
@@ -420,9 +427,10 @@ namespace expgram
 	debug(_debug)
     {}
 
-    template <typename OStream, typename LogProbs, typename Counts, typename Codemap, typename Codebook>
-    void quantize(OStream& os, LogProbs& logprobs, Counts& counts, Codemap& codemap, Codebook& codebook, const int order)
+    template <typename OStream, typename LogProbs, typename Hashed, typename Counts, typename Codemap, typename Codebook>
+    void quantize(OStream& os, LogProbs& logprobs, Hashed& hashed, Counts& counts, Codemap& codemap, Codebook& codebook, const int order)
     {
+      hashed.clear();
       counts.clear();
       codemap.clear();
       
@@ -430,7 +438,10 @@ namespace expgram
       const size_type pos_last  = ngram.index[shard].offsets[order];
       
       for (size_type pos = pos_first; pos < pos_last; ++ pos)
-	++ counts[logprobs(pos, order)];
+	++ hashed[logprobs(pos, order)];
+
+      counts.insert(hashed.begin(), hashed.end());
+      hashed.clear();
       
       Quantizer::quantize(ngram, counts, codebook, codemap, debug >= 2);
       
@@ -447,6 +458,7 @@ namespace expgram
     {
       const path_type tmp_dir = utils::tempfile::tmp_dir();
       
+      hashed_type         hashed;
       logprob_counts_type counts;
       codemap_type        codemap;
       logprob_map_type    codebook;
@@ -467,13 +479,13 @@ namespace expgram
 	ngram.logprobs[shard].maps.clear();
 	ngram.logprobs[shard].maps.push_back(codebook);
 	if (shard == 0) {
-	  quantize(os, ngram.logprobs[shard], counts, codemap, codebook, 1);
+	  quantize(os, ngram.logprobs[shard], hashed, counts, codemap, codebook, 1);
 	  ngram.logprobs[shard].maps.push_back(codebook);
 	} else
 	  ngram.logprobs[shard].maps.push_back(codebook);
 	
 	for (int order = 2; order <= ngram.index.order(); ++ order) {
-	  quantize(os, ngram.logprobs[shard], counts, codemap, codebook, order);
+	  quantize(os, ngram.logprobs[shard], hashed, counts, codemap, codebook, order);
 	  ngram.logprobs[shard].maps.push_back(codebook);
 	}
 	
@@ -504,13 +516,13 @@ namespace expgram
 	ngram.backoffs[shard].maps.clear();
 	ngram.backoffs[shard].maps.push_back(codebook);
 	if (shard == 0) {
-	  quantize(os, ngram.backoffs[shard], counts, codemap, codebook, 1);
+	  quantize(os, ngram.backoffs[shard], hashed, counts, codemap, codebook, 1);
 	  ngram.backoffs[shard].maps.push_back(codebook);
 	} else
 	  ngram.backoffs[shard].maps.push_back(codebook);
 	
 	for (int order = 2; order < ngram.index.order(); ++ order) {
-	  quantize(os, ngram.backoffs[shard], counts, codemap, codebook, order);
+	  quantize(os, ngram.backoffs[shard], hashed, counts, codemap, codebook, order);
 	  ngram.backoffs[shard].maps.push_back(codebook);
 	}
 	
@@ -541,13 +553,13 @@ namespace expgram
 	ngram.logbounds[shard].maps.clear();
 	ngram.logbounds[shard].maps.push_back(codebook);
 	if (shard == 0) {
-	  quantize(os, ngram.logbounds[shard], counts, codemap, codebook, 1);
+	  quantize(os, ngram.logbounds[shard], hashed, counts, codemap, codebook, 1);
 	  ngram.logbounds[shard].maps.push_back(codebook);
 	} else
 	  ngram.logbounds[shard].maps.push_back(codebook);
 	
 	for (int order = 2; order < ngram.index.order(); ++ order) {
-	  quantize(os, ngram.logbounds[shard], counts, codemap, codebook, order);
+	  quantize(os, ngram.logbounds[shard], hashed, counts, codemap, codebook, order);
 	  ngram.logbounds[shard].maps.push_back(codebook);
 	}
 	
