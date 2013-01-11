@@ -25,13 +25,23 @@ Options:
   --output=OUTPUT       ngram output
   --cutoff=CUTOFF       count cutoff threshold (default: 1 == keep all the
                         counts)
+  --kbest=KBEST         kbest vocabulary (default: 0 == keep all the counts)
+  --vocab=VOCAB         vocabulary
   --tokenizer=TOKENIZER
                         tokenizer applied to data
   --remove-unk          remove unk from lm estimation
   --erase-temporary     erase temporary allocated disk space
+  --first-step=STEP     first step (default: 1): 1 = vocabulary, 2 = counts
+                        extraction, 3 = counts index, 4 = counts modification,
+                        5 = estimation, 6 = quantization
+  --last-step=STEP      last step (default: 6): 1 = vocabulary, 2 = counts
+                        extraction, 3 = counts index, 4 = counts modification,
+                        5 = estimation, 6 = quantization
   --expgram-dir=DIRECTORY
                         expgram directory
   --mpi-dir=DIRECTORY   MPI directory
+  --temporary-dir=DIRECTORY
+                        expgram directory
   --max-malloc=MALLOC   maximum memory in GB (default: 8)
   --mpi=MPI             # of processes for MPI-based parallel processing.
                         Identical to --np for mpirun
@@ -52,6 +62,7 @@ For instance, you can run:
        	   --corpus <corpus> or --corpus-list <list of corpus> or --counts-list <list of counts>
 	   --output <prefix of lm name>
 	   --order  <order of ngram lm>
+	   --temporary-dir <temporary disk space>
 
 This will dump 4 models:
      <prefix>.counts		indexed counts
@@ -66,6 +77,7 @@ or, if you already have count data organized into Google format, simply run
 	   --counts <counts in Google format>
 	   --output <prefix of lm name>
 	   --order  <order of ngram lm>
+	   --temporary-dir <temporary disk space>
 
 This will dump 3 models:
      <prefix>.modified		indexed counts with modified counts for modified-KN smoothing
@@ -112,17 +124,15 @@ Brief descriptions of binaries:
 	If you found spurious data on your temporary directory, run this to clean up the data. 
 	REMARK: make sure you are not runnning other expgram tools!
 
-     The set of tools provided here extensively use temporary disk space specified either by TMPDIR or TMPDIR_SPEC.
+     The set of tools provided here extensively use temporary disk space specified either by the environgment
+     variable, TMPDIR or TMPDIR_SPEC, or program option, --temporary-dir.
      TMPDIR is usually set by default, and usually specified /tmp or /var/tmp
      Alternatively, you can specify via TMPDIR_SPEC: 
      
      export TMPDIR_SPEC=/export/%host/users/${USER}
      
      The %host key word is simply replaced by the host of running machine (so that each binary may abuse only local-storage).
-     RECENT UPDATE: Under NICT environment, you can try:
-
-     export TMPDIR_SPEC=/export/tmp
-
+     (This %host replace format can be specified via --temporary-dir option.)
 
 For larger data, it is recommended to use mpi-version for scalability.
 
@@ -189,9 +199,10 @@ Optional Libraries:
 
 	Fast malloc replacement (recommended for Linux):
 	jemalloc  			http://www.canonware.com/jemalloc/
+	or,
 	gperftools (tcmalloc)		http://code.google.com/p/gperftools/
 
-Included codes:
+Included codes and their licenses:
 	Murmurhash2
 		All code is released to the public domain. For business purposes, Murmurhash is under the MIT license. 
 

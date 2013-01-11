@@ -49,8 +49,6 @@ zcat data/1gms/vocab.gz | sort -k2 -r -n | gzip -c > data/1gms/vocab_cs.gz
 zcat data/1gms/vocab.gz | gawk 'BEGIN{ sum = 0; } { sum += $2;} END { print sum; }' > data/1gms/total
 ### finished! now collect counts from "data" and estimate LM
 
-export TMPDIR_SPEC=/var/tmp
-
 MPI="--mpi-dir {openmpi directory} --mpi $shard"
 THREAD="--threads $shard"
 PBS="--mpi-dir {openmpi directory} --mpi $shard --pbs --pbs-queue {pbs-queue}"
@@ -60,5 +58,6 @@ exec {directory to expgram}/expgram.py \
 	--output ngram.$order \
 	--order $order \
 	--remove-unk \
+	--temporary-dir /var/tmp \
 	$MPI or $THREAD or $PBS
 	

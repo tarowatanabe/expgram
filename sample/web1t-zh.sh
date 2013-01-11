@@ -119,5 +119,6 @@ exec {directory to expgram}/expgram.py \
 	--output ngram.$order \
 	--order $order \
 	--remove-unk \
+	--temporary-dir /var/tmp \
 	$MPI or $THREAD or $PBS
 	
