@@ -1986,7 +1986,7 @@ void estimate_ngram(const ngram_counts_type& ngram,
 	}
 	
 	if (! buffer_logprob[rank].empty()) {
-	  if (buffer_logprob[rank].size() >= 256 || timestamp_logprob[rank] >= 2) {
+	  if (buffer_logprob[rank].size() >= 256 || timestamp_logprob[rank]) {
 	    ostream_logprob[rank]->write(buffer_logprob[rank]);
 	    
 	    buffer_logprob[rank].clear();
@@ -2017,7 +2017,7 @@ void estimate_ngram(const ngram_counts_type& ngram,
 	}
 	
 	if (! buffer_ngram[rank].empty()) {
-	  if (buffer_ngram[rank].size() >= 256 || timestamp_ngram[rank] >= 2) {
+	  if (buffer_ngram[rank].size() >= 256 || timestamp_ngram[rank]) {
 	    ostream_ngram[rank]->write(buffer_ngram[rank]);
 	    
 	    buffer_ngram[rank].clear();
