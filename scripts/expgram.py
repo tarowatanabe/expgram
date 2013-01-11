@@ -26,7 +26,7 @@ opt_parser = OptionParser(
         make_option("--corpus-list", default="", action="store", type="string",
                     help="list of corpus"),
         make_option("--order", default=5, action="store", type="int",
-                    help="ngram order (default: 5)"),
+                    help="ngram order (default: %default)"),
         make_option("--output", default="", action="store", type="string",
                     help="ngram output"),
         make_option("--cutoff", default=1, action="store", type="int",
@@ -43,6 +43,22 @@ opt_parser = OptionParser(
         make_option("--erase-temporary", default=None, action="store_true",
                     help="erase temporary allocated disk space"),
         
+        make_option("--first-step", default=1, action="store", type="int",
+                    help="first step (default: %default):"
+                    " 1 = vocabulary,"
+                    " 2 = counts extraction,"
+                    " 3 = counts index,"
+                    " 4 = counts modification,"
+                    " 5 = estimation,"
+                    " 6 = quantization"),
+        make_option("--last-step",  default=6, action="store", type="int",
+                    help="last step (default: %default):"
+                    " 1 = vocabulary,"
+                    " 2 = counts extraction,"
+                    " 3 = counts index,"
+                    " 4 = counts modification,"
+                    " 5 = estimation,"
+                    " 6 = quantization"),
         
         # expgram Expgram directory
         make_option("--expgram-dir", default="", action="store", type="string",
@@ -55,7 +71,7 @@ opt_parser = OptionParser(
                     metavar="DIRECTORY", help="expgram directory"),
         ## max-malloc
         make_option("--max-malloc", default=8, action="store", type="float",
-                    metavar="MALLOC", help="maximum memory in GB (default: 8)"),
+                    metavar="MALLOC", help="maximum memory in GB (default: %default)"),
         
         # perform threading or MPI training    
         make_option("--mpi", default=0, action="store", type="int",
@@ -71,7 +87,7 @@ opt_parser = OptionParser(
         make_option("--pbs", default=None, action="store_true",
                     help="PBS for launching processes"),
         make_option("--pbs-queue", default="ltg", action="store", type="string",
-                    help="PBS queue for launching processes (default: ltg)", metavar="NAME"),
+                    help="PBS queue for launching processes (default: %default)", metavar="NAME"),
 
         ## debug messages
         make_option("--debug", default=0, action="store", type="int"),
@@ -779,14 +795,17 @@ if __name__ == '__main__':
                           threads=options.threads, mpi=mpi, pbs=pbs,
                           debug=options.debug)
             
-            print "compute vocabulary started  @", time.ctime()
-            vocab.run()
-            print "compute vocabulary finished @", time.ctime()
-            print "vocabulary:", vocab.vocab
+            if options.first_step <= 1 and options.last_step >= 1:
+                print "(1) compute vocabulary started  @", time.ctime()
+                vocab.run()
+                print "(1) compute vocabulary finished @", time.ctime()
+                print "(1) vocabulary:", vocab.vocab
             
         elif options.vocab:
             vocab = VocabFile(vocab)
-            print "vocabulary:", vocab.vocab
+
+            if options.first_step <= 1 and options.last_step >= 1:
+                print "(1) vocabulary:", vocab.vocab
         
         extract = Extract(expgram=expgram,
                           corpus=corpus,
@@ -798,10 +817,11 @@ if __name__ == '__main__':
                           threads=options.threads, mpi=mpi, pbs=pbs,
                           debug=options.debug)
 
-        print "extract counts started  @", time.ctime()
-        extract.run()
-        print "extract counts finished @", time.ctime()
-        print "extracted counts:", extract.ngram
+        if options.first_step <= 2 and options.last_step >= 2:
+            print "(2) extract counts started  @", time.ctime()
+            extract.run()
+            print "(2) extract counts finished @", time.ctime()
+            print "(2) extracted counts:", extract.ngram
 
     index = Index(expgram=expgram,
                   output=options.output,
@@ -811,10 +831,11 @@ if __name__ == '__main__':
                   threads=options.threads, mpi=mpi, pbs=pbs,
                   debug=options.debug)
 
-    print "index counts started  @", time.ctime()
-    index.run()
-    print "index counts finished @", time.ctime()
-    print "indexed counts:", index.ngram
+    if options.first_step <= 3 and options.last_step >= 3:
+        print "(3) index counts started  @", time.ctime()
+        index.run()
+        print "(3) index counts finished @", time.ctime()
+        print "(3)indexed counts:", index.ngram
 
     modify = Modify(expgram=expgram,
                     output=options.output,
@@ -824,10 +845,11 @@ if __name__ == '__main__':
                     threads=options.threads, mpi=mpi, pbs=pbs,
                     debug=options.debug)
 
-    print "modify counts started  @", time.ctime()
-    modify.run()
-    print "modify counts finished @", time.ctime()
-    print "modified counts:", modify.ngram
+    if options.first_step <= 4 and options.last_step >= 4:
+        print "(4) modify counts started  @", time.ctime()
+        modify.run()
+        print "(4) modify counts finished @", time.ctime()
+        print "(4) modified counts:", modify.ngram
     
     estimate = Estimate(expgram=expgram,
                         output=options.output,
@@ -838,11 +860,12 @@ if __name__ == '__main__':
                         threads=options.threads, mpi=mpi, pbs=pbs,
                         debug=options.debug)
 
-    print "estimate language model started  @", time.ctime()
-    estimate.run()
-    print "estimate language model finished @", time.ctime()
-    print "language model:", estimate.ngram
-    
+    if options.first_step <= 5 and options.last_step >= 5:
+        print "(5) estimate language model started  @", time.ctime()
+        estimate.run()
+        print "(5) estimate language model finished @", time.ctime()
+        print "(5) language model:", estimate.ngram
+        
     quantize = Quantize(expgram=expgram,
                         output=options.output,
                         temporary=options.temporary_dir,
@@ -851,10 +874,11 @@ if __name__ == '__main__':
                         threads=options.threads, mpi=mpi, pbs=pbs,
                         debug=options.debug)
 
-    print "quantization started  @", time.ctime()
-    quantize.run()
-    print "quantization finished @", time.ctime()
-    print "quantized language model:", quantize.ngram
+    if options.first_step <= 6 and options.last_step >= 6:
+        print "(6) quantization started  @", time.ctime()
+        quantize.run()
+        print "(6) quantization finished @", time.ctime()
+        print "(6) quantized language model:", quantize.ngram
     
     if options.erase_temporary:
         shutil.rmtree(index.ngram)
