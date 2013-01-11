@@ -1,3 +1,7 @@
+2013-x-xx
+	* Faster MPI-based ngram LM estimation by tweaking buffer size
+	* Added --first-step and --last-step in exmpgra.py to start from intermediate steps
+
 2013-1-10
 	* Potential bugfix for deadlock in MPI-based ngram LM estimation
 
