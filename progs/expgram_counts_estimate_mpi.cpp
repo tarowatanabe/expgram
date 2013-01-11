@@ -1871,8 +1871,6 @@ void estimate_ngram(const ngram_counts_type& ngram,
   typedef std::vector<ostream_ptr_type, std::allocator<ostream_ptr_type> > ostream_ptr_set_type;
 
   typedef std::string buffer_type;
-  typedef std::vector<buffer_type, std::allocator<buffer_type> > buffer_set_type;
-  typedef std::vector<int, std::allocator<int> > timestamp_set_type;
   
   const int mpi_rank = MPI::COMM_WORLD.Get_rank();
   const int mpi_size = MPI::COMM_WORLD.Get_size();
@@ -1890,12 +1888,6 @@ void estimate_ngram(const ngram_counts_type& ngram,
   
   pending_map_type pending_logprob(mpi_size);
   pending_map_type pending_ngram(mpi_size);
-
-  buffer_set_type buffer_logprob(mpi_size);
-  buffer_set_type buffer_ngram(mpi_size);
-  
-  timestamp_set_type timestamp_logprob(mpi_size, 0);
-  timestamp_set_type timestamp_ngram(mpi_size, 0);
 
   for (int rank = 0; rank < mpi_size; ++ rank) {
     if (rank != mpi_rank) {
@@ -1968,40 +1960,27 @@ void estimate_ngram(const ngram_counts_type& ngram,
     // send back the ngram results... (send logprob...)
     for (int rank = 0; rank < mpi_size; ++ rank)
       if (rank != mpi_rank && ostream_logprob[rank] && ostream_logprob[rank]->test()) {
-	bool filled = false;
-
-	if (! pending_logprob[rank].empty() && pending_logprob[rank].front().ready()) {
-	  boost::iostreams::filtering_ostream stream;
-	  stream.push(boost::iostreams::back_inserter(buffer_logprob[rank]));
-	  
-	  while (! pending_logprob[rank].empty() && pending_logprob[rank].front().ready()) {
-	    stream.write((char*) &static_cast<const logprob_type&>(pending_logprob[rank].front()), sizeof(logprob_type));
-	    pending_logprob[rank].pop_front();
-	    
-	    found = true;
-	    filled = true;
-	  }
-	  
-	  stream.pop();
+	buffer.clear();
+	boost::iostreams::filtering_ostream stream;
+	stream.push(boost::iostreams::back_inserter(buffer));
+	
+	while (! pending_logprob[rank].empty() && pending_logprob[rank].front().ready()) {
+	  stream.write((char*) &static_cast<const logprob_type&>(pending_logprob[rank].front()), sizeof(logprob_type));
+	  pending_logprob[rank].pop_front();
 	}
 	
-	if (! buffer_logprob[rank].empty()) {
-	  if (buffer_logprob[rank].size() >= 256 || timestamp_logprob[rank]) {
-	    ostream_logprob[rank]->write(buffer_logprob[rank]);
-	    
-	    buffer_logprob[rank].clear();
-	    timestamp_logprob[rank] = 0;
-	    found = true;
-	  } else
-	    timestamp_logprob[rank] += ! filled;
+	stream.pop();
+	if (! buffer.empty()) {
+	  ostream_logprob[rank]->write(buffer);
+	  found = true;
 	}
       }
     
     // send ngram request... we will write ngram...
     for (int rank = 0; rank < mpi_size; ++ rank)
       if (rank != mpi_rank && ostream_ngram[rank] && ostream_ngram[rank]->test()) {
-	bool filled = false;
-	std::back_insert_iterator<std::string> iter(buffer_ngram[rank]);
+	buffer.clear();
+	std::back_insert_iterator<std::string> iter(buffer);
 	
 	while (queue_ngram[rank]->pop_swap(context_logprob, true)) {
 	  if (! karma::generate(iter, -(id_generator % ' ') << '\n', context_logprob.first))
@@ -2011,27 +1990,18 @@ void estimate_ngram(const ngram_counts_type& ngram,
 	    pending_ngram[rank].push_back(context_logprob.second);
 	  else
 	    ++ terminated_send;
-	  
-	  found = true;
-	  filled = true;
 	}
 	
-	if (! buffer_ngram[rank].empty()) {
-	  if (buffer_ngram[rank].size() >= 256 || timestamp_ngram[rank]) {
-	    ostream_ngram[rank]->write(buffer_ngram[rank]);
-	    
-	    buffer_ngram[rank].clear();
-	    timestamp_ngram[rank] = 0;
+	if (! buffer.empty()) {
+	  ostream_ngram[rank]->write(buffer);
 	    found = true;
-	  } else
-	    timestamp_ngram[rank] += ! filled;
 	}
       }
     
     // receive ngram results..
     for (int rank = 0; rank < mpi_size; ++ rank)
       if (rank != mpi_rank && istream_logprob[rank] && istream_logprob[rank]->test()) {
-	
+	buffer.clear();
 	if (istream_logprob[rank]->read(buffer)) {
 	  boost::iostreams::filtering_istream stream;
 	  stream.push(boost::iostreams::array_source(buffer.c_str(), buffer.size()));
@@ -2054,7 +2024,7 @@ void estimate_ngram(const ngram_counts_type& ngram,
       
       // terminate ostreams...
       for (int rank = 0; rank < mpi_size; ++ rank)
-	if (buffer_ngram[rank].empty() && ostream_ngram[rank] && ostream_ngram[rank]->test()) {
+	if (ostream_ngram[rank] && ostream_ngram[rank]->test()) {
 	  if (! ostream_ngram[rank]->terminated())
 	    ostream_ngram[rank]->terminate();
 	  else
@@ -2064,7 +2034,7 @@ void estimate_ngram(const ngram_counts_type& ngram,
 	}
       
       for (int rank = 0; rank < mpi_size; ++ rank)
-	if (buffer_logprob[rank].empty() && ostream_logprob[rank] && ostream_logprob[rank]->test()) {
+	if (ostream_logprob[rank] && ostream_logprob[rank]->test()) {
 	  if (! ostream_logprob[rank]->terminated())
 	    ostream_logprob[rank]->terminate();
 	  else
