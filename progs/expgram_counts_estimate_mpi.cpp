@@ -103,17 +103,6 @@ void estimate_ngram(const ngram_counts_type& ngram,
 
 int getoptions(int argc, char** argv);
 
-template <typename Path, typename Data>
-inline
-void dump_file(const Path& file, const Data& data)
-{
-  boost::iostreams::filtering_ostream os;
-  os.push(boost::iostreams::file_sink(file.string(), std::ios_base::out | std::ios_base::trunc), 1024 * 1024);
-  
-  const int64_t file_size = sizeof(typename Data::value_type) * data.size();
-  for (int64_t offset = 0; offset < file_size; offset += 1024 * 1024)
-    os.write(((char*) &(*data.begin())) + offset, std::min(int64_t(1024 * 1024), file_size - offset));
-}  
 
 template <typename Path, typename Iterator>
 void dump(const Path& file, Iterator first, Iterator last)
@@ -122,6 +111,7 @@ void dump(const Path& file, Iterator first, Iterator last)
 
   boost::iostreams::filtering_ostream os;
   os.push(boost::iostreams::file_sink(file.string(), std::ios_base::out | std::ios_base::trunc), 1024 * 1024);
+  os.exceptions(std::ostream::eofbit | std::ostream::failbit | std::ostream::badbit);
   
   while (first != last) {
     const size_type write_size = std::min(size_type(1024 * 1024), size_type(last - first));

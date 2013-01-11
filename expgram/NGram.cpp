@@ -31,6 +31,7 @@ namespace expgram
   {
     std::auto_ptr<boost::iostreams::filtering_ostream> os(new boost::iostreams::filtering_ostream());
     os->push(boost::iostreams::file_sink(file.string(), std::ios_base::out | std::ios_base::trunc), 1024 * 1024);
+    os->exceptions(std::ostream::eofbit | std::ostream::failbit | std::ostream::badbit);
     
     const int64_t file_size = sizeof(typename Data::value_type) * data.size();
     for (int64_t offset = 0; offset < file_size; offset += 1024 * 1024)
@@ -87,6 +88,7 @@ namespace expgram
 	stream_map_file << n << "-logprob-map";
 	
 	std::ofstream os(rep.path(stream_map_file.str()).string().c_str());
+	os.exceptions(std::ostream::eofbit | std::ostream::failbit | std::ostream::badbit);
 	os.write((char*) &(*maps[n].begin()), sizeof(logprob_type) * maps[n].size());
       }
     }
@@ -758,6 +760,7 @@ namespace expgram
     vocab_map.reserve(index[0].offsets[1]);
     
     utils::compress_ostream os(path, 1024 * 1024);
+    os.exceptions(std::ostream::eofbit | std::ostream::failbit | std::ostream::badbit);
     os.precision(7);
     
     // dump headers...

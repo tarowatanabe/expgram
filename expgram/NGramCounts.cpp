@@ -31,6 +31,7 @@ namespace expgram
   {
     boost::iostreams::filtering_ostream os;
     os.push(boost::iostreams::file_sink(file.string(), std::ios_base::out | std::ios_base::trunc), 1024 * 1024);
+    os.exceptions(std::ostream::eofbit | std::ostream::failbit | std::ostream::badbit);
     
     const int64_t file_size = sizeof(typename Data::value_type) * data.size();
     for (int64_t offset = 0; offset < file_size; offset += 1024 * 1024)
@@ -1381,6 +1382,7 @@ namespace expgram
     vocab_map.reserve(index[0].offsets[1]);
     
     utils::compress_ostream os(path, 1024 * 1024);
+    os.exceptions(std::ostream::eofbit | std::ostream::failbit | std::ostream::badbit);
     
     // unigrams
 
