@@ -1875,7 +1875,7 @@ void estimate_ngram(const ngram_counts_type& ngram,
   const int mpi_rank = MPI::COMM_WORLD.Get_rank();
   const int mpi_size = MPI::COMM_WORLD.Get_size();
 
-  queue_logprob_type queue(256);
+  queue_logprob_type queue(1024);
   
   istream_ptr_set_type istream_ngram(mpi_size);
   ostream_ptr_set_type ostream_ngram(mpi_size);
