@@ -43,7 +43,7 @@ opt_parser = OptionParser(
         make_option("--erase-temporary", default=None, action="store_true",
                     help="erase temporary allocated disk space"),
         
-        make_option("--first-step", default=1, action="store", type="int",
+        make_option("--first-step", default=1, action="store", type="int", metavar='STEP',
                     help="first step (default: %default):"
                     " 1 = vocabulary,"
                     " 2 = counts extraction,"
@@ -51,7 +51,7 @@ opt_parser = OptionParser(
                     " 4 = counts modification,"
                     " 5 = estimation,"
                     " 6 = quantization"),
-        make_option("--last-step",  default=6, action="store", type="int",
+        make_option("--last-step",  default=6, action="store", type="int", metavar='STEP',
                     help="last step (default: %default):"
                     " 1 = vocabulary,"
                     " 2 = counts extraction,"
