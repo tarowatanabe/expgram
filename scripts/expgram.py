@@ -750,6 +750,8 @@ if __name__ == '__main__':
     if not options.temporary_dir:
         if os.environ.has_key('TMPDIR_SPEC') and os.environ['TMPDIR_SPEC']:
             options.temporary_dir = os.environ['TMPDIR_SPEC']
+    else:
+        os.environ['TMPDIR_SPEC'] = options.temporary_dir
 
     check = 0
     if options.cutoff > 1:
