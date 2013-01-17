@@ -322,6 +322,25 @@ namespace expgram
 	  return std::min(size_type(id), last); // unigram!
 	else {
 	  // otherwise...
+	  
+	  size_type length = last - first;
+	  first -= offset;
+	  
+	  while (length > 64) {
+	    const size_t half  = length >> 1;
+	    const size_t middle = first + half;
+	    
+	    const bool is_less = ids[middle] < id;
+	    
+	    first  = utils::bithack::branch(is_less, middle + 1, first);
+	    length = utils::bithack::branch(is_less, length - half - 1, half);
+	  }
+	  
+	  // linear search
+	  last = first + length;
+	  for (/**/; first != last && ids[first] < id; ++ first) {}
+	  return first + offset;
+#if 0
 	  size_type length = last - first;
 	  first -= offset;
 	  last  -= offset;
@@ -341,6 +360,7 @@ namespace expgram
 	    }
 	    return first + offset;
 	  }
+#endif
 	}
       }
       
