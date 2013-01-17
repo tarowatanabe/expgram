@@ -328,23 +328,6 @@ namespace expgram
 	    for (/**/; first != last && ids[first - offset] < id; ++ first) {}
 	    return first;
 	  } else {
-	    // first, check front...
-	    const id_type id_front = ids[first - offset];
-	    if (id <= id_front)
-	      return first;
-	    
-	    ++ first;
-	    -- length;
-	    
-	    // next, check back...
-	    const id_type id_back = ids[last - offset - 1];
-	    if (id_back <= id)
-	      return utils::bithack::branch(id_back == id, last - 1, last);
-	    
-	    -- last;
-	    -- length;
-	    
-	    // third, binary search...
 	    while (length > 0) {
 	      const size_t half  = length >> 1;
 	      const size_t middle = first + half;
@@ -368,11 +351,11 @@ namespace expgram
 
 	if (pos_first == pos_last) return size_type(-1);
 
-	const size_type child = search(pos_first, pos_last, id);
-	return utils::bithack::branch(child != pos_last, child, size_type(-1));
+	//const size_type child = search(pos_first, pos_last, id);
+	//return utils::bithack::branch(child != pos_last, child, size_type(-1));
 	
-	//const size_type child = lower_bound(pos_first, pos_last, id);
-	//return utils::bithack::branch(child != pos_last && !(id < operator[](child)), child, size_type(-1));
+	const size_type child = lower_bound(pos_first, pos_last, id);
+	return utils::bithack::branch(child != pos_last && !(id < operator[](child)), child, size_type(-1));
       }
       
       template <typename Iterator, typename _Word>
