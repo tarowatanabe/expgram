@@ -174,6 +174,13 @@ namespace expgram
 	caches_backoff.clear();
 	caches_suffix.clear();
       };
+
+      void clear_cache()
+      {
+	caches_pos.clear();
+	caches_backoff.clear();
+	caches_suffix.clear();
+      }
       
       void open(const path_type& path);
       void write(const path_type& file) const;
