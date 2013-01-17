@@ -291,8 +291,32 @@ namespace expgram
 	else {
 	  // otherwise...
 	  size_type length = last - first;
-	  const size_type offset = offsets[1];
 	  
+	  if (length == 0)
+	    return first;
+
+	  // first, check front...
+	  const size_type offset = offsets[1];
+	  const id_type id_front = ids[first - offset];
+	  if (id <= id_front)
+	    return first;
+	  else if (length == 1)
+	    return last;
+	  
+	  ++ first;
+	  -- length;
+	  
+	  // next, check back...
+	  const id_type id_back = ids[last - offset - 1];
+	  if (length == 1)
+	    return utils::bithack::branch(id <= id_back, last - 1, last);
+	  else if (id_back <= id)
+	    return utils::bithack::branch(id_back == id, last - 1, last);
+	  
+	  -- last;
+	  -- length;
+	  
+	  // third, linear search or binary search...
 	  if (length <= 32) {
 	    for (/**/; first != last && ids[first - offset] < id; ++ first) {}
 	    return first;

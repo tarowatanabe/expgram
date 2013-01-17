@@ -1,7 +1,8 @@
 //
-//  Copyright(C) 2009-2012 Taro Watanabe <taro.watanabe@nict.go.jp>
+//  Copyright(C) 2009-2013 Taro Watanabe <taro.watanabe@nict.go.jp>
 //
 
+#include <cmath>
 #include <iostream>
 #include <vector>
 #include <string>
@@ -55,6 +56,8 @@ int main(int argc, char** argv)
     sentence_type sentence;
 
     const int order = ngram.index.order();
+
+    const double log_10 = M_LN10;
     
     while (std::getline(std::cin, line)) {
       tokenizer_type tokenizer(line);
@@ -107,6 +110,7 @@ int main(int argc, char** argv)
 		  << " is-root-shard: " << result_logprob.first.is_root_shard()
 		  << " is-root-node: " << result_logprob.first.is_root_node()
 		  << " logprob: " << result_logprob.second
+		  << " base10: " << (result_logprob.second / log_10)
 		  << " order: " << ngram.index.order(result_logprob.first)
 		  << std::endl;
 		
@@ -153,6 +157,7 @@ int main(int argc, char** argv)
 		      << " is-root-shard: " << result_logprob.first.is_root_shard()
 		      << " is-root-node: " << result_logprob.first.is_root_node()
 		      << " logprob: " << result_logprob.second
+		      << " base10: " << (result_logprob.second / log_10)
 		      << " logbound: " << result_logbound.second
 		      << " order: " << ngram.index.order(result_logprob.first)
 	      
