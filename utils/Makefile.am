@@ -69,6 +69,7 @@ program_options.hpp \
 repository.hpp \
 resource.hpp \
 rwticket.hpp \
+search.hpp \
 simple_vector.hpp \
 space_separator.hpp \
 spinlock.hpp \
