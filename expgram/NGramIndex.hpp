@@ -29,7 +29,6 @@
 #include <utils/array_power2.hpp>
 #include <utils/spinlock.hpp>
 #include <utils/bithack.hpp>
-#include <utils/search.hpp>
 
 namespace expgram
 {
@@ -292,28 +291,6 @@ namespace expgram
         }
       }
 
-      size_type search(size_type first, size_type last, const id_type& id) const
-      {
-	// this is not a lower-bound, but search!
-	const size_type offset = offsets[1];
-	
-	if (last <= offset)
-	  return std::min(size_type(id), last); // unigram!
-	else {
-	  const size_type length = last - first;
-	  
-	  if (length <= 128)
-	    return offset + (utils::linear_search(ids.begin() + first - offset, ids.begin() + last - offset, id)
-			     - ids.begin());
-	  else if (length <= 1024)
-	    return offset + (utils::binary_search(ids.begin() + first - offset, ids.begin() + last - offset, id)
-			     - ids.begin());
-	  else
-	    return offset + (utils::interpolation_search(ids.begin() + first - offset, ids.begin() + last - offset, id)
-			     - ids.begin());
-	}
-      }
-    
       size_type lower_bound(size_type first, size_type last, const id_type& id) const
       {
 	const size_type offset = offsets[1];
@@ -322,29 +299,10 @@ namespace expgram
 	  return std::min(size_type(id), last); // unigram!
 	else {
 	  // otherwise...
-	  
-	  size_type length = last - first;
-	  first -= offset;
-	  
-	  while (length > 64) {
-	    const size_t half  = length >> 1;
-	    const size_t middle = first + half;
-	    
-	    const bool is_less = ids[middle] < id;
-	    
-	    first  = utils::bithack::branch(is_less, middle + 1, first);
-	    length = utils::bithack::branch(is_less, length - half - 1, half);
-	  }
-	  
-	  // linear search
-	  last = first + length;
-	  for (/**/; first != last && ids[first] < id; ++ first) {}
-	  return first + offset;
-#if 0
 	  size_type length = last - first;
 	  first -= offset;
 	  last  -= offset;
-
+	  
 	  if (length <= 128) {
 	    for (/**/; first != last && ids[first] < id; ++ first) {}
 	    return first + offset;
@@ -360,7 +318,6 @@ namespace expgram
 	    }
 	    return first + offset;
 	  }
-#endif
 	}
       }
       
@@ -370,11 +327,8 @@ namespace expgram
 	// we do caching, here...?
 	const size_type pos_first = children_first(pos);
 	const size_type pos_last  = children_last(pos);
-
+	
 	if (pos_first == pos_last) return size_type(-1);
-
-	//const size_type child = search(pos_first, pos_last, id);
-	//return utils::bithack::branch(child != pos_last, child, size_type(-1));
 	
 	const size_type child = lower_bound(pos_first, pos_last, id);
 	return utils::bithack::branch(child != pos_last && !(id < operator[](child)), child, size_type(-1));
