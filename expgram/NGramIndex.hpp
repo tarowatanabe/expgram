@@ -296,7 +296,7 @@ namespace expgram
 	const size_type offset = offsets[1];
 
 	if (last <= offset)
-	  return std::min(size_type(id), last); // unigram!
+	  return utils::bithack::min(size_type(id), last); // unigram!
 	else {
 	  // otherwise...
 	  size_type length = last - first;
