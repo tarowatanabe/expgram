@@ -206,6 +206,10 @@ Included codes and their licenses:
 	Murmurhash2
 		All code is released to the public domain. For business purposes, Murmurhash is under the MIT license. 
 
+        xxHash
+                Copyright (C) 2012, Yann Collet.
+        	BSD 2-Clause License (http://www.opensource.org/licenses/bsd-license.php)
+
 	boost.m4
 	       GPLv3
 
