@@ -43,6 +43,7 @@ filesystem.hpp \
 group_aligned_code.hpp \
 group_aligned_code_offsets.hpp \
 hashmurmur.hpp \
+hashxx.hpp \
 indexed_hashtable.hpp \
 indexed_map.hpp \
 indexed_set.hpp \
