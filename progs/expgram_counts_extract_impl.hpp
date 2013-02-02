@@ -42,7 +42,7 @@
 #include <utils/subprocess.hpp>
 #include <utils/async_device.hpp>
 #include <utils/malloc_stats.hpp>
-#include <utils/hashmurmur3.hpp>
+#include <utils/hashmurmur.hpp>
 #include <utils/piece.hpp>
 #include <utils/unordered_set.hpp>
 
@@ -72,9 +72,9 @@ struct GoogleNGramCounts
   typedef utils::subprocess subprocess_type;
 
 
-  struct string_hash : public utils::hashmurmur3<size_t>
+  struct string_hash : public utils::hashmurmur<size_t>
   {
-    typedef utils::hashmurmur3<size_t> hasher_type;
+    typedef utils::hashmurmur<size_t> hasher_type;
 
     size_t operator()(const std::string& word) const
     {
