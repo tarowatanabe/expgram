@@ -17,7 +17,6 @@
 #include <boost/thread.hpp>
 
 #include <utils/indexed_set.hpp>
-#include <utils/hashmurmur.hpp>
 #include <utils/spinlock.hpp>
 #include <utils/piece.hpp>
 #include <utils/chunk_vector.hpp>
@@ -193,7 +192,7 @@ namespace expgram
   inline
   size_t hash_value(Word const& x)
   {
-    return utils::hashmurmur<size_t>()(x.__id);
+    return x.__id;
   }
   
   inline
