@@ -15,6 +15,7 @@
 
 #include <boost/filesystem.hpp>
 #include <boost/thread.hpp>
+#include <boost/functional/hash.hpp>
 
 #include <utils/indexed_set.hpp>
 #include <utils/spinlock.hpp>

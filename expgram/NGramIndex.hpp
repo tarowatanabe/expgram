@@ -26,6 +26,7 @@
 #include <utils/packed_vector.hpp>
 #include <utils/succinct_vector.hpp>
 #include <utils/hashmurmur.hpp>
+#include <utils/hashmurmur3.hpp>
 #include <utils/array_power2.hpp>
 #include <utils/spinlock.hpp>
 #include <utils/bithack.hpp>
@@ -93,7 +94,7 @@ namespace expgram
       bool operator>=(const State& x, const State& y) { return x.state >= y.state; }
       
       friend
-      size_t  hash_value(State const& x) { return utils::hashmurmur<size_t>()(x.state); }
+      size_t  hash_value(State const& x) { return utils::hashmurmur3<size_t>()(x.state); }
       
     private:
       state_type state;
@@ -101,10 +102,10 @@ namespace expgram
 
     typedef State state_type;
 
-    struct Shard : public utils::hashmurmur<size_t>
+    struct Shard : public utils::hashmurmur3<size_t>
     {
     private:
-      typedef utils::hashmurmur<size_t> hasher_type;
+      typedef utils::hashmurmur3<size_t> hasher_type;
 
     public:
       typedef utils::packed_vector_mapped<id_type, std::allocator<id_type> >   id_set_type;

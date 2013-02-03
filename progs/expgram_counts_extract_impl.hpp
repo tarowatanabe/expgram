@@ -42,7 +42,6 @@
 #include <utils/subprocess.hpp>
 #include <utils/async_device.hpp>
 #include <utils/malloc_stats.hpp>
-#include <utils/hashmurmur.hpp>
 #include <utils/piece.hpp>
 #include <utils/unordered_set.hpp>
 
@@ -71,18 +70,7 @@ struct GoogleNGramCounts
 
   typedef utils::subprocess subprocess_type;
 
-
-  struct string_hash : public utils::hashmurmur<size_t>
-  {
-    typedef utils::hashmurmur<size_t> hasher_type;
-
-    size_t operator()(const std::string& word) const
-    {
-      return hasher_type::operator()(word.begin(), word.end(), 0);
-    }
-  };
-  
-  typedef utils::unordered_set<std::string, string_hash, std::equal_to<std::string> >::type vocabulary_type;
+  typedef utils::unordered_set<std::string, boost::hash<utils::piece>, std::equal_to<std::string> >::type vocabulary_type;
   
   template <typename Task>
   struct TaskLine
