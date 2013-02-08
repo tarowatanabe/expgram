@@ -83,7 +83,7 @@ int main(int argc, char** argv)
 	
 	if (verbose)
 	  if (! karma::generate(std::ostream_iterator<char>(os),
-				standard::string << '=' << karma::uint_ <<' ' << karma::int_ << ' ' << karma::double_ << '\n',
+				standard::string << '=' << karma::uint_ << ' ' << karma::int_ << ' ' << karma::double_ << '\n',
 				*siter, id, ngram.index.order(result.first), result.second))
 	    throw std::runtime_error("generation failed");
 
@@ -97,7 +97,7 @@ int main(int argc, char** argv)
       
       if (verbose)
 	if (! karma::generate(std::ostream_iterator<char>(os),
-			      standard::string << '=' << karma::uint_ <<' ' << karma::int_ << ' ' << karma::double_ << '\n',
+			      standard::string << '=' << karma::uint_ << ' ' << karma::int_ << ' ' << karma::double_ << '\n',
 			      vocab_type::EOS, eos_id, ngram.index.order(result.first), result.second))
 	  throw std::runtime_error("generation failed");
       
