@@ -24,6 +24,10 @@ AC_LANG_CPLUSPLUS
 
 AC_SYS_LARGEFILE
 
+# Check for binaries...
+AC_PATH_PROG(RST2MAN, rst2man.py, no)
+AM_CONDITIONAL(WITH_RST2MAN, test "$RST2MAN" != no)
+
 # Checks for libraries.
 
 AC_ARG_WITH(jemalloc,
@@ -385,6 +389,7 @@ AC_CHECK_FUNCS([dup2 gethostname gettimeofday select sqrt])
 AC_CHECK_FUNCS([posix_memalign memalign])
 
 AC_CONFIG_FILES([Makefile
+ 		 doc/Makefile
                  expgram/Makefile
 		 progs/Makefile
 		 sample/Makefile
