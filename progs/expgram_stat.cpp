@@ -91,8 +91,8 @@ int getoptions(int argc, char** argv)
   
   po::options_description desc("options");
   desc.add_options()
-    ("ngram",  po::value<path_type>(&ngram_file)->default_value(ngram_file),   "ngram in ARPA or binary format")
-    ("output", po::value<path_type>(&output_file)->default_value(output_file), "output in binary format")
+    ("ngram",  po::value<path_type>(&ngram_file)->default_value(ngram_file),   "ngram in ARPA or expgram format")
+    ("output", po::value<path_type>(&output_file)->default_value(output_file), "output")
     
     ("shard",  po::value<int>(&shards)->default_value(shards),                 "# of shards (or # of threads)")
     

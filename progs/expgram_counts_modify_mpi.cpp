@@ -465,7 +465,7 @@ int getoptions(int argc, char** argv)
   
   po::options_description desc("options");
   desc.add_options()
-    ("ngram",     po::value<path_type>(&ngram_file)->default_value(ngram_file),   "ngram counts in binary format")
+    ("ngram",     po::value<path_type>(&ngram_file)->default_value(ngram_file),   "ngram counts in expgram format")
     ("output",    po::value<path_type>(&output_file)->default_value(output_file), "output in binary format")
     ("temporary", po::value<path_type>(&temporary_dir),                           "temporary directory")
     
