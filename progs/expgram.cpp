@@ -1,8 +1,14 @@
 //
-//  Copyright(C) 2009-2012 Taro Watanabe <taro.watanabe@nict.go.jp>
+//  Copyright(C) 2009-2013 Taro Watanabe <taro.watanabe@nict.go.jp>
 //
 
+#define BOOST_SPIRIT_THREADSAFE
+
+#include <boost/spirit/include/qi.hpp>
+#include <boost/spirit/include/karma.hpp>
+
 #include <iostream>
+#include <iterator>
 
 #include <boost/filesystem.hpp>
 #include <boost/program_options.hpp>
@@ -35,6 +41,9 @@ int main(int argc, char** argv)
     if (getoptions(argc, argv) != 0) 
       return 1;
 
+    namespace karma = boost::spirit::karma;
+    namespace standard = boost::spirit::standard;
+    
     typedef expgram::NGram    ngram_type;
     typedef expgram::Word     word_type;
     typedef expgram::Vocab    vocab_type;
@@ -55,12 +64,15 @@ int main(int argc, char** argv)
     
     const word_type::id_type bos_id = ngram.index.vocab()[vocab_type::BOS];
     const word_type::id_type eos_id = ngram.index.vocab()[vocab_type::EOS];
+    const word_type::id_type unk_id = ngram.index.vocab()[vocab_type::UNK];
+    const word_type::id_type none_id = word_type::id_type(-1);
     
     while (is >> sentence) {
       // add BOS and EOS
       
       if (sentence.empty()) continue;
-
+      
+      int oov = 0;
       double logprob = 0.0;
       state_type state = ngram.index.next(state_type(), bos_id);
       sentence_type::const_iterator siter_end = sentence.end();
@@ -70,7 +82,12 @@ int main(int argc, char** argv)
 	const std::pair<state_type, float> result = ngram.logprob(state, id);
 	
 	if (verbose)
-	  os << *siter << '='<< id << ' ' << ngram.index.order(result.first) << ' ' << result.second << '\n';
+	  if (! karma::generate(std::ostream_iterator<char>(os),
+				standard::string << '=' << karma::uint_ <<' ' << karma::int_ << ' ' << karma::double_ << '\n',
+				*siter, id, ngram.index.order(result.first), result.second))
+	    throw std::runtime_error("generation failed");
+
+	oov += (id == unk_id) || (id == none_id);
 	
 	state = result.first;
 	logprob += result.second;
@@ -79,11 +96,17 @@ int main(int argc, char** argv)
       const std::pair<state_type, float> result = ngram.logprob(state, eos_id);
       
       if (verbose)
-	os << vocab_type::EOS << '='<< eos_id << ' ' << ngram.index.order(result.first) << ' ' << result.second << '\n';
+	if (! karma::generate(std::ostream_iterator<char>(os),
+			      standard::string << '=' << karma::uint_ <<' ' << karma::int_ << ' ' << karma::double_ << '\n',
+			      vocab_type::EOS, eos_id, ngram.index.order(result.first), result.second))
+	  throw std::runtime_error("generation failed");
       
       logprob += result.second;
       
-      os << logprob << '\n';
+      if (! karma::generate(std::ostream_iterator<char>(os),
+			    karma::double_ << ' ' << karma::int_ << '\n',
+			    logprob, oov))
+	throw std::runtime_error("generation failed");
     }
   }
   catch (std::exception& err) {
