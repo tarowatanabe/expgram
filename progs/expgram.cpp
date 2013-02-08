@@ -65,10 +65,12 @@ int main(int argc, char** argv)
       state_type state = ngram.index.next(state_type(), bos_id);
       sentence_type::const_iterator siter_end = sentence.end();
       for (sentence_type::const_iterator siter = sentence.begin(); siter != siter_end; ++ siter) {
-	const std::pair<state_type, float> result = ngram.logprob(state, *siter);
+	const word_type::id_type id = ngram.index.vocab()[*siter];
+	
+	const std::pair<state_type, float> result = ngram.logprob(state, id);
 	
 	if (verbose)
-	  os << *siter << ' ' << result.second << '\n';
+	  os << *siter << '='<< id << ' ' << ngram.index.order(result.first) << ' ' << result.second << '\n';
 	
 	state = result.first;
 	logprob += result.second;
@@ -77,7 +79,7 @@ int main(int argc, char** argv)
       const std::pair<state_type, float> result = ngram.logprob(state, eos_id);
       
       if (verbose)
-	os << vocab_type::EOS << ' ' << result.second << '\n';
+	os << vocab_type::EOS << '='<< eos_id << ' ' << ngram.index.order(result.first) << ' ' << result.second << '\n';
       
       logprob += result.second;
       
