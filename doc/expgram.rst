@@ -7,7 +7,7 @@ query ngram language model
 --------------------------
 
 :Author: Taro Watanabe <taro.watanabe@nict.go.jp>
-:Date:   2013-2-8
+:Date:   2013-2-12
 :Manual section: 1
 
 SYNOPSIS
@@ -23,17 +23,43 @@ DESCRIPTION
 OPTIONS
 -------
 
-  --ngram arg   ngram in ARPA or expgram format
-  --input arg   input
-  --output arg  output
-  --order arg   ngram order
-  --shard arg   # of shards (or # of threads)
-  --verbose     verbose level
-  --debug       debug level
-  --help        help message
+  **--ngram** `arg (="")`
+
+    ngram in ARPA or expgram format
+
+  **--input** `arg (="-")`
+
+    input text
+
+  **--output** `arg (="-")`
+
+    output log probabilities
+
+  **--order** `arg (=0)`
+
+    ngram order
+
+  **--shard** `arg (=4)`
+
+    # of shards (or # of threads)
+
+  **--verbose** `[=arg(=1)]`
+
+    verbose level
+
+  **--debug** `[=arg(=1)]`
+
+    debug level
+
+  **--help**
+
+    help message
 
 ENVIRONMENT
 -----------
+
+TMPDIR
+  temporary directory
 
 TMPDIR_SPEC
   temporary directory
