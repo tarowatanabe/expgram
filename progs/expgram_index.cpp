@@ -16,6 +16,7 @@ typedef boost::filesystem::path path_type;
 
 path_type ngram_file = "-";
 path_type output_file;
+path_type temporary_dir = "";
 
 bool quantize = false;
 
@@ -33,7 +34,10 @@ int main(int argc, char** argv)
 
     if (output_file.empty())
       throw std::runtime_error("no output file?");
-    
+ 
+    if (! temporary_dir.empty())
+      ::setenv("TMPDIR_SPEC", temporary_dir.string().data(), 1);
+   
     expgram::NGram ngram(ngram_file, shards, debug);
     
     if (quantize)
@@ -56,6 +60,7 @@ int getoptions(int argc, char** argv)
   desc.add_options()
     ("ngram",  po::value<path_type>(&ngram_file)->default_value(ngram_file),   "ngram in ARPA or expgram format")
     ("output", po::value<path_type>(&output_file)->default_value(output_file), "output in binary format")
+    ("temporary", po::value<path_type>(&temporary_dir),                        "temporary directory")
 
     ("quantize", po::bool_switch(&quantize), "perform quantization")
     

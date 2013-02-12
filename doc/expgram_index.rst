@@ -27,6 +27,8 @@ OPTIONS
 
   **--output** `arg (="")`     output in binary format
 
+  **--temporary** `arg`        temporary directory
+
   **--quantize** perform quantization
 
   **--shard** `arg (=4)`       # of shards (or # of threads)
@@ -37,6 +39,9 @@ OPTIONS
 
 ENVIRONMENT
 -----------
+
+TMPDIR
+  temporary directory
 
 TMPDIR_SPEC
   temporary directory

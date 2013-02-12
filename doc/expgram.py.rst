@@ -18,7 +18,52 @@ SYNOPSIS
 DESCRIPTION
 -----------
 
+A python wrapper script to use expgram toolkit. 
+You can learn ngram language model by:
 
+1. Compute a vocabulary file (Optional).
+
+  - You need to specify either counts in Google format (**--counts**)
+    and/or corpus consisting of sentences (**--corpus**). 
+    Alternatively, you can specify a list of counts
+    (**--counts-list**) and/or list of
+    corpus (**--corpus-list**).
+  - You can threshold by the number of words (**--kbest**), or by the
+    frequency (**--cutoff**).
+  - This will output the files, *<output>.vocab* and
+    *<output>.vocab.<cutoff>* or *<output>.vocab.<kbest>*.
+
+2. Extract ngram counts.
+
+  - You need to specify either counts in Google format (**--counts**)
+    and/or corpus consisting of sentences (**--corpus**). 
+    Alternatively, you can specify a list of counts
+    (**--counts-list**) and/or list of
+    corpus (**--corpus-list**).
+  - Extracted ngram counts are output as *<output>.counts* in Google
+    format.
+  - If an option **--vocab** is specified with the file pointing to
+    a list of words, then, extraction is restricted to those found in
+    the list.
+
+3. Index ngram counts, and output as *<output>.index*.
+
+4. Compute suffix counts to prepare for modified Kneser-Ney smoothing.
+
+   - This will result in an indexed counts as *<output>.modified*.
+
+5. Estimate ngram language model and output as *<output>.lm*.
+6. Quantize estimated ngram language model and output as *<output>.lm.quantize*.
+
+You can perform the whole pipeline in parallel either by specifying
+the number of threads (via **--threads** option), or by specifying the
+number of MPI nodes (via **--mpi** option with either **--mpi-host**
+or **--mpi-host-file** to specify the list of hosts).
+If PBS is set up in your environment, you can run on pbs nodes (via
+**--pbs** option with **--pbs-queue** to specify the batch queue).
+During indexing and or estimation, we use temporary disk space,
+specified either by **--temporary-dir** or the environment varialbles,
+**TMPDIR_SPEC** and/or **TMPDIR**.
 
 OPTIONS
 -------
@@ -75,11 +120,18 @@ OPTIONS
 ENVIRONMENT
 -----------
 
+TMPDIR
+  Temporary directory.
+
 TMPDIR_SPEC
-  temporary directory
+  An alternative temporary directory. If **TMPDIR_SPEC** is specified,
+  this is preferred over **TMPDIR**. In addition, if
+  **--temporary-dir** is specified, program option is preferred over
+  environment variables.
 
 EXAMPLES
 --------
+
 
 
 
