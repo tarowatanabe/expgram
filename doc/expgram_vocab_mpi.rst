@@ -23,16 +23,25 @@ DESCRIPTION
 OPTIONS
 -------
 
-  --corpus arg          corpus file
-  --counts arg          counts file
-  --corpus-list arg     corpus list file
-  --counts-list arg     counts list file
-  --output arg          output directory
-  --filter arg          filtering script
-  --prog arg            this binary
-  --map-line            map by lines, not by files
-  --debug               debug level
-  --help                help message
+  **--corpus** `arg`           corpus file
+
+  **--counts** `arg`           counts file
+
+  **--corpus-list** `arg`      corpus list file
+
+  **--counts-list** `arg`      counts list file
+
+  **--output** `arg (="-")`    output directory
+
+  **--filter** `arg`           filtering script
+
+  **--prog** `arg`             this binary
+
+  **--map-line**             map by lines, not by files
+
+  **--debug** `[=arg(=1)]`     debug level
+
+  **--help** help message
 
 ENVIRONMENT
 -----------

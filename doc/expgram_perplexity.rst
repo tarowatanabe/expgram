@@ -23,14 +23,21 @@ DESCRIPTION
 OPTIONS
 -------
 
-  --ngram arg           ngram in ARPA or expgram format
-  --input arg           input
-  --output arg          output
-  --temporary arg       temporary directory
-  --order arg           ngram order
-  --shard arg           # of shards (or # of threads)
-  --debug               debug level
-  --help                help message
+  **--ngram** `arg (="")`      ngram in ARPA or expgram format
+
+  **--input** `arg (="-")`     input
+
+  **--output** `arg (="-")`    output
+
+  **--temporary** `arg`        temporary directory
+
+  **--order** `arg (=0)`       ngram order
+
+  **--shard** `arg (=4)`       # of shards (or # of threads)
+
+  **--debug** `[=arg(=1)]`     debug level
+
+  **--help** help message
 
 
 ENVIRONMENT

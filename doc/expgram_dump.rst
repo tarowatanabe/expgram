@@ -23,11 +23,15 @@ DESCRIPTION
 OPTIONS
 -------
 
-  --ngram arg           ngram in ARPA/expgram format
-  --output arg          output in ARPA format
-  --shard arg           # of shards (or # of threads)
-  --debug               debug level
-  --help                help message
+  **--ngram** `arg (="-")`     ngram in ARPA/expgram format
+
+  **--output** `arg (="-")`    output in ARPA format
+
+  **--shard** `arg`            # of shards (or # of threads)
+
+  **--debug** `[=arg(=1)]`     debug level
+
+  **--help** help message
 
 
 ENVIRONMENT

@@ -23,19 +23,31 @@ DESCRIPTION
 OPTIONS
 -------
 
-  --corpus arg          corpus file
-  --counts arg          counts file
-  --corpus-list arg     corpus list file
-  --counts-list arg     counts list file
-  --vocab arg           vocabulary file (list of words)
-  --output arg          output directory
-  --filter arg          filtering script
-  --order arg           ngram order
-  --map-line            map by lines, not by files
-  --threads arg         # of threads
-  --max-malloc arg      maximum malloc in GB
-  --debug               debug level
-  --help                help message
+  **--corpus** `arg`           corpus file
+
+  **--counts** `arg`           counts file
+
+  **--corpus-list** `arg`      corpus list file
+
+  **--counts-list** `arg`      counts list file
+
+  **--vocab** `arg`            vocabulary file (list of words)
+
+  **--output** `arg`           output directory
+
+  **--filter** `arg`           filtering script
+
+  **--order** `arg`            ngram order
+
+  **--map-line** map by lines, not by files
+
+  **--threads** `arg`          # of threads
+
+  **--max-malloc** `arg`       maximum malloc in GB
+
+  **--debug** `[=arg(=1)]`     debug level
+
+  **--help** help message
 
 
 EXAMPLES

@@ -23,16 +23,25 @@ DESCRIPTION
 OPTIONS
 -------
 
-  --corpus arg          corpus file
-  --counts arg          counts file
-  --corpus-list arg     corpus list file
-  --counts-list arg     counts list file
-  --output arg          output file
-  --filter arg          filtering script
-  --map-line            map by lines, not by files
-  --threads arg         # of threads
-  --debug               debug level
-  --help                help message
+  **--corpus** `arg`           corpus file
+
+  **--counts** `arg`           counts file
+
+  **--corpus-list** `arg`      corpus list file
+
+  **--counts-list** `arg`      counts list file
+
+  **--output** `arg (="-")`    output file
+
+  **--filter** `arg`           filtering script
+
+  **--map-line**             map by lines, not by files
+
+  **--threads** `arg`          # of threads
+
+  **--debug** `[=arg(=1)]`     debug level
+
+  **--help** help message
 
 
 ENVIRONMENT

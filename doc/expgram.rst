@@ -23,37 +23,21 @@ DESCRIPTION
 OPTIONS
 -------
 
-  **--ngram** `arg (="")`
+  **--ngram** `arg (="")` ngram in ARPA or expgram format
 
-    ngram in ARPA or expgram format
+  **--input** `arg (="-")` input text
 
-  **--input** `arg (="-")`
+  **--output** `arg (="-")` output log probabilities
 
-    input text
+  **--order** `arg (=0)` ngram order
 
-  **--output** `arg (="-")`
+  **--shard** `arg (=4)` # of shards (or # of threads)
 
-    output log probabilities
+  **--verbose** `[=arg(=1)]` verbose level
 
-  **--order** `arg (=0)`
+  **--debug** `[=arg(=1)]` debug level
 
-    ngram order
-
-  **--shard** `arg (=4)`
-
-    # of shards (or # of threads)
-
-  **--verbose** `[=arg(=1)]`
-
-    verbose level
-
-  **--debug** `[=arg(=1)]`
-
-    debug level
-
-  **--help**
-
-    help message
+  **--help** help message
 
 ENVIRONMENT
 -----------

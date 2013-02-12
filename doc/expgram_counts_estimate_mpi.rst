@@ -23,14 +23,19 @@ DESCRIPTION
 OPTIONS
 -------
 
-  --ngram arg           ngram counts in expgram format
-  --output arg          output in binary format
-  --temporary arg       temporary directory
-  --prog arg            this binary
-  --remove-unk          remove UNK when estimating language model
-  --debug               debug level
-  --help                help message
+  **--ngram** `arg (="")`      ngram counts in expgram format
 
+  **--output** `arg (="")`     output in binary format
+
+  **--temporary** `arg`       temporary directory
+
+  **--prog** `arg`            this binary
+
+  **--remove-unk** remove UNK when estimating language model
+
+  **--debug** `[=arg(=1)]`     debug level
+
+  **--help** help message
 
 ENVIRONMENT
 -----------

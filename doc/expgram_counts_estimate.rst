@@ -23,14 +23,19 @@ DESCRIPTION
 OPTIONS
 -------
 
-  --ngram arg           ngram counts in Google format or expgram format
-  --output arg          output in binary format
-  --temporary arg       temporary directory
-  --remove-unk          remove UNK when estimating language model
-  --shard arg           # of shards (or # of threads)
-  --debug               debug level
-  --help                help message
+  **--ngram** `arg (="")`      ngram counts in Google format or expgram format
 
+  **--output** `arg (="")`     output in binary format
+
+  **--temporary** `arg`        temporary directory
+
+  **--remove-unk** remove UNK when estimating language model
+
+  **--shard** `arg`            # of shards (or # of threads)
+
+  **--debug** `[=arg(=1)]`     debug level
+
+  **--help** help message
 
 ENVIRONMENT
 -----------

@@ -23,12 +23,15 @@ DESCRIPTION
 OPTIONS
 -------
 
-  --ngram arg           ngram counts in Google or expgram format
-  --output arg          output statistics
-  --shard arg           # of shards (or # of threads)
-  --debug               debug level
-  --help                help message
+  **--ngram** `arg (="")`      ngram counts in Google or expgram format
 
+  **--output** `arg (="-")`    output statistics
+
+  **--shard** `arg (=4)`       # of shards (or # of threads)
+
+  **--debug** `[=arg(=1)]`     debug level
+
+  **--help** help message
 
 
 ENVIRONMENT

@@ -23,12 +23,17 @@ DESCRIPTION
 OPTIONS
 -------
 
-  --ngram arg           ngram language model in expgram format
-  --output arg          output in expgram format
-  --temporary arg       temporary directory
-  --prog arg            this binary
-  --debug               debug level
-  --help                help message
+  **--ngram** `arg (="")`      ngram language model in expgram format
+
+  **--output** `arg (="")`     output in expgram format
+
+  **--temporary** `arg`        temporary directory
+
+  **--prog** `arg`             this binary
+
+  **--debug** `[=arg(=1)]`     debug level
+
+  **--help** help message
 
 
 ENVIRONMENT

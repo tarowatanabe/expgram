@@ -23,8 +23,9 @@ DESCRIPTION
 OPTIONS
 -------
 
-  --temporary arg       temporary directory
-  --help                help message
+  **--temporary** `arg`        temporary directory
+
+  **--help** help message
 
 ENVIRONMENT
 -----------

@@ -23,11 +23,16 @@ DESCRIPTION
 OPTIONS
 -------
 
-  --ngram arg           ngram counts in Google of expgram
-  --output arg          output in text
-  --shard arg           # of shards (or # of threads)
-  --debug               debug level
-  --help                help message
+  **--ngram** `arg`            ngram counts in Google of expgram
+
+  **--output** `arg (="-")`    output in text
+
+  **--shard** `arg`            # of shards (or # of threads)
+
+  **--debug** `[=arg(=1)]`     debug level
+
+  **--help** help message
+
 
 ENVIRONMENT
 -----------

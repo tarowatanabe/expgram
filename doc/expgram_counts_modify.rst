@@ -23,13 +23,17 @@ DESCRIPTION
 OPTIONS
 -------
 
-  --ngram arg           ngram counts in Google or binary format
-  --output arg          output in binary format
-  --temporary arg       temporary directory
-  --shard arg           # of shards (or # of threads)
-  --debug               debug level
-  --help                help message
+  **--ngram** `arg (="")`      ngram counts in Google or expgram format
 
+  **--output** `arg (="")`     output in binary format
+
+  **--temporary** `arg`        temporary directory
+
+  **--shard** `arg (=4)`       # of shards (or # of threads)
+
+  **--debug** `[=arg(=1)]`     debug level
+
+  **--help** help message
 
 ENVIRONMENT
 -----------
