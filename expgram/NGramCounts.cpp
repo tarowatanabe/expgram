@@ -2169,6 +2169,9 @@ namespace expgram
     typedef NGramCountsIndexMapReduce::vocab_map_type vocab_map_type;
 
     clear();
+
+    if (! boost::filesystem::exists(path))
+      throw std::runtime_error("no file? " + path.string());
     
     index.reserve(shard_size);
     counts.reserve(shard_size);

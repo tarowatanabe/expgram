@@ -1484,6 +1484,9 @@ namespace expgram
     // setup structures...
     clear();
     
+    if (path != "-" && ! boost::filesystem::exists(path))
+      throw std::runtime_error("no file? " + path.string());
+    
     index.reserve(shard_size);
     logprobs.reserve(shard_size);
     backoffs.reserve(shard_size);
