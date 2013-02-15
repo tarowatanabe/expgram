@@ -1,6 +1,7 @@
 2013-x-x
 	* INCOMPATIBLE: Use of murmur3 for hash functions for strings/sentence etc., but we preserve the old
 	  murmur hash function for indexed, binary files.
+	* Support bzip2 compressed ngram counts (which was found in LDC's web data in European languages)
 
 2013-1-11
 	* Faster MPI-based ngram LM estimation by tweaking buffer size
