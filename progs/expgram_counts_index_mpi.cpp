@@ -1,5 +1,5 @@
 //
-//  Copyright(C) 2009-2012 Taro Watanabe <taro.watanabe@nict.go.jp>
+//  Copyright(C) 2009-2013 Taro Watanabe <taro.watanabe@nict.go.jp>
 //
 
 #include <iostream>
@@ -229,6 +229,39 @@ word_type escape_word(const utils::piece& __word)
     return __word;
 }
 
+inline
+boost::filesystem::path compressed_filename(const boost::filesystem::path& path)
+{
+  typedef boost::filesystem::path path_type;
+    
+  if (boost::filesystem::exists(path))
+    return path;
+    
+  const std::string extension = path.extension().string();
+    
+  if (extension == ".gz" || extension == ".bz2") {
+    // try strip and add new extention..
+    const path_type path_gz  = path.parent_path() / (path.stem().string() + ".gz");
+    const path_type path_bz2 = path.parent_path() / (path.stem().string() + ".bz2");
+    
+    if (boost::filesystem::exists(path_gz))
+      return path_gz;
+    else if (boost::filesystem::exists(path_bz2))
+      return path_bz2;
+  } else {
+    // try add .gz....
+    const path_type path_gz  = path.parent_path() / (path.filename().string() + ".gz");
+    const path_type path_bz2 = path.parent_path() / (path.filename().string() + ".bz2");
+    
+    if (boost::filesystem::exists(path_gz))
+      return path_gz;
+    else if (boost::filesystem::exists(path_bz2))
+      return path_bz2;
+  }
+    
+  return path;
+}
+
 template <typename Stream>
 void index_unigram(const path_type& path, const path_type& output, ngram_type& ngram, Stream& os_counts)
 {
@@ -255,10 +288,9 @@ void index_unigram(const path_type& path, const path_type& output, ngram_type& n
     if (debug)
       std::cerr << "order: " << 1 << std::endl;
     
-    const path_type unigram_dir = path / "1gms";
-    const path_type vocab_file = unigram_dir / "vocab.gz";
-    const path_type vocab_sorted_file = unigram_dir / "vocab_cs.gz";
-    
+    const path_type unigram_dir       = path / "1gms";
+    const path_type vocab_file        = compressed_filename(unigram_dir / "vocab.gz");
+    const path_type vocab_sorted_file = compressed_filename(unigram_dir / "vocab_cs.gz");
     
     utils::compress_istream is(vocab_sorted_file, 1024 * 1024);
     
@@ -617,7 +649,7 @@ void index_ngram_mapper_root(intercomm_type& reducer, const path_type& path, ngr
 	if (static_cast<int>(tokens.size()) != order + 1)
 	  throw std::runtime_error(std::string("invalid google ngram format...") + index_file.string());
 
-	const path_type path_ngram = ngram_dir / static_cast<std::string>(tokens.front());
+	const path_type path_ngram = compressed_filename(ngram_dir / static_cast<std::string>(tokens.front()));
 	
 	if (! boost::filesystem::exists(path_ngram))
 	  throw std::runtime_error(std::string("invalid google ngram format... no file: ") + path_ngram.string());
