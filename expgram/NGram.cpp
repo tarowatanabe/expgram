@@ -327,6 +327,9 @@ namespace expgram
     
     clear();
     
+    if (! boost::filesystem::exists(path))
+      throw std::runtime_error("no file? " + path.string());
+
     repository_type rep(path, repository_type::read);
     
     index.open_shard(rep.path("index"), shard);
@@ -349,6 +352,9 @@ namespace expgram
     typedef utils::repository repository_type;
     
     clear();
+
+    if (! boost::filesystem::exists(path))
+      throw std::runtime_error("no file? " + path.string());
     
     repository_type rep(path, repository_type::read);
     
