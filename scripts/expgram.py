@@ -837,7 +837,7 @@ if __name__ == '__main__':
         print "(3) index counts started  @", time.ctime()
         index.run()
         print "(3) index counts finished @", time.ctime()
-        print "(3)indexed counts:", index.ngram
+        print "(3) indexed counts:", index.ngram
 
     modify = Modify(expgram=expgram,
                     output=options.output,
