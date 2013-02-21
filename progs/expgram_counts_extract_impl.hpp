@@ -180,7 +180,7 @@ struct GoogleNGramCounts
 	  
 	  if ((iteration & iteration_mask) == iteration_mask
 	      && ! counts.empty()
-	      && utils::malloc_stats::used() > size_t(max_malloc * 1024 * 1024 * 1024)) {
+	      && utils::malloc_stats::used() + counts.size() * sizeof(void*) > size_t(max_malloc * 1024 * 1024 * 1024)) {
 	    GoogleNGramCounts::dump_counts(counts, path, paths);
 	    counts.clear();
 	  }
@@ -311,7 +311,8 @@ struct GoogleNGramCounts
 	  
 	  __task(utils::istream_line_iterator(is), utils::istream_line_iterator(), vocabulary, counts, path, paths, max_malloc);
 	  
-	  if (! counts.empty() && utils::malloc_stats::used() > size_t(max_malloc * 1024 * 1024 * 1024)) {
+	  if (! counts.empty()
+	      && utils::malloc_stats::used() + counts.size() * sizeof(void*) > size_t(max_malloc * 1024 * 1024 * 1024)) {
 	    GoogleNGramCounts::dump_counts(counts, path, paths);
 	    counts.clear();
 	  }
@@ -749,7 +750,8 @@ struct GoogleNGramCounts
 	  }
 	}
 	
-	if ((iteration & iteration_mask) == iteration_mask && utils::malloc_stats::used() > size_t(max_malloc * 1024 * 1024 * 1024)) {
+	if ((iteration & iteration_mask) == iteration_mask
+	    && utils::malloc_stats::used() + counts.size() * sizeof(void*) > size_t(max_malloc * 1024 * 1024 * 1024)) {
 	  GoogleNGramCounts::dump_counts(counts, path, paths);
 	  counts.clear();
 	}
@@ -821,7 +823,8 @@ struct GoogleNGramCounts
 	
 	counts[id] += utils::lexical_cast<count_type>(tokens.back());
 	
-	if ((iteration & iteration_mask) == iteration_mask && utils::malloc_stats::used() > size_t(max_malloc * 1024 * 1024 * 1024)) {
+	if ((iteration & iteration_mask) == iteration_mask
+	    && utils::malloc_stats::used() + counts.size() * sizeof(void*) > size_t(max_malloc * 1024 * 1024 * 1024)) {
 	  GoogleNGramCounts::dump_counts(counts, path, paths);
 	  counts.clear();
 	}
