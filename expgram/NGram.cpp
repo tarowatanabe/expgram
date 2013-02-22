@@ -353,8 +353,10 @@ namespace expgram
     
     clear();
 
-    if (! boost::filesystem::exists(path))
-      throw std::runtime_error("no file? " + path.string());
+    if (path.empty())
+      throw std::runtime_error("no ngram?");
+    else if (! boost::filesystem::exists(path))
+      throw std::runtime_error("no ngram? " + path.string());
     
     repository_type rep(path, repository_type::read);
     
