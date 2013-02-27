@@ -30,7 +30,7 @@ expgram_vocab.man \
 $(man_mpi)
 
 
-.rst.man:
+.rst.man: $*.rst
 	$(RST2MAN) < $*.rst > $*.man
 
 endif WITH_RST2MAN
