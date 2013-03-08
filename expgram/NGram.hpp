@@ -338,13 +338,18 @@ namespace expgram
     template <typename Iterator>
     logprob_type logprob(Iterator first, Iterator last, bool smooth_smallest=false) const
     {
+#if 0
+      typedef typename std::iterator_traits<Iterator>::value_type value_type;
+
+      return __logprob_dispatch(first, last, value_type(), smooth_smallest);
+#endif
+
       if (first == last) return 0.0;
       
       first = std::max(first, last - index.order());
       
       int       shard_prev = -1;
       size_type node_prev = size_type(-1);
-      
       
       logprob_type logbackoff = 0.0;
       for (/**/; first != last - 1; ++ first) {
@@ -410,6 +415,38 @@ namespace expgram
 	      : (index.is_bos(*first)
 		 ? logprob_bos()
 		 : (smooth_smallest ? logprob_min() : logbackoff + smooth)));
+    }
+
+  private:
+    template <typename Iterator, typename _Word>
+    logprob_type __logprob_dispatch(Iterator first, Iterator last, _Word __word, bool smooth_smallest=false) const
+    {
+      if (first == last) return 0.0;
+      
+    }
+
+    template <typename Iterator>
+    logprob_type __logprob_dispatch(Iterator first, Iterator last, const id_type __word, bool smooth_smallest=false) const
+    {
+      if (first == last) return 0.0;
+      
+      const int order = std::distance(first, last);
+
+      if (order == 1) {
+	const state_type state = index.next(state_type(), *(last - 1));
+	
+	if (state.is_root_node()) {
+	  // not found...!
+	  
+	} else {
+	  // found!...
+	  
+	}
+	
+      } else {
+	logprob_type backoff = 0.0;
+	
+      }
     }
     
     
