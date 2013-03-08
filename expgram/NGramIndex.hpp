@@ -713,6 +713,9 @@ namespace expgram
 
     inline const vocab_type& vocab() const { return __vocab; }
     inline       vocab_type& vocab()       { return __vocab; }
+
+    inline const bool& backsort() const { return __backsort; }
+    inline       bool& backsort()       { return __backsort; }
     
     size_type size() const { return __shards.size(); }
     bool empty() const { return __shards.empty(); }
@@ -725,6 +728,7 @@ namespace expgram
       __vocab.clear();
       __order = 0;
       __path = path_type();
+      __backsort = false;
     }
     void close() { clear(); }
     
@@ -804,6 +808,7 @@ namespace expgram
     
     int            __order;
     path_type      __path;
+    bool           __backsort;
   };
   
 };
