@@ -2203,7 +2203,6 @@ namespace expgram
     size_type      unigram_size = 0;
     {
       typedef std::vector<word_type, std::allocator<word_type> > word_set_type;
-
       
       const path_type ngram_dir         = path / "1gms";
       const path_type vocab_file        = compressed_filename(ngram_dir / "vocab.gz");

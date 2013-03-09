@@ -413,6 +413,7 @@ namespace expgram
 	else {
 	  // we reached a bigram query!
 	  // state.node() is equal to unigram's id
+	  // TODO: do we need to invert this...?????
 	  const size_type shard = shard_index(state.node(), word);
 	  
 	  return state_type(shard, __shards[shard].find(state.node(), word));
