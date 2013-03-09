@@ -867,8 +867,9 @@ namespace expgram
 	if (! vocab_map[id])
 	  vocab_map[id] = static_cast<const std::string&>(index.vocab()[id]).c_str();
 	
+	// dump history context in an inverse order!
 	os << (logprob / log_10) << '\t';
-	std::copy(phrase.begin(), phrase.end(), std::ostream_iterator<const char*>(os, " "));
+	std::copy(phrase.rbegin(), phrase.rend(), std::ostream_iterator<const char*>(os, " "));
 	os << vocab_map[id];
 	
 	if (backoff != 0.0)

@@ -119,20 +119,18 @@ int main(int argc, char** argv)
 	
 	const float score_logprob  = ngram(titer_first, titer_last);
 	
-	std::cout << score_logprob
-		  << ' ' << (ngram.exists(titer_first, titer_last) ? "true" : "false");
-	std::cout << ' ';
+	std::cout << score_logprob << ' ';
 	std::copy(titer_first, titer_last, std::ostream_iterator<std::string>(std::cout, " "));
 	std::cout << std::endl;
 	
 	if (score_logprob != result_logprob.second)
 	  std::cerr << "logprob differ: " << score_logprob << ' ' << result_logprob.second << std::endl;
 	
-	std::pair<tokens_type::const_iterator, tokens_type::const_iterator> prefix_old = ngram.ngram_prefix(titer_first, titer_last);
+	//std::pair<tokens_type::const_iterator, tokens_type::const_iterator> prefix_old = ngram.ngram_prefix(titer_first, titer_last);
 	std::pair<tokens_type::const_iterator, tokens_type::const_iterator> prefix_new = ngram.prefix(titer_first, titer_last);
 
-	if (prefix_old != prefix_new)
-	  std::cerr << "prefix differ" << std::endl;
+	//if (prefix_old != prefix_new)
+	//  std::cerr << "prefix differ" << std::endl;
 	
 	state = result_logprob.first;
 	

@@ -13,6 +13,10 @@
 
   1. Keep traverse interface, which is specific to ngram-counts.
   2. Use of prefix/suffix interface, which is specific to ngram-lm, backsorted structure.
+  3. Unlike Google implementation, we will shard the ngram-lm:
+      using the last two words of the history for 3-gram and up
+      using the two words for bigram
+      zero-shard for the unigram
 
   Re-indexing implementation:
     Each ngram is dumped with length word-id^{length} float-for-backoff float-for-prob 
