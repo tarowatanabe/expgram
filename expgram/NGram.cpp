@@ -1884,9 +1884,11 @@ namespace expgram
 		  << std::endl;
     }
     threads.clear();
+
+    // set backward indexing!
+    index.backward() = true;
     
     // compute upper bounds...
-    
     bounds();
   }
 
