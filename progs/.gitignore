@@ -32,6 +32,7 @@ expgram
 expgram_index
 expgram_dump
 expgram_quantize
+expgram_backward
 expgram_bound
 expgram_stat
 expgram_perplexity

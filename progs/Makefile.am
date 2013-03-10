@@ -27,6 +27,7 @@ bin_PROGRAMS = \
 	expgram_index \
 	expgram_dump \
 	expgram_quantize \
+	expgram_backward \
 	expgram_bound \
 	expgram_stat \
 	expgram_perplexity \
@@ -73,6 +74,9 @@ expgram_quantize_LDADD   = $(LIBEXPGRAM) $(LIBUTILS) $(boost_LDADD) $(perftools_
 expgram_quantize_mpi_SOURCES = expgram_quantize_mpi.cpp
 expgram_quantize_mpi_CPPFLAGS = $(MPI_CPPFLAGS) $(AM_CPPFLAGS)
 expgram_quantize_mpi_LDADD   = $(MPI_LDFLAGS) $(LIBEXPGRAM) $(LIBUTILS) $(boost_LDADD) $(perftools_LDADD)
+
+expgram_backward_SOURCES = expgram_backward.cpp
+expgram_backward_LDADD   = $(LIBEXPGRAM) $(LIBUTILS) $(boost_LDADD) $(perftools_LDADD)
 
 expgram_bound_SOURCES = expgram_bound.cpp
 expgram_bound_LDADD   = $(LIBEXPGRAM) $(LIBUTILS) $(boost_LDADD) $(perftools_LDADD)

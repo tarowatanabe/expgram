@@ -969,6 +969,7 @@ namespace expgram
     
     // assignment for index...
     ngram.index = index;
+    
     ngram.logprobs.reserve(index.size());
     ngram.logbounds.reserve(index.size());
     ngram.backoffs.reserve(index.size());
@@ -1219,9 +1220,9 @@ namespace expgram
       logbound_shard_type(logbounds[shard]).swap(logbounds[shard]);
       backoff_shard_type(backoffs[shard]).swap(backoffs[shard]);
     }
-    
-    // compute upper bounds...
-    //ngram.bounds();
+
+    // backard trie...
+    ngram.backward();
   }
   
   struct NGramCountsDumpMapReduce

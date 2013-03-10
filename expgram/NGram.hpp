@@ -466,6 +466,7 @@ namespace expgram
     
     void quantize();
     void bounds();
+    void backward();
     
     bool is_open() const { return index.is_open(); }
     bool has_bounds() const { return ! logbounds.empty(); }

@@ -280,8 +280,8 @@ void ngram_bound_mapper(const ngram_type& ngram, intercomm_type& reducer)
       
       if (pos_first == pos_last) continue;
       
-      context_type::iterator citer_curr = context.end() - 2;
-      for (size_type pos_curr = pos_context; pos_curr != size_type(-1); pos_curr = ngram.index[mpi_rank].parent(pos_curr), -- citer_curr)
+      context_type::iterator citer_curr = context.begin();
+      for (size_type pos_curr = pos_context; pos_curr != size_type(-1); pos_curr = ngram.index[mpi_rank].parent(pos_curr), ++ citer_curr)
 	*citer_curr = ngram.index[mpi_rank][pos_curr];
       
       for (size_type pos = pos_first; pos != pos_last; ++ pos) {
@@ -295,7 +295,7 @@ void ngram_bound_mapper(const ngram_type& ngram, intercomm_type& reducer)
 	  if (citer_end - citer_begin == 1)
 	    unigrams[*citer_begin] = std::max(unigrams[*citer_begin], logprob);
 	  else {
-	    const int shard = ngram.index.shard_index(citer_begin, citer_end);
+	    const int shard = ngram.index.shard_index_backward(citer_begin, citer_end);
 
 	    std::ostream_iterator<char> iter(*stream[shard]);
 	    
@@ -307,25 +307,6 @@ void ngram_bound_mapper(const ngram_type& ngram, intercomm_type& reducer)
 	    *stream[shard] << '\n';
 	  }
 #endif	  
-#if 0
-	  context_type::const_iterator citer_end = context.end();
-	  for (context_type::const_iterator citer = context.begin() + 1; citer != citer_end; ++ citer) {
-	    if (citer_end - citer == 1)
-	      unigrams[*citer] = std::max(unigrams[*citer], logprob);
-	    else {
-	      const int shard = ngram.index.shard_index(citer, citer_end);
-	      
-	      std::ostream_iterator<char> iter(*stream[shard]);
-	      
-	      if (! karma::generate(iter, +(id_generator << ' '), boost::make_iterator_range(citer, citer_end)))
-		throw std::runtime_error("failed generation");
-	      
-	      //std::copy(citer, citer_end, std::ostream_iterator<id_type>(*stream[shard], " "));
-	      utils::encode_base64(logprob, std::ostream_iterator<char>(*stream[shard]));
-	      *stream[shard] << '\n';
-	    }
-	  }
-#endif
 	}
       }
       
@@ -429,6 +410,8 @@ void ngram_bound_reducer(ngram_type& ngram, intercomm_type& mapper)
 	  tokens_type::const_iterator titer_end = tokens.end() - 1;
 	  for (tokens_type::const_iterator titer = tokens.begin(); titer != titer_end; ++ titer)
 	    context.push_back(utils::lexical_cast<id_type>(*titer));
+
+	  std::reverse(context.begin(), context.end() - 1);
 	  
 	  std::pair<context_type::const_iterator, size_type> result = ngram.index.traverse(mpi_rank, context.begin(), context.end());
 	  if (result.first != context.end() || result.second == size_type(-1))
