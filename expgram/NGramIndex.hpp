@@ -455,7 +455,7 @@ namespace expgram
 	if (length == 1)
 	  return std::make_pair(first, first + 1 + bool(! next(state_type(), *(iter - 1)).is_root_node()));
 	else {
-	  int order_trie = 1;
+	  size_type order_trie = 1;
 	  state_type state(shard_index_backward(first, iter));
 	  
 	  for (Iterator end = iter - 1; end != first; -- end, ++ order_trie) {
