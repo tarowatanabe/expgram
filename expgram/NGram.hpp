@@ -425,6 +425,17 @@ namespace expgram
     }
     
   public:
+    void swap(NGram& x)
+    {
+      index.swap(x.index);
+      logprobs.swap(x.logprobs);
+      backoffs.swap(x.backoffs);
+      logbounds.swap(x.logbounds);
+      
+      std::swap(smooth, x.smooth);
+      std::swap(debug,  x.debug);
+    }
+
     path_type path() const { return index.path().parent_path(); }
     size_type size() const { return index.size(); }
     bool empty() const { return index.empty(); }

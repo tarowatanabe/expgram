@@ -121,6 +121,15 @@ namespace expgram
     }
 
   public:
+    void swap(NGramCounts& x)
+    {
+      index.swap(x.index);
+      counts.swap(x.counts);
+      types.swap(x.types);
+      
+      std::swap(debug,  x.debug);
+    }
+
     path_type path() const { return index.path().parent_path(); }
     size_type size() const { return index.size(); }
     bool empty() const { return index.empty(); }

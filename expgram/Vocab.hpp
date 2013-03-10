@@ -1,6 +1,6 @@
 // -*- mode: c++ -*-
 //
-//  Copyright(C) 2009-2012 Taro Watanabe <taro.watanabe@nict.go.jp>
+//  Copyright(C) 2009-2013 Taro Watanabe <taro.watanabe@nict.go.jp>
 //
 
 #ifndef __EXPGRAM__VOCAB__HPP__
@@ -63,6 +63,16 @@ namespace expgram
   public:
     Vocab(size_type size_hint=1024 * 1024 * 4) : __succinct_hash(new succinct_hash_type(size_hint)) {}
     Vocab(const path_type& path, size_type bin_size=0) : __succinct_hash_mapped() { open(path, bin_size); }
+
+    void swap(Vocab& x)
+    {
+      __succinct_hash.swap(x.__succinct_hash);
+      __succinct_hash_mapped.swap(x.__succinct_hash_mapped);
+      __succinct_hash_stream.swap(x.__succinct_hash_stream);
+      
+      __cache_word.swap(x.__cache_word);
+      __cache_id.swap(x.__cache_id);
+    }
 
     uint64_t size_bytes() const 
     {

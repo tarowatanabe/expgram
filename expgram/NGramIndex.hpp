@@ -673,6 +673,16 @@ namespace expgram
     {
       return vocab_type::BOS == word;
     }
+
+    void swap(NGramIndex& x)
+    {
+      __shards.swap(x.__shards);
+      __vocab.swap(x.__vocab);
+      
+      std::swap(__order,    x.__order);
+      std::swap(__path,     x.__path);
+      std::swap(__backward, x.__backward);
+    }
     
     inline const_reference operator[](size_type pos) const { return __shards[pos]; }
     inline       reference operator[](size_type pos)       { return __shards[pos]; }

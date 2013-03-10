@@ -1483,6 +1483,7 @@ namespace expgram
     ngram.index.resize(shard_size);
     ngram.index.vocab() = index.vocab();
     ngram.index.order() = index.order();
+    ngram.index.backward() = true;
     
     ngram.logprobs.reserve(shard_size);
     ngram.logbounds.reserve(shard_size);
@@ -1575,6 +1576,37 @@ namespace expgram
     // termination...
     mappers.join_all();
     reducers.join_all();
+
+    // finalization...
+    for (size_type shard = 0; shard != shard_size; ++ shard) {
+      os_logprobs[shard].reset();
+      os_logbounds[shard].reset();
+      os_backoffs[shard].reset();
+
+      while (! boost::filesystem::exists(path_logprobs[shard]))
+	boost::thread::yield();      
+      while (! boost::filesystem::exists(path_logbounds[shard]))
+	boost::thread::yield();
+      while (! boost::filesystem::exists(path_backoffs[shard]))
+	boost::thread::yield();
+      
+      utils::tempfile::permission(path_logprobs[shard]);
+      utils::tempfile::permission(path_logbounds[shard]);
+      utils::tempfile::permission(path_backoffs[shard]);
+      
+      ngram.logprobs[shard].logprobs.open(path_logprobs[shard]);
+      ngram.logbounds[shard].logprobs.open(path_logbounds[shard]);
+      ngram.backoffs[shard].logprobs.open(path_backoffs[shard]);
+
+      if (debug)
+	std::cerr << "shard: " << shard
+		  << " logprob: " << ngram.logprobs[shard].size()
+		  << " logbound: " << ngram.logbounds[shard].size()
+		  << " backoff: " << ngram.backoffs[shard].size()
+		  << std::endl;
+    }
+
+    ngram.swap(*this);
   }
 
   struct NGramBoundMapReduce
