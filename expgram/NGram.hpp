@@ -92,7 +92,6 @@ namespace expgram
 		? stat_type(quantized.size_bytes(), quantized.size_compressed(), quantized.size_cache())
 		: stat_type(logprobs.size_bytes(), logprobs.size_compressed(), logprobs.size_cache()));
       }
-
       
       logprob_set_type     logprobs;
       quantized_set_type   quantized;
@@ -145,32 +144,33 @@ namespace expgram
       max_order = utils::bithack::branch(max_order <= 0, index.order(), utils::bithack::min(index.order(), max_order));
       
       int order = index.order(state) + 1;
-      while (order > max_order) {
-	state = index.suffix(state);
-	order = index.order(state) + 1;
-      }
+      for (/**/; order > max_order; -- order)
+	state = index.prev(state);
       
       logprob_type backoff = 0.0;
       for (/**/; order; -- order) {
 	const state_type result = index.next(state, word);
 	
 	if (! result.is_root_node()) {
-	  const size_type shard_index = utils::bithack::branch(result.is_root_shard(), size_type(0), result.shard());
+	  const size_type shard_index = index.shard_index(result);
 	  const logprob_type score = (! backoffed && result.node() < logbounds[shard_index].size()
 				      ? logbounds[shard_index](result.node(), order)
 				      : logprobs[shard_index](result.node(), order));
 	  
-	  if (score != logprob_min())
-	    return std::make_pair(order >= max_order ? index.suffix(result) : result, score + backoff);
+	  if (score != logprob_min()) {
+	    state = index.suffix(result);
+	    for (int order_state = index.order(state) + 1; order_state > max_order; -- order_state)
+	      state = index.prev(state);
+	    
+	    return std::make_pair(state, score + backoff);
+	  }
 	}
 	
 	if (state.is_root())
 	  return std::make_pair(state_type(), index.is_bos(word) ? logprob_bos() : smooth + backoff);
 	
-	const size_type shard_index = utils::bithack::branch(state.is_root_shard(), size_type(0), state.shard());
-	
 	backoffed = true;
-	backoff += backoffs[shard_index](state.node(), order - 1);
+	backoff += backoffs[index.shard_index(state)](state.node(), order - 1);
 	state = index.prev(state);
       }
       
@@ -190,30 +190,30 @@ namespace expgram
       max_order = utils::bithack::branch(max_order <= 0, index.order(), utils::bithack::min(index.order(), max_order));
       
       int order = index.order(state) + 1;
-      while (order > max_order) {
-	state = index.suffix(state);
-	order = index.order(state) + 1;
-      }
+      for (/**/; order > max_order; -- order)
+	state = index.prev(state);
       
       logprob_type backoff = 0.0;
       for (/**/; order; -- order) {
 	const state_type result = index.next(state, word);
 	
 	if (! result.is_root_node()) {
-	  const size_type shard_index = utils::bithack::branch(result.is_root_shard(), size_type(0), result.shard());
-	  const logprob_type score = logprobs[shard_index](result.node(), order);
+	  const logprob_type score = logprobs[index.shard_index(result)](result.node(), order);
 	  
-	  if (score != logprob_min())
-	    return std::make_pair(order >= max_order ? index.suffix(result) : result, score + backoff);
+	  if (score != logprob_min()) {
+	    state = index.suffix(result);
+	    for (int order_state = index.order(state) + 1; order_state > max_order; -- order_state)
+	      state = index.prev(state);
+	    
+	    return std::make_pair(state, score + backoff);
+	  }
 	}
 	
 	if (state.is_root())
 	  return std::make_pair(state_type(), index.is_bos(word) ? logprob_bos() : smooth + backoff);
 	
-	const size_type shard_index = utils::bithack::branch(state.is_root_shard(), size_type(0), state.shard());
-	
 	backoffed = true;
-	backoff += backoffs[shard_index](state.node(), order - 1);
+	backoff += backoffs[index.shard_index(state)](state.node(), order - 1);
 	state = index.prev(state);
       }
       
@@ -251,21 +251,24 @@ namespace expgram
 	state_type state(index.shard_index_backward(first, last));
 	
 	for (Iterator iter = last - 1; iter != first; -- iter, ++ order_trie) {
-	  const state_type state_next = index.next(state, *(iter - 1));
+	  const state_type result = index.next(state, *(iter - 1));
 	  
-	  if (state_next.is_root_node()) break;
+	  if (result.is_root_node()) break;
 	  
-	  state = state_next;
+	  state = result;
 	}
 	
-	bool backoffed = (order_trie == order);
+	if (order_trie <= 2)
+	  state = state_type(size_type(-1), state.node());
+
+	bool backoffed = (order_trie != order);
 	logprob_type backoff = 0.0;
 	
 	for (/**/; order_trie; -- order_trie) {
 	  const state_type result = index.next(state, *(last - 1));
 	  
 	  if (! result.is_root_node()) {
-	    const size_type shard_index = utils::bithack::branch(result.is_root_shard(), size_type(0), result.shard());
+	    const size_type shard_index = index.shard_index(result);
 	    const logprob_type score = (! backoffed && result.node() < logbounds[shard_index].size()
 					? logbounds[shard_index](result.node(), order_trie)
 					: logprobs[shard_index](result.node(), order_trie));
@@ -277,10 +280,8 @@ namespace expgram
 	  if (state.is_root())
 	    return (index.is_bos(*(last - 1)) ? logprob_bos() : (smooth_smallest ? logprob_min() : smooth + backoff));
 	  
-	  const size_type shard_index = utils::bithack::branch(state.is_root_shard(), size_type(0), state.shard());
-	  
 	  backoffed = true;
-	  backoff += backoffs[shard_index](state.node(), order_trie - 1);
+	  backoff += backoffs[index.shard_index(state)](state.node(), order_trie - 1);
 	  state = index.prev(state);
 	}
 	
@@ -316,7 +317,7 @@ namespace expgram
       
       if (order == 1) {
 	const state_type result = index.next(state_type(), word_id);
-	
+
 	if (! result.is_root_node()) {
 	  const logprob_type logprob = logprobs[0](result.node(), 1);
 
@@ -331,20 +332,23 @@ namespace expgram
 	state_type state(index.shard_index_backward(first, last));
 	
 	for (Iterator iter = last - 1; iter != first; -- iter, ++ order_trie) {
-	  const state_type state_next = index.next(state, *(iter - 1));
+	  const state_type result = index.next(state, *(iter - 1));
+
+	  if (result.is_root_node()) break;
 	  
-	  if (state_next.is_root_node()) break;
-	  
-	  state = state_next;
+	  state = result;
 	}
+	
+	if (order_trie <= 2)
+	  state = state_type(size_type(-1), state.node());
 
 	logprob_type backoff = 0.0;
 	for (/**/; order_trie; -- order_trie) {
+	  // modify this for bigram case!
 	  const state_type result = index.next(state, word_id);
-	  
+
 	  if (! result.is_root_node()) {
-	    const size_type shard_index = utils::bithack::branch(result.is_root_shard(), size_type(0), result.shard());
-	    const logprob_type score = logprobs[shard_index](result.node(), order_trie);
+	    const logprob_type score = logprobs[index.shard_index(result)](result.node(), order_trie);
 	    
 	    if (score != logprob_min())
 	      return score + backoff;
@@ -353,9 +357,7 @@ namespace expgram
 	  if (state.is_root())
 	    return (index.is_bos(word_id) ? logprob_bos() : (smooth_smallest ? logprob_min() : smooth + backoff));
 	  
-	  const size_type shard_index = utils::bithack::branch(state.is_root_shard(), size_type(0), state.shard());
-	  
-	  backoff += backoffs[shard_index](state.node(), order_trie - 1);
+	  backoff += backoffs[index.shard_index(state)](state.node(), order_trie - 1);
 	  state = index.prev(state);
 	}
 	
@@ -390,20 +392,22 @@ namespace expgram
 	state_type state(index.shard_index_backward(first, last));
 	
 	for (Iterator iter = last - 1; iter != first; -- iter, ++ order_trie) {
-	  const state_type state_next = index.next(state, *(iter - 1));
+	  const state_type result = index.next(state, *(iter - 1));
 	  
-	  if (state_next.is_root_node()) break;
+	  if (result.is_root_node()) break;
 	  
-	  state = state_next;
+	  state = result;
 	}
+
+	if (order_trie <= 2)
+	  state = state_type(size_type(-1), state.node());
 
 	logprob_type backoff = 0.0;
 	for (/**/; order_trie; -- order_trie) {
 	  const state_type result = index.next(state, word_id);
 	  
 	  if (! result.is_root_node()) {
-	    const size_type shard_index = utils::bithack::branch(result.is_root_shard(), size_type(0), result.shard());
-	    const logprob_type score = logprobs[shard_index](result.node(), order_trie);
+	    const logprob_type score = logprobs[index.shard_index(result)](result.node(), order_trie);
 	    
 	    if (score != logprob_min())
 	      return score + backoff;
@@ -412,9 +416,7 @@ namespace expgram
 	  if (state.is_root())
 	    return (index.is_bos(word_id) ? logprob_bos() : (smooth_smallest ? logprob_min() : smooth + backoff));
 	  
-	  const size_type shard_index = utils::bithack::branch(state.is_root_shard(), size_type(0), state.shard());
-	  
-	  backoff += backoffs[shard_index](state.node(), order_trie - 1);
+	  backoff += backoffs[index.shard_index(state)](state.node(), order_trie - 1);
 	  state = index.prev(state);
 	}
 	

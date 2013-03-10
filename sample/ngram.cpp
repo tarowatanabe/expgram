@@ -158,7 +158,6 @@ int main(int argc, char** argv)
 		      << " base10: " << (result_logprob.second / log_10)
 		      << " logbound: " << result_logbound.second
 		      << " order: " << ngram.index.order(result_logprob.first)
-	      
 		      << std::endl;
 
 	    

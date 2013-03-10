@@ -368,12 +368,17 @@ namespace expgram
     
   public:
     state_type root() const { return state_type(); }
-    
-    bool has_prev(const state_type& state) const
-    {
-      return state.node() != size_type(-1);
-    }
 
+    size_type shard_index(const state_type& state) const
+    {
+      const size_type shard = state.shard();
+      const size_type node = state.node();
+      
+      return (shard == size_type(-1) || node == size_type(-1) || node < __shards[shard].offsets[1]
+	      ? size_type(0)
+	      : shard);
+    }
+    
     state_type prev(const state_type& state) const
     {
       if (state.is_root_shard())
@@ -382,19 +387,14 @@ namespace expgram
       size_type shard_index = state.shard();
       size_type node = state.node();
       
+      const shard_type& shard = __shards[shard_index];
+      
       if (node != size_type(-1))
-	node = __shards[shard_index].parent(node);
+	node = shard.parent(node);
       
-      return (node == size_type(-1) ? state_type() : state_type(shard_index, node));
-    }
-
-    bool has_next(const state_type& state) const
-    {
-      if (state.is_root()) return true;
-      
-      const size_type shard_index = utils::bithack::branch(state.is_root_shard(), size_type(0), state.shard());
-      
-      return __shards[shard_index].has_child(state.node());
+      return state_type(node == size_type(-1) || node < shard.offsets[1]
+			? size_type(-1) : shard_index,
+			node);
     }
     
     template <typename _Word>
@@ -413,7 +413,6 @@ namespace expgram
 	else {
 	  // we reached a bigram query!
 	  // state.node() is equal to unigram's id
-	  // TODO: do we need to invert this...?????
 	  const size_type shard = shard_index(state.node(), word);
 	  
 	  return state_type(shard, __shards[shard].find(state.node(), word));
@@ -442,34 +441,42 @@ namespace expgram
     template <typename Iterator>
     std::pair<Iterator, Iterator> prefix(Iterator first, Iterator last) const
     {
+      // this is the maximum prefix...
+      last = std::min(last, first + order() - 1);
+      
       size_type length = std::distance(first, last);
-
+      
       if (length <= 1)
 	return std::make_pair(first, last);
       
       // we will try find the maximum ngram we can match
+      // TODO: do we use the context-inverted style for ngram indexing, or use full-inversion for backoff indexing...???
       for (Iterator iter = last; iter != first; -- iter, -- length) {
-	
-	// this is the correct sharding...
-	state_type state(shard_index_backward(first, iter));
-	
-	// bigram and higher...
-	if (first + 1 < iter) {
-	  // inverse traversal from iter - 1 to first
-	  for (Iterator end = iter - 1; end != first; -- end) {
-	    state = next(state, *(end - 1));
+	if (length == 1)
+	  return std::make_pair(first, first + 1 + bool(! next(state_type(), *(iter - 1)).is_root_node()));
+	else {
+	  int order_trie = 1;
+	  state_type state(shard_index_backward(first, iter));
+	  
+	  for (Iterator end = iter - 1; end != first; -- end, ++ order_trie) {
+	    const state_type result = next(state, *(end - 1));
 	    
-	    if (state.is_root_node()) break;
+	    if (result.is_root_node()) break;
+	    
+	    state = result;
 	  }
 	  
-	  if (state.is_root_node()) continue;
+	  if (order_trie != length) continue;
+	  
+	  if (order_trie <= 2)
+	    state = state_type(size_type(-1), state.node());
+	  
+	  if (! next(state, *(iter - 1)).is_root_node())
+	    return std::make_pair(first, std::min(iter + 1, last));
 	}
-	
-	if (! next(state, *(iter - 1)).is_root_node())
-	  return std::make_pair(first, std::min(iter + 1, last));
       }
       
-      // nothing found... we will simply return the first unigram...
+      // nothing found... actually, we will not reach here...
       return std::make_pair(first, first + 1);
     }
 
@@ -498,10 +505,10 @@ namespace expgram
       // we take the last two words!
       state_type state(shard_index(__vocab[*(last - 2)], __vocab[*(last - 1)]));
       
-      for (/**/; last != first; -- last) {
+      for (int order = 0; last != first; -- last, ++ order) {
 	const state_type result = next(state, *(last - 1));
 	if (result.is_root_node())
-	  return result;
+	  return (order <= 1 ? state_type(size_type(-1), state.node()) : state);
 	
 	state = result;
       }
@@ -526,10 +533,10 @@ namespace expgram
       // we take the last two words!
       state_type state(shard_index(*(last - 2), *(last - 1)));
       
-      for (/**/; last != first; -- last) {
+      for (int order = 0; last != first; -- last, ++ order) {
 	const state_type result = next(state, *(last - 1));
 	if (result.is_root_node())
-	  return result;
+	  return (order <= 1 ? state_type(size_type(-1), state.node()) : state);
 	
 	state = result;
       }
@@ -541,15 +548,30 @@ namespace expgram
     {
       typedef std::vector<id_type, std::allocator<id_type> > context_type;
       
-      // root or unigram's suffix is root
+      // root or unigram
       if (state.is_root() || state.is_root_shard())
-	return state_type();
+	return state;
       
-      shard_type& shard = const_cast<shard_type&>(__shards[state.shard()]);
+      const size_type shard_index = state.shard();
+      shard_type& shard = const_cast<shard_type&>(__shards[shard_index]);
       
-      // if we are bigram, we will simply take root_shard + current id
-      if (state.node() < shard.offsets[2])
-	return state_type(size_type(-1), shard[state.node()]);
+      // if we are bigram
+      if (state.node() < shard.offsets[2]) {
+	size_type node = state.node();
+	
+	const id_type word2 = shard[node];
+	const id_type word1 = shard[shard.parent(node)];
+	
+	const state_type state(shard_index);
+	const state_type state1 = next(state, word2);
+	
+	if (state1.is_root_node())
+	  return state_type();
+	
+	const state_type state2 = next(state1, word1);
+	
+	return (state2.is_root_node() ? state_type(size_type(-1), state1.node()) : state2);
+      }
 
       // trigram or higher....
       

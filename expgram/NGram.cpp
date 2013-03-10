@@ -678,6 +678,9 @@ namespace expgram
       context_type         context;
       context_logprob_type context_logprob;
 
+
+      const int order_prev_max = ngram.index.order() - 1;
+
       for (int order_prev = 1; order_prev < ngram.index.order(); ++ order_prev) {
 	const size_type pos_context_first = ngram.index[shard].offsets[order_prev - 1];
 	const size_type pos_context_last  = ngram.index[shard].offsets[order_prev];
@@ -691,19 +694,46 @@ namespace expgram
 	  pos_last_prev = pos_last;
 	  
 	  if (pos_first == pos_last) continue;
+
 	  
-	  context_type::iterator citer_curr = context.end() - 1;
-	  for (size_type pos_curr = pos_context; pos_curr != size_type(-1); pos_curr = ngram.index[shard].parent(pos_curr), -- citer_curr)
+	  // we will traverse in order!
+	  context_type::iterator citer_curr = context.begin();
+	  for (size_type pos_curr = pos_context; pos_curr != size_type(-1); pos_curr = ngram.index[shard].parent(pos_curr), ++ citer_curr)
 	    *citer_curr = ngram.index[shard][pos_curr];
-	  
+
 	  context_logprob.first = context;
 	  context_logprob.second.clear();
 	  
 	  word_set_type& words = context_logprob.second;
 	  for (size_type pos = pos_first; pos != pos_last; ++ pos) {
-	    const logprob_type logprob = ngram.logprobs[shard](pos, order_prev + 1);
+	    logprob_type logprob = ngram.logprobs[shard](pos, order_prev + 1);
+	    
 	    if (logprob != ngram.logprob_min()) {
-	      const logprob_type backoff = (pos < ngram.backoffs[shard].size() ? ngram.backoffs[shard](pos, order_prev + 1) : logprob_type(0.0));
+	      const id_type word = ngram.index[shard][pos];
+	      logprob_type backoff(0.0);
+	      
+	      if (order_prev < order_prev_max) {
+		const int backoff_shard = ngram.index.shard_index(context.back(), word);
+		
+		ngram_type::state_type state = ngram.index.next(ngram_type::state_type(backoff_shard), word);
+		
+		
+		if (state.is_root_node())
+		  throw std::runtime_error("invalid backoff??");
+		
+		context_type::const_reverse_iterator citer_end = context.rend();
+		for (context_type::const_reverse_iterator citer = context.rbegin(); citer != citer_end; ++ citer) {
+		  state = ngram.index.next(state, *citer);
+		  
+		  if (state.is_root_node())
+		    throw std::runtime_error("invalid backoff??");
+		}
+		
+		const size_type backoff_pos = state.node();
+		if (backoff_pos < ngram.backoffs[backoff_shard].size())
+		  backoff = ngram.backoffs[backoff_shard](backoff_pos, order_prev + 1);
+	      }
+	      
 	      words.push_back(std::make_pair(ngram.index[shard][pos], std::make_pair(logprob, backoff)));
 	    }
 	  }
@@ -868,9 +898,8 @@ namespace expgram
 	if (! vocab_map[id])
 	  vocab_map[id] = static_cast<const std::string&>(index.vocab()[id]).c_str();
 	
-	// dump history context in an inverse order!
 	os << (logprob / log_10) << '\t';
-	std::copy(phrase.rbegin(), phrase.rend(), std::ostream_iterator<const char*>(os, " "));
+	std::copy(phrase.begin(), phrase.end(), std::ostream_iterator<const char*>(os, " "));
 	os << vocab_map[id];
 	
 	if (backoff != 0.0)
@@ -968,8 +997,8 @@ namespace expgram
 	  
 	  if (pos_first == pos_last) continue;
 	  
-	  context_type::iterator citer_curr = context.end() - 2;
-	  for (size_type pos_curr = pos_context; pos_curr != size_type(-1); pos_curr = ngram.index[shard].parent(pos_curr), -- citer_curr)
+	  context_type::iterator citer_curr = context.begin();
+	  for (size_type pos_curr = pos_context; pos_curr != size_type(-1); pos_curr = ngram.index[shard].parent(pos_curr), ++ citer_curr)
 	    *citer_curr = ngram.index[shard][pos_curr];
 	  
 	  for (size_type pos = pos_first; pos != pos_last; ++ pos) {
@@ -978,7 +1007,7 @@ namespace expgram
 	    const logprob_type logprob = ngram.logprobs[shard](pos, order_prev + 1);
 	    if (logprob != ngram.logprob_min()) {
 	      
-	      context_type::const_iterator citer_end = context.end();
+	      context_type::const_iterator citer_end   = context.end();
 	      context_type::const_iterator citer_begin = context.begin() + 1;
 	      if (citer_end - citer_begin == 1)
 		unigrams[*citer_begin] = std::max(unigrams[*citer_begin], logprob);
@@ -1048,7 +1077,9 @@ namespace expgram
 	  continue;
 	}
 	
-	const context_type& context = context_logprob.first;
+	context_type& context = context_logprob.first;
+
+	std::reverse(context.begin(), context.end() - 1);
 	
 	std::pair<context_type::const_iterator, size_type> result = ngram.index.traverse(shard, context.begin(), context.end());
 	if (result.first != context.end() || result.second == size_type(-1)) {
@@ -1076,7 +1107,6 @@ namespace expgram
 
       utils::tempfile::permission(path);
       ngram.logbounds[shard].logprobs.open(path);
-      
       
       if (debug)
 	std::cerr << "shard: " << shard << " logbound: " << ngram.logbounds[shard].size() << std::endl;
