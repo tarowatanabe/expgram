@@ -971,6 +971,24 @@ namespace expgram
     typedef boost::iostreams::filtering_ostream                              ostream_type;
     typedef boost::shared_ptr<ostream_type>                                  ostream_ptr_type;
     typedef std::vector<ostream_ptr_type, std::allocator<ostream_ptr_type> > ostream_ptr_set_type;
+    
+    struct shard_type
+    {
+      ostream_type os_logprob;
+      ostream_type os_logbound;
+      ostream_type os_backoff;
+      
+      path_type path_logprob;
+      path_type path_logbound;
+      path_type path_backoff;
+      
+      // we allow no copying!
+      shard_type() {}
+      shard_type(const shard_type& x) {}
+      shard_type& operator=(const shard_type& x) { return *this; }
+    };
+    
+    typedef std::vector<shard_type, std::allocator<shard_type> > shard_set_type;
   };
 
   inline
@@ -1042,9 +1060,10 @@ namespace expgram
 	    if (context_size == 2) {
 	      const size_type shard_index = ngram.index.shard_index(context[0], context[1]);
 	      
-	      queues_shard[shard_index]->push(std::make_pair(context, logprob_set_type(prob,
-										       bound,
-										       ngram.logprob_min())));
+	      if (prob != ngram_type::logprob_min() || bound != ngram_type::logprob_min())
+		queues_shard[shard_index]->push(std::make_pair(context, logprob_set_type(prob,
+											 bound,
+											 ngram.logprob_min())));
 	      if (context_size != order_max)
 		queues_shard[shard_index]->push(std::make_pair(context, logprob_set_type(ngram.logprob_min(),
 											 ngram.logprob_min(),
@@ -1052,16 +1071,18 @@ namespace expgram
 	    } else if (context_size == order_max) {
 	      const size_type shard_index = ngram.index.shard_index(context[context_size - 3], context[context_size - 2]);
 	      
-	      queues_shard[shard_index]->push(std::make_pair(context, logprob_set_type(prob,
-										       bound,
-										       backoff)));
+	      if (prob != ngram_type::logprob_min() || bound != ngram_type::logprob_min())
+		queues_shard[shard_index]->push(std::make_pair(context, logprob_set_type(prob,
+											 bound,
+											 backoff)));
 	    } else {
 	      const size_type shard_prob    = ngram.index.shard_index(context[context_size - 3], context[context_size - 2]);
 	      const size_type shard_backoff = ngram.index.shard_index(context[context_size - 2], context[context_size - 1]);
 	      
-	      queues_shard[shard_prob]->push(std::make_pair(context, logprob_set_type(prob,
-										      bound,
-										      ngram.logprob_min())));
+	      if (prob != ngram_type::logprob_min() || bound != ngram_type::logprob_min())
+		queues_shard[shard_prob]->push(std::make_pair(context, logprob_set_type(prob,
+											bound,
+											ngram.logprob_min())));
 	      queues_shard[shard_backoff]->push(std::make_pair(context, logprob_set_type(ngram.logprob_min(),
 											 ngram.logprob_min(),
 											 backoff)));
@@ -1087,26 +1108,20 @@ namespace expgram
 
     NGramBackwardReducer(ngram_type&   _ngram,
 			 queue_ptr_set_type& _queues,
-			 ostream_type& _os_logprob,
-			 ostream_type& _os_logbound,
-			 ostream_type& _os_backoff,
+			 shard_type&         _shard_data,
 			 const int           _shard,
 			 const int           _max_order,
 			 const int           _debug)
       : ngram(_ngram),
 	queues(_queues),
-	os_logprob(_os_logprob),
-	os_logbound(_os_logbound),
-	os_backoff(_os_backoff),
+	shard_data(_shard_data),
 	shard(_shard),
 	max_order(_max_order),
 	debug(_debug) {}
     
     ngram_type&         ngram;
     queue_ptr_set_type& queues;
-    ostream_type&       os_logprob;
-    ostream_type&       os_logbound;
-    ostream_type&       os_backoff;
+    shard_type&         shard_data;
     int                 shard;
     int                 max_order;
     int                 debug;
@@ -1173,11 +1188,11 @@ namespace expgram
 	const size_type pos_last  = positions_last[i];
 	
 	if (pos_last > pos_first) {
-	  dump(os_logprob,  logprobs.begin()  + pos_first, logprobs.begin()  + pos_last);
-	  dump(os_logbound, logbounds.begin() + pos_first, logbounds.begin() + pos_last);
+	  dump(shard_data.os_logprob,  logprobs.begin()  + pos_first, logprobs.begin()  + pos_last);
+	  dump(shard_data.os_logbound, logbounds.begin() + pos_first, logbounds.begin() + pos_last);
 	  
 	  if (order_prev + 1 != max_order)
-	    dump(os_backoff, backoffs.begin() + pos_first, backoffs.begin() + pos_last);
+	    dump(shard_data.os_backoff, backoffs.begin() + pos_first, backoffs.begin() + pos_last);
 	  
 	  for (size_type pos = pos_first; pos != pos_last; ++ pos) {
 	    const id_type id = ids[pos];
@@ -1435,8 +1450,10 @@ namespace expgram
 	
 	if (logprobs.backoff == ngram_type::logprob_min()) // probability
 	  std::reverse(context.begin(), context.end() - 1);
-	else // backoff..
+	else if (logprobs.prob == ngram_type::logprob_min() && logprobs.bound == ngram_type::logprob_min())
 	  std::reverse(context.begin(), context.end());
+	else
+	  throw std::runtime_error("invalid context!");
 	
 	os.write((char*) &(*context.begin()), sizeof(context_type::value_type) * order);
 	os.write((char*) &logprobs, sizeof(logprob_set_type));
@@ -1452,6 +1469,26 @@ namespace expgram
       
       boost::filesystem::remove(path_ngram);
       utils::tempfile::erase(path_ngram);
+      
+      // finalization....
+      shard_data.os_logprob.reset();
+      shard_data.os_logbound.reset();
+      shard_data.os_backoff.reset();
+      
+      while (! boost::filesystem::exists(shard_data.path_logprob))
+	boost::thread::yield();      
+      while (! boost::filesystem::exists(shard_data.path_logbound))
+	boost::thread::yield();
+      while (! boost::filesystem::exists(shard_data.path_backoff))
+	boost::thread::yield();
+      
+      utils::tempfile::permission(shard_data.path_logprob);
+      utils::tempfile::permission(shard_data.path_logbound);
+      utils::tempfile::permission(shard_data.path_backoff);
+      
+      ngram.logprobs[shard].logprobs.open(shard_data.path_logprob);
+      ngram.logbounds[shard].logprobs.open(shard_data.path_logbound);
+      ngram.backoffs[shard].logprobs.open(shard_data.path_backoff);
     }
   };
   
@@ -1468,6 +1505,9 @@ namespace expgram
     typedef map_reduce_type::ostream_type         ostream_type;
     typedef map_reduce_type::ostream_ptr_set_type ostream_ptr_set_type;
     typedef map_reduce_type::path_set_type        path_set_type;
+    
+    typedef map_reduce_type::shard_type     shard_type;
+    typedef map_reduce_type::shard_set_type shard_set_type;
     
     // we make sure that we have computed upper bounds
     bounds();
@@ -1498,30 +1538,21 @@ namespace expgram
     
     // setup paths and streams for logprob/backoff
     const path_type tmp_dir = utils::tempfile::tmp_dir();
-    
-    ostream_ptr_set_type os_logprobs(shard_size);
-    ostream_ptr_set_type os_logbounds(shard_size);
-    ostream_ptr_set_type os_backoffs(shard_size);
-    path_set_type        path_logprobs(shard_size);
-    path_set_type        path_logbounds(shard_size);
-    path_set_type        path_backoffs(shard_size);
+
+    shard_set_type shards(shard_size);
     
     for (size_type shard = 0; shard != shard_size; ++ shard) {
-      path_logprobs[shard]  = utils::tempfile::file_name(tmp_dir / "expgram.logprob.XXXXXX");
-      path_logbounds[shard] = utils::tempfile::file_name(tmp_dir / "expgram.logbound.XXXXXX");
-      path_backoffs[shard]  = utils::tempfile::file_name(tmp_dir / "expgram.backoff.XXXXXX");
+      shards[shard].path_logprob  = utils::tempfile::file_name(tmp_dir / "expgram.logprob.XXXXXX");
+      shards[shard].path_logbound = utils::tempfile::file_name(tmp_dir / "expgram.logbound.XXXXXX");
+      shards[shard].path_backoff  = utils::tempfile::file_name(tmp_dir / "expgram.backoff.XXXXXX");
       
-      utils::tempfile::insert(path_logprobs[shard]);
-      utils::tempfile::insert(path_logbounds[shard]);
-      utils::tempfile::insert(path_backoffs[shard]);
+      utils::tempfile::insert(shards[shard].path_logprob);
+      utils::tempfile::insert(shards[shard].path_logbound);
+      utils::tempfile::insert(shards[shard].path_backoff);
       
-      os_logprobs[shard].reset(new ostream_type());
-      os_logbounds[shard].reset(new ostream_type());
-      os_backoffs[shard].reset(new ostream_type());
-      
-      os_logprobs[shard]->push(boost::iostreams::file_sink(path_logprobs[shard].string().c_str()), 1024 * 1024);
-      os_logbounds[shard]->push(boost::iostreams::file_sink(path_logbounds[shard].string().c_str()), 1024 * 1024);
-      os_backoffs[shard]->push(boost::iostreams::file_sink(path_backoffs[shard].string().c_str()), 1024 * 1024);
+      shards[shard].os_logprob.push(boost::iostreams::file_sink(shards[shard].path_logprob.string()),   1024 * 1024);
+      shards[shard].os_logbound.push(boost::iostreams::file_sink(shards[shard].path_logbound.string()), 1024 * 1024);
+      shards[shard].os_backoff.push(boost::iostreams::file_sink(shards[shard].path_backoff.string()),   1024 * 1024);
     }
     
     // handling unigram...!
@@ -1532,9 +1563,9 @@ namespace expgram
       const logprob_type logbound = logbounds[0](pos, 1);
       const logprob_type backoff  = backoffs[0](pos, 1);
       
-      os_logprobs[0]->write((char*) &logprob,   sizeof(logprob_type));
-      os_logbounds[0]->write((char*) &logbound, sizeof(logprob_type));
-      os_backoffs[0]->write((char*) &backoff,   sizeof(logprob_type));
+      shards[0].os_logprob.write((char*) &logprob,   sizeof(logprob_type));
+      shards[0].os_logbound.write((char*) &logbound, sizeof(logprob_type));
+      shards[0].os_backoff.write((char*) &backoff,   sizeof(logprob_type));
     }
     
     for (size_type shard = 0; shard != shard_size; ++ shard) {
@@ -1563,9 +1594,7 @@ namespace expgram
     for (size_type shard = 0; shard != shard_size; ++ shard)
       reducers.add_thread(new thread_type(reducer_type(ngram,
 						       queues,
-						       *os_logprobs[shard],
-						       *os_logbounds[shard],
-						       *os_backoffs[shard],
+						       shards[shard],
 						       shard,
 						       index.order(),
 						       debug)));
@@ -1577,35 +1606,14 @@ namespace expgram
     mappers.join_all();
     reducers.join_all();
 
-    // finalization...
-    for (size_type shard = 0; shard != shard_size; ++ shard) {
-      os_logprobs[shard].reset();
-      os_logbounds[shard].reset();
-      os_backoffs[shard].reset();
-
-      while (! boost::filesystem::exists(path_logprobs[shard]))
-	boost::thread::yield();      
-      while (! boost::filesystem::exists(path_logbounds[shard]))
-	boost::thread::yield();
-      while (! boost::filesystem::exists(path_backoffs[shard]))
-	boost::thread::yield();
-      
-      utils::tempfile::permission(path_logprobs[shard]);
-      utils::tempfile::permission(path_logbounds[shard]);
-      utils::tempfile::permission(path_backoffs[shard]);
-      
-      ngram.logprobs[shard].logprobs.open(path_logprobs[shard]);
-      ngram.logbounds[shard].logprobs.open(path_logbounds[shard]);
-      ngram.backoffs[shard].logprobs.open(path_backoffs[shard]);
-
-      if (debug)
+    if (debug)
+      for (size_type shard = 0; shard != shard_size; ++ shard)
 	std::cerr << "shard: " << shard
 		  << " logprob: " << ngram.logprobs[shard].size()
 		  << " logbound: " << ngram.logbounds[shard].size()
 		  << " backoff: " << ngram.backoffs[shard].size()
 		  << std::endl;
-    }
-
+    
     ngram.swap(*this);
   }
 
@@ -1896,6 +1904,22 @@ namespace expgram
     typedef boost::shared_ptr<ostream_type>                                  ostream_ptr_type;
     typedef std::vector<ostream_ptr_type, std::allocator<ostream_ptr_type> > ostream_ptr_set_type;
     
+    struct shard_type
+    {
+      ostream_type os_logprob;
+      ostream_type os_backoff;
+      
+      path_type path_logprob;
+      path_type path_backoff;
+      
+      // we allow no copying!
+      shard_type() {}
+      shard_type(const shard_type& x) {}
+      shard_type& operator=(const shard_type& x) { return *this; }
+    };
+    
+    typedef std::vector<shard_type, std::allocator<shard_type> > shard_set_type;
+
   };
   
   struct NGramIndexReducer
@@ -1920,6 +1944,9 @@ namespace expgram
     
     typedef map_reduce_type::queue_type                queue_type;
     typedef map_reduce_type::ostream_type              ostream_type;
+
+    typedef map_reduce_type::shard_type     shard_type;
+    typedef map_reduce_type::shard_set_type shard_set_type;
     
     typedef std::pair<id_type, logprob_pair_type>                                        word_logprob_pair_type;
     typedef std::vector<word_logprob_pair_type, std::allocator<word_logprob_pair_type> > word_logprob_pair_set_type;
@@ -1930,8 +1957,7 @@ namespace expgram
     
     ngram_type&   ngram;
     queue_type&   queue;
-    ostream_type& os_logprob;
-    ostream_type& os_backoff;
+    shard_type&   shard_data;
     int shard;
     int max_order;
     int debug;
@@ -1945,15 +1971,13 @@ namespace expgram
     
     NGramIndexReducer(ngram_type&   _ngram,
 		      queue_type&   _queue,
-		      ostream_type& _os_logprob,
-		      ostream_type& _os_backoff,
+		      shard_type&   _shard_data,
 		      const int     _shard,
 		      const int     _max_order,
 		      const int     _debug)
       : ngram(_ngram),
 	queue(_queue),
-	os_logprob(_os_logprob),
-	os_backoff(_os_backoff),
+	shard_data(_shard_data),
 	shard(_shard),
 	max_order(_max_order),
 	debug(_debug) {}
@@ -2012,10 +2036,10 @@ namespace expgram
 	const size_type pos_last  = positions_last[i];
 	
 	if (pos_last > pos_first) {
-	  dump(os_logprob, logprobs.begin() + pos_first, logprobs.begin() + pos_last);
+	  dump(shard_data.os_logprob, logprobs.begin() + pos_first, logprobs.begin() + pos_last);
 	  
 	  if (order_prev + 1 != max_order)
-	    dump(os_backoff, backoffs.begin() + pos_first, backoffs.begin() + pos_last);
+	    dump(shard_data.os_backoff, backoffs.begin() + pos_first, backoffs.begin() + pos_last);
 	  
 	  for (size_type pos = pos_first; pos != pos_last; ++ pos) {
 	    const id_type id = ids[pos];
@@ -2256,6 +2280,21 @@ namespace expgram
       
       boost::filesystem::remove(path_ngram);
       utils::tempfile::erase(path_ngram);
+
+      // finalization...
+      shard_data.os_logprob.reset();
+      shard_data.os_backoff.reset();
+      
+      while (! boost::filesystem::exists(shard_data.path_logprob))
+	boost::thread::yield();
+      while (! boost::filesystem::exists(shard_data.path_backoff))
+	boost::thread::yield();
+
+      utils::tempfile::permission(shard_data.path_logprob);
+      utils::tempfile::permission(shard_data.path_backoff);
+
+      ngram.logprobs[shard].logprobs.open(shard_data.path_logprob);
+      ngram.backoffs[shard].logprobs.open(shard_data.path_backoff);
     }
   };
   
@@ -2292,6 +2331,9 @@ namespace expgram
     
     typedef std::vector<id_type, std::allocator<id_type> > vocab_map_type;
     
+    typedef map_reduce_type::shard_type     shard_type;
+    typedef map_reduce_type::shard_set_type shard_set_type;
+
     // setup structures...
     clear();
     
@@ -2308,23 +2350,18 @@ namespace expgram
     
     // setup paths and streams for logprob/backoff
     const path_type tmp_dir = utils::tempfile::tmp_dir();
-    
-    ostream_ptr_set_type os_logprobs(shard_size);
-    ostream_ptr_set_type os_backoffs(shard_size);
-    path_set_type        path_logprobs(shard_size);
-    path_set_type        path_backoffs(shard_size);
+
+    shard_set_type shards(shard_size);
     
     for (size_type shard = 0; shard != shard_size; ++ shard) {
-      path_logprobs[shard] = utils::tempfile::file_name(tmp_dir / "expgram.logprob.XXXXXX");
-      path_backoffs[shard] = utils::tempfile::file_name(tmp_dir / "expgram.backoff.XXXXXX");
+      shards[shard].path_logprob = utils::tempfile::file_name(tmp_dir / "expgram.logprob.XXXXXX");
+      shards[shard].path_backoff = utils::tempfile::file_name(tmp_dir / "expgram.backoff.XXXXXX");
       
-      utils::tempfile::insert(path_logprobs[shard]);
-      utils::tempfile::insert(path_backoffs[shard]);
+      utils::tempfile::insert(shards[shard].path_logprob);
+      utils::tempfile::insert(shards[shard].path_backoff);
       
-      os_logprobs[shard].reset(new ostream_type());
-      os_backoffs[shard].reset(new ostream_type());
-      os_logprobs[shard]->push(boost::iostreams::file_sink(path_logprobs[shard].string().c_str()), 1024 * 1024);
-      os_backoffs[shard]->push(boost::iostreams::file_sink(path_backoffs[shard].string().c_str()), 1024 * 1024);
+      shards[shard].os_logprob.push(boost::iostreams::file_sink(shards[shard].path_logprob.string()), 1024 * 1024);
+      shards[shard].os_backoff.push(boost::iostreams::file_sink(shards[shard].path_backoff.string()), 1024 * 1024);
     }
     
     typedef enum {
@@ -2421,8 +2458,8 @@ namespace expgram
 	if (witer->first == vocab_type::UNK)
 	  smooth = witer->second.first;
 	
-	os_logprobs[0]->write((char*) &witer->second.first, sizeof(logprob_type));
-	os_backoffs[0]->write((char*) &witer->second.second, sizeof(logprob_type));
+	shards[0].os_logprob.write((char*) &witer->second.first, sizeof(logprob_type));
+	shards[0].os_backoff.write((char*) &witer->second.second, sizeof(logprob_type));
 	
 	if (witer->first.id() >= vocab_map.size())
 	  vocab_map.resize(witer->first.id() + 1, id_type(-1));
@@ -2467,7 +2504,7 @@ namespace expgram
     thread_ptr_set_type  threads(shard_size);
     for (size_type shard = 0; shard != shard_size; ++ shard) {
       queues[shard].reset(new queue_type(1024 * 64));
-      threads[shard].reset(new thread_type(reducer_type(*this, *queues[shard], *os_logprobs[shard], *os_backoffs[shard], shard, max_order, debug)));
+      threads[shard].reset(new thread_type(reducer_type(*this, *queues[shard], shards[shard], shard, max_order, debug)));
     }
     
     context_type context;
@@ -2546,22 +2583,8 @@ namespace expgram
     for (size_type shard = 0; shard != index.size(); ++ shard) {
       threads[shard]->join();
       
-      os_logprobs[shard].reset();
-      os_backoffs[shard].reset();
-
-      while (! boost::filesystem::exists(path_logprobs[shard]))
-	boost::thread::yield();
-      while (! boost::filesystem::exists(path_backoffs[shard]))
-	boost::thread::yield();
-
-      utils::tempfile::permission(path_logprobs[shard]);
-      utils::tempfile::permission(path_backoffs[shard]);
-      
-      logprobs[shard].logprobs.open(path_logprobs[shard]);
-      backoffs[shard].logprobs.open(path_backoffs[shard]);
-      
       if (debug)
-	std::cerr << "shard: " << shard
+	std::cerr << "ngram shard: " << shard
 		  << " logprob: " << logprobs[shard].size()
 		  << " backoff: " << backoffs[shard].size()
 		  << std::endl;

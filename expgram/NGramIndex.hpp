@@ -448,9 +448,15 @@ namespace expgram
       
       if (length <= 1)
 	return std::make_pair(first, last);
+
+      // Any way, we will + 1 after the longest match. So, we can decrement and try
+      // find the longest match within this decremented range.
+      -- last;
+      -- length;
       
       // we will try find the maximum ngram we can match
       // TODO: do we use the context-inverted style for ngram indexing, or use full-inversion for backoff indexing...???
+      // Here, we use context-inverted ngram indexing, not backoff indexing
       for (Iterator iter = last; iter != first; -- iter, -- length) {
 	if (length == 1)
 	  return std::make_pair(first, first + 1 + bool(! next(state_type(), *(iter - 1)).is_root_node()));
@@ -472,7 +478,7 @@ namespace expgram
 	    state = state_type(size_type(-1), state.node());
 	  
 	  if (! next(state, *(iter - 1)).is_root_node())
-	    return std::make_pair(first, std::min(iter + 1, last));
+	    return std::make_pair(first, iter + 1);
 	}
       }
       

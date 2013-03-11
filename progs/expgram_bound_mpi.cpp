@@ -289,7 +289,6 @@ void ngram_bound_mapper(const ngram_type& ngram, intercomm_type& reducer)
 	
 	const logprob_type logprob = ngram.logprobs[mpi_rank](pos, order_prev + 1);
 	if (logprob != ngram.logprob_min()) {
-#if 1
 	  context_type::const_iterator citer_end = context.end();
 	  context_type::const_iterator citer_begin = context.begin() + 1;
 	  if (citer_end - citer_begin == 1)
@@ -306,7 +305,6 @@ void ngram_bound_mapper(const ngram_type& ngram, intercomm_type& reducer)
 	    utils::encode_base64(logprob, std::ostream_iterator<char>(*stream[shard]));
 	    *stream[shard] << '\n';
 	  }
-#endif	  
 	}
       }
       
@@ -410,7 +408,7 @@ void ngram_bound_reducer(ngram_type& ngram, intercomm_type& mapper)
 	  tokens_type::const_iterator titer_end = tokens.end() - 1;
 	  for (tokens_type::const_iterator titer = tokens.begin(); titer != titer_end; ++ titer)
 	    context.push_back(utils::lexical_cast<id_type>(*titer));
-
+	  
 	  std::reverse(context.begin(), context.end() - 1);
 	  
 	  std::pair<context_type::const_iterator, size_type> result = ngram.index.traverse(mpi_rank, context.begin(), context.end());

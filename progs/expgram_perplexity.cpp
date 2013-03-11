@@ -1,5 +1,5 @@
 //
-//  Copyright(C) 2009-2012 Taro Watanabe <taro.watanabe@nict.go.jp>
+//  Copyright(C) 2009-2013 Taro Watanabe <taro.watanabe@nict.go.jp>
 //
 
 #include <iostream>
@@ -63,13 +63,15 @@ int main(int argc, char** argv)
     const word_type::id_type eos_id = ngram.index.vocab()[vocab_type::EOS];
     const word_type::id_type unk_id = ngram.index.vocab()[vocab_type::UNK];
     const word_type::id_type none_id = word_type::id_type(-1);
+
+    const state_type state_bos = ngram.index.next(state_type(), bos_id);
     
     while (is >> sentence) {
       // add BOS and EOS
       
       if (sentence.empty()) continue;
       
-      state_type state = ngram.index.next(state_type(), bos_id);
+      state_type state = state_bos;
       
       sentence_type::const_iterator siter_end = sentence.end();
       for (sentence_type::const_iterator siter = sentence.begin(); siter != siter_end; ++ siter) {
