@@ -92,6 +92,18 @@ namespace expgram
 		? stat_type(quantized.size_bytes(), quantized.size_compressed(), quantized.size_cache())
 		: stat_type(logprobs.size_bytes(), logprobs.size_compressed(), logprobs.size_cache()));
       }
+
+      friend
+      bool operator==(const ShardData& x, const ShardData& y)
+      {
+	return x.logprobs == y.logprobs && x.quantized == y.quantized && x.maps == y.maps && x.offset == y.offset;
+      }
+
+      friend
+      bool operator!=(const ShardData& x, const ShardData& y)
+      {
+	return !(x == y);
+      }
       
       logprob_set_type     logprobs;
       quantized_set_type   quantized;
@@ -485,6 +497,20 @@ namespace expgram
     stat_type stat_index() const { return index.stat_index(); }
     stat_type stat_pointer() const { return index.stat_pointer(); }
     stat_type stat_vocab() const { return index.stat_vocab(); }
+
+  public:
+    
+    friend
+    bool operator==(const NGram& x, const NGram& y)
+    {
+      return x.index == y.index && x.logprobs == y.logprobs && x.backoffs == y.backoffs && x.logbounds == y.logbounds && x.smooth == y.smooth;
+    }
+
+    friend
+    bool operator!=(const NGram& x, const NGram& y)
+    {
+      return !(x == y);
+    }
 
   private:
     template <typename Iterator>
