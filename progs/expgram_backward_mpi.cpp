@@ -412,7 +412,6 @@ void ngram_backward_prepare(const ngram_type& ngram, ngram_type& ngram_backward,
   ngram_backward.index.order() = ngram.index.order();
   ngram_backward.index.backward() = true;
   
-  
   ngram_backward.logprobs.reserve(shard_size);
   ngram_backward.logbounds.reserve(shard_size);
   ngram_backward.backoffs.reserve(shard_size);
