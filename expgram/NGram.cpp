@@ -938,6 +938,7 @@ namespace expgram
     typedef std::vector<path_type, std::allocator<path_type> > path_set_type;
     
     typedef std::vector<id_type, std::allocator<id_type> > context_type;
+    
     struct logprob_set_type
     {
       logprob_type prob;
@@ -1055,11 +1056,13 @@ namespace expgram
 	    context.back() = ngram.index[shard][pos];
 	    
 	    const logprob_type prob    = ngram.logprobs[shard](pos, context_size);
-	    const logprob_type bound   = (context_size != order_max ? ngram.logbounds[shard](pos, context_size) : ngram.logprob_min());
-	    const logprob_type backoff = (context_size != order_max ? ngram.backoffs[shard](pos, context_size) : ngram.logprob_min());
+	    const logprob_type bound   = (context_size != order_max
+					  ? ngram.logbounds[shard](pos, context_size)
+					  : ngram.logprob_min());
+	    const logprob_type backoff = (context_size != order_max
+					  ? ngram.backoffs[shard](pos, context_size)
+					  : ngram.logprob_min());
 	    
-	    // revise this....
-
 	    if (context_size == 2) {
 	      const size_type shard_index = ngram.index.shard_index(context[0], context[1]);
 	      
@@ -1149,7 +1152,12 @@ namespace expgram
     void dump(std::ostream& os, Iterator first, Iterator last)
     {
       typedef typename std::iterator_traits<Iterator>::value_type value_type;
-      os.write((char*) &(*first), (last - first) * sizeof(value_type));
+      
+      while (first != last) {
+	Iterator next = std::min(first + 1024 * 1024, last);
+	os.write((char*) &(*first), (next - first) * sizeof(value_type));
+	first = next;
+      }
     }
     
     void index_ngram()
@@ -2002,7 +2010,12 @@ namespace expgram
     void dump(std::ostream& os, Iterator first, Iterator last)
     {
       typedef typename std::iterator_traits<Iterator>::value_type value_type;
-      os.write((char*) &(*first), (last - first) * sizeof(value_type));
+      
+      while (first != last) {
+	Iterator next = std::min(first + 1024 * 1024, last);
+	os.write((char*) &(*first), (next - first) * sizeof(value_type));
+	first = next;
+      }
     }
     
     void index_ngram()

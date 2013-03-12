@@ -330,11 +330,12 @@ void ngram_modify_mapper(const ngram_type& ngram, intercomm_type& reducer)
   }
   
   // loop-until terminated...
+  int non_found_iter = 0;
+  
   for (;;) {
     if (std::count(device.begin(), device.end(), odevice_ptr_type()) == mpi_size) break;
     
-    if (! utils::mpi_terminate_devices(stream, device))
-      boost::thread::yield();
+    non_found_iter = loop_sleep(utils::mpi_terminate_devices(stream, device), non_found_iter);
   }
 }
 

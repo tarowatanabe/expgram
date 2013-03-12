@@ -6,6 +6,27 @@
 #ifndef __UTILS__CHUNK_VECTOR__HPP__
 #define __UTILS__CHUNK_VECTOR__HPP__ 1
 
+#if 0
+
+#include <deque>
+
+namespace utils
+{
+
+  template <typename _Tp, size_t _ChunkSize=128, typename _Alloc=std::allocator<_Tp> >
+  class chunk_vector : public std::deque<_Tp, _Alloc>
+  {
+    typedef std::deque<_Tp, _Alloc> base_type;
+
+  public:
+    chunk_vector() : base_type() {}
+    chunk_vector(typename base_type::size_type x) : base_type(x) {}
+    chunk_vector(typename base_type::size_type x, const _Tp& val) : base_type(x, val) {}
+    template <typename Iterator>
+    chunk_vector(Iterator first, Iterator last) : base_type(first, last) {}
+  };
+};
+#endif
 //
 // chunk vector inspired by std::deque
 //
@@ -838,6 +859,50 @@ namespace utils
       }
     }
   };
+  
+  template <typename Tp, size_t Size, typename Alloc>
+  inline
+  bool operator==(const chunk_vector<Tp, Size, Alloc>& x,
+		  const chunk_vector<Tp, Size, Alloc>& y)
+  {
+    return x.size() == y.size() && std::equal(x.begin(), x.end(), y.begin());
+  }
+  template <typename Tp, size_t Size, typename Alloc>
+  inline
+  bool operator!=(const chunk_vector<Tp, Size, Alloc>& x,
+		  const chunk_vector<Tp, Size, Alloc>& y)
+  {
+    return !(x == y);
+  }
+  template <typename Tp, size_t Size, typename Alloc>
+  inline
+  bool operator<(const chunk_vector<Tp, Size, Alloc>& x,
+		 const chunk_vector<Tp, Size, Alloc>& y)
+  {
+    return std::lexicographical_compare(x.begin(), x.end(), y.begin(), y.end());
+  }
+  template <typename Tp, size_t Size, typename Alloc>
+  inline
+  bool operator>(const chunk_vector<Tp, Size, Alloc>& x,
+		 const chunk_vector<Tp, Size, Alloc>& y)
+  {
+    return y < x;
+  }
+  template <typename Tp, size_t Size, typename Alloc>
+  inline
+  bool operator<=(const chunk_vector<Tp, Size, Alloc>& x,
+		  const chunk_vector<Tp, Size, Alloc>& y)
+  {
+    return ! (y < x);
+  }
+  template <typename Tp, size_t Size, typename Alloc>
+  inline
+  bool operator>=(const chunk_vector<Tp, Size, Alloc>& x,
+		  const chunk_vector<Tp, Size, Alloc>& y)
+  {
+    return ! (x < y);
+  }
+
 };
 
 namespace std

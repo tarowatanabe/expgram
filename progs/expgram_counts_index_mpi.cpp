@@ -209,6 +209,26 @@ int main(int argc, char** argv)
   }
   return 0;
 }
+
+inline
+int loop_sleep(bool found, int non_found_iter)
+{
+  if (! found) {
+    boost::thread::yield();
+    ++ non_found_iter;
+  } else
+    non_found_iter = 0;
+  
+  if (non_found_iter >= 50) {
+    struct timespec tm;
+    tm.tv_sec = 0;
+    tm.tv_nsec = 2000001;
+    nanosleep(&tm, NULL);
+    
+    non_found_iter = 0;
+  }
+  return non_found_iter;
+}
   
 inline
 word_type escape_word(const utils::piece& __word)
@@ -595,11 +615,12 @@ void index_ngram_mapper(intercomm_type& reducer, const PathSet& paths, ngram_typ
     stream[rank].reset();
   }
   
+  int non_found_iter = 0;
+  
   for (;;) {
     if (std::count(device.begin(), device.end(), odevice_ptr_type()) == mpi_size) break;
     
-    if (! utils::mpi_terminate_devices(stream, device))
-      boost::thread::yield();
+    non_found_iter = loop_sleep(utils::mpi_terminate_devices(stream, device), non_found_iter);
   }
 }
 

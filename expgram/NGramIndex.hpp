@@ -298,6 +298,20 @@ namespace expgram
 	  }
 	}
       }
+
+    public:
+      
+      friend
+      bool operator==(const Shard& x, const Shard& y)
+      {
+	return x.ids == y.ids && x.positions == y.positions && x.offsets == y.offsets;
+      }
+      
+      friend
+      bool operator!=(const Shard& x, const Shard& y)
+      {
+	return !(x == y);
+      }
       
     private:
       size_type __find(size_type pos, const id_type& id) const
@@ -774,7 +788,21 @@ namespace expgram
     {
       return stat_type(__vocab.size_bytes(), __vocab.size_compressed(), __vocab.size_cache());
     }
-  
+    
+  public:
+    
+    friend
+    bool operator==(const NGramIndex& x, const NGramIndex& y)
+    {
+      return x.__shards == y.__shards && x.__order == y.__order && x.__backward == y.__backward;
+    }
+
+    friend
+    bool operator!=(const NGramIndex& x, const NGramIndex& y)
+    {
+      return !(x == y);
+    }
+    
   private:
     
     template <typename Iterator, typename _Word>

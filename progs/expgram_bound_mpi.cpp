@@ -1,5 +1,5 @@
 //
-//  Copyright(C) 2009-2012 Taro Watanabe <taro.watanabe@nict.go.jp>
+//  Copyright(C) 2009-2013 Taro Watanabe <taro.watanabe@nict.go.jp>
 //
 
 #include <iostream>
@@ -106,6 +106,9 @@ int main(int argc, char** argv)
       
       if (getoptions(argc, argv) != 0) 
 	return 1;
+
+      if (! temporary_dir.empty())
+	::setenv("TMPDIR_SPEC", temporary_dir.string().data(), 1);
 
       if (ngram_file.empty() || ! boost::filesystem::exists(ngram_file))
 	throw std::runtime_error("no ngram file?");
@@ -335,11 +338,12 @@ void ngram_bound_mapper(const ngram_type& ngram, intercomm_type& reducer)
   }
   
   // loop-until terminated...
+  int non_found_iter = 0;
+  
   for (;;) {
     if (std::count(device.begin(), device.end(), odevice_ptr_type()) == mpi_size) break;
     
-    if (! utils::mpi_terminate_devices(stream, device))
-      boost::thread::yield();
+    non_found_iter = loop_sleep(utils::mpi_terminate_devices(stream, device), non_found_iter);
   }
 }
 
@@ -351,8 +355,8 @@ void dump_file(const Path& file, const Data& data)
   os->push(boost::iostreams::file_sink(file.string(), std::ios_base::out | std::ios_base::trunc), 1024 * 1024);
   
   const int64_t file_size = sizeof(typename Data::value_type) * data.size();
-    for (int64_t offset = 0; offset < file_size; offset += 1024 * 1024)
-      os->write(((char*) &(*data.begin())) + offset, std::min(int64_t(1024 * 1024), file_size - offset));
+  for (int64_t offset = 0; offset < file_size; offset += 1024 * 1024)
+    os->write(((char*) &(*data.begin())) + offset, std::min(int64_t(1024 * 1024), file_size - offset));
 }
 
 void ngram_bound_reducer(ngram_type& ngram, intercomm_type& mapper)
