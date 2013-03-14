@@ -44,7 +44,7 @@ int main(int argc, char** argv)
       ngrams[i].reset(new expgram::NGram(ngram_files[i], shards, debug));
       
       if (i && *ngrams[0] != *ngrams[i])
-	std::cerr << i << "th ngram is different from the first ngram!";
+	std::cerr << i << "th ngram is different from the first ngram!" << std::endl;
     }
   }
   catch (std::exception& err) {
@@ -60,7 +60,6 @@ int getoptions(int argc, char** argv)
   
   po::options_description desc("options");
   desc.add_options()
-    ("ngram",     po::value<path_set_type>(&ngram_files)->multitoken(),           "ngram(s)")
     ("output",    po::value<path_type>(&output_file)->default_value(output_file), "output result")
     ("temporary", po::value<path_type>(&temporary_dir),                           "temporary directory")
 
@@ -69,12 +68,22 @@ int getoptions(int argc, char** argv)
     ("debug", po::value<int>(&debug)->implicit_value(1), "debug level")
     ("help", "help message");
   
+  po::options_description hidden;
+  hidden.add_options()
+    ("ngram", po::value<path_set_type>(&ngram_files), "input file");
+
+  po::options_description cmdline_options;
+  cmdline_options.add(desc).add(hidden);
+
+  po::positional_options_description pos;
+  pos.add("ngram", -1); // all the files
+
   po::variables_map vm;
-  po::store(po::parse_command_line(argc, argv, desc, po::command_line_style::unix_style & (~po::command_line_style::allow_guessing)), vm);
+  po::store(po::command_line_parser(argc, argv).style(po::command_line_style::unix_style & (~po::command_line_style::allow_guessing)).options(cmdline_options).positional(pos).run(), vm);
   po::notify(vm);
   
   if (vm.count("help")) {
-    std::cout << argv[0] << " [options]" << '\n' << desc << '\n';
+    std::cout << argv[0] << " [options] ngram(s)" << '\n' << desc << '\n';
     return 1;
   }
   
