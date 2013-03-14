@@ -927,9 +927,9 @@ if __name__ == '__main__':
                         debug=options.debug)
 
     if options.first_step <= 6 and options.last_step >= 6:
-        print "(6) estimate language model started  @", time.ctime()
-        estimate.run()
-        print "(6) estimate language model finished @", time.ctime()
+        print "(6) backward trie language model started  @", time.ctime()
+        backward.run()
+        print "(6) backward trie language model finished @", time.ctime()
         print "(6) language model:", backward.ngram
     
     quantize = Quantize(expgram=expgram,
