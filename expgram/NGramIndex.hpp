@@ -794,7 +794,7 @@ namespace expgram
     friend
     bool operator==(const NGramIndex& x, const NGramIndex& y)
     {
-      return x.__shards == y.__shards && x.__order == y.__order && x.__backward == y.__backward;
+      return x.__vocab == y.__vocab && x.__shards == y.__shards && x.__order == y.__order && x.__backward == y.__backward;
     }
 
     friend

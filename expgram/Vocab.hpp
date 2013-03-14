@@ -212,6 +212,22 @@ namespace expgram
 	return UNK;
     }
 
+  public:
+    friend
+    bool operator==(const Vocab& x, const Vocab& y)
+    {
+      return (x.__succinct_hash_mapped == y.__succinct_hash_mapped
+	      || (x.__succinct_hash_mapped
+		  && y.__succinct_hash_mapped
+		  && *x.__succinct_hash_mapped == *y.__succinct_hash_mapped));
+    }
+    
+    friend
+    bool operator!=(const Vocab& x, const Vocab& y)
+    {
+      return !(x == y);
+    }
+    
   private:
     word_type::id_type __find(const word_type& word) const
     {

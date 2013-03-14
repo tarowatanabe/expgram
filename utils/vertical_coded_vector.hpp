@@ -417,7 +417,7 @@ namespace utils
   inline
   bool operator==(const vertical_coded_vector_mapped<T,A>& x, const vertical_coded_vector_mapped<T,A>& y)
   {
-    return x.compressede == y.compressed && x.off == y.off;
+    return x.compressed == y.compressed && x.off == y.off;
   }
   
   template <typename T, typename A>
