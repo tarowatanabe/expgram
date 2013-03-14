@@ -72,6 +72,19 @@ namespace expgram
       {
 	return stat_type(counts.size_bytes(), counts.size_compressed(), counts.size_cache());
       }
+
+    public:
+      friend
+      bool operator==(const ShardData& x, const ShardData& y)
+      {
+	return x.counts == y.counts && x.offset == y.offset;
+      }
+
+      friend
+      bool operator!=(const ShardData& x, const ShardData& y)
+      {
+	return !(x == y);
+      }
       
     public:
       count_set_type counts;
@@ -176,6 +189,20 @@ namespace expgram
 	stat += types[shard].stat();
       return stat;
     }
+
+  public:
+    friend
+    bool operator==(const NGramCounts& x, const NGramCounts& y)
+    {
+      return x.index == y.index && x.counts == y.counts && x.types == y.types;
+    }
+
+    friend
+    bool operator!=(const NGramCounts& x, const NGramCounts& y)
+    {
+      return !(x == y);
+    }
+
     
   private:
     void open_binary(const path_type& path);

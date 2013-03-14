@@ -36,6 +36,7 @@ bin_PROGRAMS = \
 	expgram_counts_extract \
 	expgram_counts_index \
 	expgram_counts_modify \
+	expgram_counts_diff \
 	expgram_counts_dump \
 	expgram_counts_estimate \
 	expgram_counts_stat \
@@ -71,6 +72,9 @@ expgram_clean_LDADD   = $(LIBUTILS) $(boost_LDADD) $(perftools_LDADD)
 
 expgram_bound_SOURCES = expgram_bound.cpp
 expgram_bound_LDADD   = $(LIBEXPGRAM) $(LIBUTILS) $(boost_LDADD) $(perftools_LDADD)
+
+expgram_counts_diff_SOURCES = expgram_counts_diff.cpp
+expgram_counts_diff_LDADD   = $(LIBEXPGRAM) $(LIBUTILS) $(boost_LDADD) $(perftools_LDADD)
 
 expgram_counts_dump_SOURCES = expgram_counts_dump.cpp
 expgram_counts_dump_LDADD   = $(LIBEXPGRAM) $(LIBUTILS) $(boost_LDADD) $(perftools_LDADD)
