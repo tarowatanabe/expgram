@@ -17,6 +17,7 @@ expgram.man \
 expgram_bound.man \
 expgram_diff.man \
 expgram_clean.man \
+expgram_counts_diff.man \
 expgram_counts_dump.man \
 expgram_counts_estimate.man \
 expgram_counts_extract.man \
