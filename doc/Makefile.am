@@ -15,6 +15,7 @@ man1_MANS = \
 expgram.py.man \
 expgram.man \
 expgram_bound.man \
+expgram_diff.man \
 expgram_clean.man \
 expgram_counts_dump.man \
 expgram_counts_estimate.man \
