@@ -136,8 +136,8 @@ namespace expgram
 	cache_suffix_type() : state(), suffix() {}
       };
 
-      typedef utils::array_power2<cache_pos_type,     1024 * 64, std::allocator<cache_pos_type> >     cache_pos_set_type;
-      typedef utils::array_power2<cache_suffix_type,  1024 * 64, std::allocator<cache_suffix_type> >  cache_suffix_set_type;
+      typedef utils::array_power2<cache_pos_type,    1024 * 64, std::allocator<cache_pos_type> >    cache_pos_set_type;
+      typedef utils::array_power2<cache_suffix_type, 1024 * 64, std::allocator<cache_suffix_type> > cache_suffix_set_type;
       
     public:
       Shard() {}
@@ -665,23 +665,11 @@ namespace expgram
     {
       return __shards[shard].traverse(first, last, __vocab);
     }
-
-    template <typename Iterator>
-    std::pair<Iterator, size_type> traverse(size_type shard, Iterator first, Iterator last, const int& shard_prev, const size_type& pos_prev) const
-    {
-      return __shards[shard].traverse(first, last, __vocab, shard_prev, pos_prev);
-    }
     
     template <typename Iterator>
     std::pair<Iterator, size_type> traverse(Iterator first, Iterator last) const
     {
       return __shards[shard_index(first, last)].traverse(first, last, __vocab);
-    }
-
-    template <typename Iterator>
-    std::pair<Iterator, size_type> traverse(Iterator first, Iterator last, const int& shard_prev, const size_type& pos_prev) const
-    {
-      return __shards[shard_index(first, last)].traverse(first, last, __vocab, shard_prev, pos_prev);
     }
 
     bool is_bos(const id_type& id) const

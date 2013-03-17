@@ -698,9 +698,15 @@ namespace expgram
 
 	  
 	  // we will traverse in order!
-	  context_type::iterator citer_curr = context.begin();
-	  for (size_type pos_curr = pos_context; pos_curr != size_type(-1); pos_curr = ngram.index[shard].parent(pos_curr), ++ citer_curr)
-	    *citer_curr = ngram.index[shard][pos_curr];
+	  if (ngram.index.backward()) {
+	    context_type::iterator citer_curr = context.begin();
+	    for (size_type pos_curr = pos_context; pos_curr != size_type(-1); pos_curr = ngram.index[shard].parent(pos_curr), ++ citer_curr)
+	      *citer_curr = ngram.index[shard][pos_curr];
+	  } else {
+	    context_type::iterator citer_curr = context.end() - 2;
+	    for (size_type pos_curr = pos_context; pos_curr != size_type(-1); pos_curr = ngram.index[shard].parent(pos_curr), -- citer_curr)
+	      *citer_curr = ngram.index[shard][pos_curr];
+	  }
 
 	  context_logprob.first = context;
 	  context_logprob.second.clear();
@@ -1020,12 +1026,15 @@ namespace expgram
     void operator()()
     {
       const size_type shard_size = ngram.index.size();
-      
+
       std::vector<queue_type*, std::allocator<queue_type*> > queues_shard(shard_size);
       for (size_type shard_index = 0; shard_index != shard_size; ++ shard_index)
 	queues_shard[shard_index] = &(*queues[shard_index]);
+
+      const logprob_type logprob_min = ngram_type::logprob_min();
       
       context_type context;
+      context_type context_mapped;
 
       size_type order_max = ngram.index.order();
       for (size_type order_prev = 1; order_prev < order_max; ++ order_prev) {
@@ -1038,6 +1047,7 @@ namespace expgram
 	const size_type context_size = order_prev + 1;
 	
 	context.resize(context_size);
+	context_mapped.resize(context_size);
 	
 	size_type pos_last_prev = pos_context_last;
 	for (size_type pos_context = pos_context_first; pos_context < pos_context_last; ++ pos_context) {
@@ -1058,39 +1068,56 @@ namespace expgram
 	    const logprob_type prob    = ngram.logprobs[shard](pos, context_size);
 	    const logprob_type bound   = (context_size != order_max
 					  ? ngram.logbounds[shard](pos, context_size)
-					  : ngram.logprob_min());
+					  : logprob_min);
 	    const logprob_type backoff = (context_size != order_max
 					  ? ngram.backoffs[shard](pos, context_size)
-					  : ngram.logprob_min());
+					  : logprob_min);
 	    
 	    if (context_size == 2) {
 	      const size_type shard_index = ngram.index.shard_index(context[0], context[1]);
 	      
-	      if (prob != ngram_type::logprob_min() || bound != ngram_type::logprob_min())
-		queues_shard[shard_index]->push(std::make_pair(context,
-							       logprob_set_type(prob, bound, ngram.logprob_min())));
+	      if (prob != logprob_min || bound != logprob_min) {
+		context_mapped = context;
+		std::reverse(context_mapped.begin(), context_mapped.end() - 1);
+		queues_shard[shard_index]->push(std::make_pair(context_mapped,
+							       logprob_set_type(prob, bound, logprob_min)));
+	      }
 	      
-	      if (context_size != order_max)
-		queues_shard[shard_index]->push(std::make_pair(context,
-							       logprob_set_type(ngram.logprob_min(), ngram.logprob_min(), backoff)));
-	      
+	      if (context_size != order_max) {
+		context_mapped = context;
+		std::reverse(context_mapped.begin(), context_mapped.end());
+		queues_shard[shard_index]->push(std::make_pair(context_mapped,
+							       logprob_set_type(logprob_min, logprob_min, backoff)));
+	      }
 	    } else if (context_size == order_max) {
 	      const size_type shard_index = ngram.index.shard_index(context[context_size - 3], context[context_size - 2]);
 	      
-	      if (prob != ngram_type::logprob_min() || bound != ngram_type::logprob_min())
-		queues_shard[shard_index]->push(std::make_pair(context,
-							       logprob_set_type(prob, bound, backoff)));
-	      
+	      if (prob != logprob_min || bound != logprob_min) {
+		context_mapped = context;
+		std::reverse(context_mapped.begin(), context_mapped.end() - 1);
+		queues_shard[shard_index]->push(std::make_pair(context_mapped,
+							       logprob_set_type(prob, bound, logprob_min)));
+	      }
 	    } else {
 	      const size_type shard_prob    = ngram.index.shard_index(context[context_size - 3], context[context_size - 2]);
 	      const size_type shard_backoff = ngram.index.shard_index(context[context_size - 2], context[context_size - 1]);
 	      
-	      if (prob != ngram_type::logprob_min() || bound != ngram_type::logprob_min())
-		queues_shard[shard_prob]->push(std::make_pair(context,
-							      logprob_set_type(prob, bound, ngram.logprob_min())));
+	      if (prob != logprob_min || bound != logprob_min) {
+		context_mapped = context;
+		std::reverse(context_mapped.begin(), context_mapped.end() - 1);
+		queues_shard[shard_prob]->push(std::make_pair(context_mapped,
+							      logprob_set_type(prob, bound, logprob_min)));
+	      }
 	      
-	      queues_shard[shard_backoff]->push(std::make_pair(context,
-							       logprob_set_type(ngram.logprob_min(), ngram.logprob_min(), backoff)));
+	      context_mapped = context;
+	      std::reverse(context_mapped.begin(), context_mapped.end());
+	      queues_shard[shard_backoff]->push(std::make_pair(context_mapped,
+							       logprob_set_type(logprob_min, logprob_min, backoff)));
+	      
+	      // make sure this backoff exists...
+	      context_mapped.pop_back();
+	      queues_shard[shard_backoff]->push(std::make_pair(context_mapped,
+							       logprob_set_type(logprob_min, logprob_min, logprob_min)));
 	    }
 	  }
 	}
@@ -1285,6 +1312,13 @@ namespace expgram
 	for (context_type::const_iterator citer = prefix.begin(); citer != citer_end; ++ citer)
 	  stream << ' '  << ngram.index.vocab()[*citer];
 	
+	stream << " word: " << ngram.index.vocab()[words.front().first]
+	       << " logprob: " << words.front().second.prob
+	       << " logbound: " << words.front().second.bound
+	       << " backoff: " << words.front().second.backoff;
+
+	std::cerr << "error: " << stream.str() << std::endl;
+	
 	throw std::runtime_error(stream.str());
       }
       
@@ -1354,6 +1388,8 @@ namespace expgram
       std::sort(ngrams.begin(), ngrams.end(), sized_key_less<id_type>(order));
 
       // compute prefix+words...
+
+      const logprob_type logprob_min = ngram_type::logprob_min();
       
       context_type prefix;
       word_logprob_map_type words;
@@ -1377,11 +1413,11 @@ namespace expgram
 	if (words.empty() || words.back().first != word)
 	  words.push_back(std::make_pair(word, logprobs));
 	else {
-	  if (words.back().second.prob == ngram_type::logprob_min())
+	  if (words.back().second.prob == logprob_min)
 	    words.back().second.prob = logprobs.prob;
-	  if (words.back().second.bound == ngram_type::logprob_min())
+	  if (words.back().second.bound == logprob_min)
 	    words.back().second.bound = logprobs.bound;
-	  if (words.back().second.backoff == ngram_type::logprob_min())
+	  if (words.back().second.backoff == logprob_min)
 	    words.back().second.backoff = logprobs.backoff;
 	}
       }
@@ -1444,13 +1480,6 @@ namespace expgram
 	  ++ terminated;
 	  continue;
 	}
-	
-	if (logprobs.backoff == ngram_type::logprob_min())
-	  std::reverse(context.begin(), context.end() - 1); // probability
-	else if (logprobs.prob == ngram_type::logprob_min() && logprobs.bound == ngram_type::logprob_min())
-	  std::reverse(context.begin(), context.end()); // backoff
-	else
-	  throw std::runtime_error("invalid ngram probabilities");
 	
 	const int order = context.size();
 	
@@ -1842,6 +1871,9 @@ namespace expgram
     // check if we already computed upper-bounds...
     if (logbounds.size() == logprobs.size())
       return;
+
+    if (debug)
+      std::cerr << "estimate upper bounds: shard = " << index.size() << std::endl;
     
     queue_ptr_set_type  queues(index.size());
     thread_ptr_set_type threads_mapper(index.size());
@@ -1886,7 +1918,7 @@ namespace expgram
     else
       return __word;
   }
-  
+
   // we define map-reduce object, but no mapper.... since mapper will be managed by main thread...
   struct NGramIndexMapReduce
   {
@@ -1919,22 +1951,6 @@ namespace expgram
     typedef boost::shared_ptr<ostream_type>                                  ostream_ptr_type;
     typedef std::vector<ostream_ptr_type, std::allocator<ostream_ptr_type> > ostream_ptr_set_type;
     
-    struct shard_type
-    {
-      ostream_type os_logprob;
-      ostream_type os_backoff;
-      
-      path_type path_logprob;
-      path_type path_backoff;
-      
-      // we allow no copying!
-      shard_type() {}
-      shard_type(const shard_type& x) {}
-      shard_type& operator=(const shard_type& x) { return *this; }
-    };
-    
-    typedef std::vector<shard_type, std::allocator<shard_type> > shard_set_type;
-
   };
   
   struct NGramIndexReducer
@@ -1959,9 +1975,6 @@ namespace expgram
     
     typedef map_reduce_type::queue_type                queue_type;
     typedef map_reduce_type::ostream_type              ostream_type;
-
-    typedef map_reduce_type::shard_type     shard_type;
-    typedef map_reduce_type::shard_set_type shard_set_type;
     
     typedef std::pair<id_type, logprob_pair_type>                                        word_logprob_pair_type;
     typedef std::vector<word_logprob_pair_type, std::allocator<word_logprob_pair_type> > word_logprob_pair_set_type;
@@ -1972,7 +1985,8 @@ namespace expgram
     
     ngram_type&   ngram;
     queue_type&   queue;
-    shard_type&   shard_data;
+    ostream_type& os_logprob;
+    ostream_type& os_backoff;
     int shard;
     int max_order;
     int debug;
@@ -1984,15 +1998,18 @@ namespace expgram
     size_set_type    positions_first;
     size_set_type    positions_last;
     
+    
     NGramIndexReducer(ngram_type&   _ngram,
 		      queue_type&   _queue,
-		      shard_type&   _shard_data,
+		      ostream_type& _os_logprob,
+		      ostream_type& _os_backoff,
 		      const int     _shard,
 		      const int     _max_order,
 		      const int     _debug)
       : ngram(_ngram),
 	queue(_queue),
-	shard_data(_shard_data),
+	os_logprob(_os_logprob),
+	os_backoff(_os_backoff),
 	shard(_shard),
 	max_order(_max_order),
 	debug(_debug) {}
@@ -2006,16 +2023,12 @@ namespace expgram
       }
     };
     
+    
     template <typename Iterator>
     void dump(std::ostream& os, Iterator first, Iterator last)
     {
       typedef typename std::iterator_traits<Iterator>::value_type value_type;
-      
-      while (first != last) {
-	Iterator next = std::min(first + 1024 * 1024, last);
-	os.write((char*) &(*first), (next - first) * sizeof(value_type));
-	first = next;
-      }
+      os.write((char*) &(*first), (last - first) * sizeof(value_type));
     }
     
     void index_ngram()
@@ -2056,10 +2069,10 @@ namespace expgram
 	const size_type pos_last  = positions_last[i];
 	
 	if (pos_last > pos_first) {
-	  dump(shard_data.os_logprob, logprobs.begin() + pos_first, logprobs.begin() + pos_last);
+	  dump(os_logprob, logprobs.begin() + pos_first, logprobs.begin() + pos_last);
 	  
 	  if (order_prev + 1 != max_order)
-	    dump(shard_data.os_backoff, backoffs.begin() + pos_first, backoffs.begin() + pos_last);
+	    dump(os_backoff, backoffs.begin() + pos_first, backoffs.begin() + pos_last);
 	  
 	  for (size_type pos = pos_first; pos != pos_last; ++ pos) {
 	    const id_type id = ids[pos];
@@ -2148,182 +2161,55 @@ namespace expgram
       positions_last[pos] = ids.size() + words.size();
       
       std::sort(words.begin(), words.end(), less_first<word_logprob_pair_type>());
-      
       word_logprob_pair_set_type::const_iterator witer_end = words.end();
       for (word_logprob_pair_set_type::const_iterator witer = words.begin(); witer != witer_end; ++ witer) {
 	ids.push_back(witer->first);
-	
 	logprobs.push_back(witer->second.first);
 	
 	if (order_prev + 1 != max_order)
-	  backoffs.push_back(witer->second.second != ngram_type::logprob_min() ? witer->second.second : logprob_type(0.0));
-      }
-    }
-    
-    template <typename Tp>
-    struct sized_key_less
-    {
-      sized_key_less(size_type __size)  : size(__size) {}
-      
-      bool operator()(const Tp* x, const Tp* y) const
-      {
-	return std::lexicographical_compare(x, x + size, y, y + size);
-      }
-      
-      size_type size;
-    };
-
-    void index_ngram(const path_type& path, const int order)
-    {
-      typedef utils::map_file<id_type, std::allocator<id_type> > mapped_type;
-      typedef std::vector<const id_type*, std::allocator<const id_type*> > ngram_set_type;
-
-      const size_type offset = sizeof(logprob_pair_type) / sizeof(id_type);
-      if (offset != 2 || sizeof(logprob_pair_type) % sizeof(id_type) != 0)
-	throw std::runtime_error("invalid offset??");
-      
-      while (! boost::filesystem::exists(path))
-	boost::thread::yield();      
-
-      // performing sorting...
-      mapped_type mapped(path);
-      
-      // quit if no mapped file...
-      if (mapped.empty()) return;
-      
-      // throw for invalid data....
-      if (mapped.size() % (order + offset) != 0)
-	throw std::runtime_error("invalid mapped size...????");
-      
-      const size_type ngrams_size = mapped.size() / (order + offset);
-      
-      ngram_set_type ngrams(ngrams_size);
-      
-      ngram_set_type::iterator niter = ngrams.begin();
-      for (mapped_type::const_iterator iter = mapped.begin(); iter != mapped.end(); iter += order + offset, ++ niter)
-	*niter = &(*iter);
-      
-      // actual sorting!
-      std::sort(ngrams.begin(), ngrams.end(), sized_key_less<id_type>(order));
-      
-      // compute prefix+words...
-      
-      context_type prefix;
-      word_logprob_pair_set_type words;
-      
-      ngram_set_type::const_iterator niter_end = ngrams.end();
-      for (ngram_set_type::const_iterator niter = ngrams.begin(); niter != niter_end; ++ niter) {
-	const id_type* context = *niter;
-	const id_type word = *(context + order - 1);
-	const logprob_pair_type& logprobs = *reinterpret_cast<const logprob_pair_type*>(context + order);
-	
-	if (prefix.empty() || ! std::equal(prefix.begin(), prefix.end(), context)) {
-	  if (! words.empty()) {
-	    index_ngram(prefix, words);
-	    words.clear();
-	  }
-	  
-	  prefix.clear();
-	  prefix.insert(prefix.end(), context, context + order - 1);
-	}
-	
-	if (words.empty() || words.back().first != word)
-	  words.push_back(std::make_pair(word, logprobs));
-	else {
-	  if (words.back().second.first == ngram_type::logprob_min())
-	    words.back().second.first = logprobs.first;
-	  else if (words.back().second.second == ngram_type::logprob_min())
-	    words.back().second.second = logprobs.second;
-	  else
-	    throw std::runtime_error("starnge indexing reduction");
-	}
-      }
-      
-      // perform final indexing
-      if (! words.empty()) {
-	index_ngram(prefix, words);
-	words.clear();
-	index_ngram();
+	  backoffs.push_back(witer->second.second);
       }
     }
     
     void operator()()
     {
       context_logprob_pair_type context_logprob_pair;
-
-      const path_type tmp_dir = utils::tempfile::tmp_dir();
-      
-      path_type path_ngram = utils::tempfile::file_name(tmp_dir / "expgram.ngram.XXXXXX");
-      
-      utils::tempfile::insert(path_ngram);
-      
-      boost::iostreams::filtering_ostream os;
-      os.push(boost::iostreams::file_sink(path_ngram.string(), std::ios_base::out | std::ios_base::trunc), 1024 * 1024);
-      os.exceptions(std::ostream::eofbit | std::ostream::failbit | std::ostream::badbit);
+      context_type prefix;
+      word_logprob_pair_set_type words;
       
       // we will start from bigram... unigrams...
       int order = 2;
       
       while (1) {
+	
 	queue.pop(context_logprob_pair);
 	if (context_logprob_pair.first.empty()) break;
 	
-	context_type&      context  = context_logprob_pair.first;
-	logprob_pair_type& logprobs = context_logprob_pair.second;
+	const context_type&      context  = context_logprob_pair.first;
+	const logprob_pair_type& logprobs = context_logprob_pair.second;
 	
-	if (static_cast<int>(context.size()) != order) {
-	  if (order + 1 != static_cast<int>(context.size()))
-	    throw std::runtime_error("invalid context size");
+	if (context.size() != prefix.size() + 1 || ! std::equal(prefix.begin(), prefix.end(), context.begin())) {
+	  if (! words.empty()) {
+	    index_ngram(prefix, words);
+	    words.clear();
+	    
+	    if (static_cast<int>(context.size()) != order)
+	      index_ngram();
+	  }
 	  
-	  os.reset();
-	  
-	  index_ngram(path_ngram, order);
-	  
-	  boost::filesystem::remove(path_ngram);
-	  utils::tempfile::erase(path_ngram);
-	  
-	  path_ngram = utils::tempfile::file_name(tmp_dir / "expgram.ngram.XXXXXX");
-	  
-	  utils::tempfile::insert(path_ngram);
-	  
-	  os.push(boost::iostreams::file_sink(path_ngram.string(), std::ios_base::out | std::ios_base::trunc), 1024 * 1024);
-	  os.exceptions(std::ostream::eofbit | std::ostream::failbit | std::ostream::badbit);
-	  
+	  prefix.clear();
+	  prefix.insert(prefix.end(), context.begin(), context.end() - 1);
 	  order = context.size();
 	}
 	
-	if (logprobs.first == ngram_type::logprob_min()) // backoff... we will reverse all the context 
-	  std::reverse(context.begin(), context.end());
-	else if (logprobs.second == ngram_type::logprob_min()) // probability... we will reverse only the context
-	  std::reverse(context.begin(), context.end() - 1);
-	else
-	  throw std::runtime_error("both are correct... this is invalid!");
-	
-	os.write((char*) &(*context.begin()), sizeof(context_type::value_type) * order);
-	os.write((char*) &logprobs, sizeof(logprob_pair_type));
+	words.push_back(std::make_pair(context.back(), logprobs));
       }
       
-      os.reset();
-      
-      index_ngram(path_ngram, order);
-      
-      boost::filesystem::remove(path_ngram);
-      utils::tempfile::erase(path_ngram);
-
-      // finalization...
-      shard_data.os_logprob.reset();
-      shard_data.os_backoff.reset();
-      
-      while (! boost::filesystem::exists(shard_data.path_logprob))
-	boost::thread::yield();
-      while (! boost::filesystem::exists(shard_data.path_backoff))
-	boost::thread::yield();
-
-      utils::tempfile::permission(shard_data.path_logprob);
-      utils::tempfile::permission(shard_data.path_backoff);
-
-      ngram.logprobs[shard].logprobs.open(shard_data.path_logprob);
-      ngram.backoffs[shard].logprobs.open(shard_data.path_backoff);
+      // perform final indexing...
+      if (! words.empty()) {
+	index_ngram(prefix, words);
+	index_ngram();
+      }
     }
   };
   
@@ -2351,6 +2237,7 @@ namespace expgram
     typedef map_reduce_type::path_set_type        path_set_type;
     typedef map_reduce_type::context_type         context_type;
     
+    
     typedef std::vector<utils::piece, std::allocator<utils::piece> > tokens_type;
     typedef boost::tokenizer<utils::space_separator, utils::piece::const_iterator, utils::piece> tokenizer_type;
     
@@ -2360,14 +2247,8 @@ namespace expgram
     
     typedef std::vector<id_type, std::allocator<id_type> > vocab_map_type;
     
-    typedef map_reduce_type::shard_type     shard_type;
-    typedef map_reduce_type::shard_set_type shard_set_type;
-
     // setup structures...
     clear();
-    
-    if (path != "-" && ! boost::filesystem::exists(path))
-      throw std::runtime_error("no file? " + path.string());
     
     index.reserve(shard_size);
     logprobs.reserve(shard_size);
@@ -2379,18 +2260,23 @@ namespace expgram
     
     // setup paths and streams for logprob/backoff
     const path_type tmp_dir = utils::tempfile::tmp_dir();
-
-    shard_set_type shards(shard_size);
+    
+    ostream_ptr_set_type os_logprobs(shard_size);
+    ostream_ptr_set_type os_backoffs(shard_size);
+    path_set_type        path_logprobs(shard_size);
+    path_set_type        path_backoffs(shard_size);
     
     for (size_type shard = 0; shard != shard_size; ++ shard) {
-      shards[shard].path_logprob = utils::tempfile::file_name(tmp_dir / "expgram.logprob.XXXXXX");
-      shards[shard].path_backoff = utils::tempfile::file_name(tmp_dir / "expgram.backoff.XXXXXX");
+      path_logprobs[shard] = utils::tempfile::file_name(tmp_dir / "expgram.logprob.XXXXXX");
+      path_backoffs[shard] = utils::tempfile::file_name(tmp_dir / "expgram.backoff.XXXXXX");
       
-      utils::tempfile::insert(shards[shard].path_logprob);
-      utils::tempfile::insert(shards[shard].path_backoff);
+      utils::tempfile::insert(path_logprobs[shard]);
+      utils::tempfile::insert(path_backoffs[shard]);
       
-      shards[shard].os_logprob.push(boost::iostreams::file_sink(shards[shard].path_logprob.string()), 1024 * 1024);
-      shards[shard].os_backoff.push(boost::iostreams::file_sink(shards[shard].path_backoff.string()), 1024 * 1024);
+      os_logprobs[shard].reset(new ostream_type());
+      os_backoffs[shard].reset(new ostream_type());
+      os_logprobs[shard]->push(boost::iostreams::file_sink(path_logprobs[shard].string().c_str()), 1024 * 1024);
+      os_backoffs[shard]->push(boost::iostreams::file_sink(path_backoffs[shard].string().c_str()), 1024 * 1024);
     }
     
     typedef enum {
@@ -2487,8 +2373,8 @@ namespace expgram
 	if (witer->first == vocab_type::UNK)
 	  smooth = witer->second.first;
 	
-	shards[0].os_logprob.write((char*) &witer->second.first, sizeof(logprob_type));
-	shards[0].os_backoff.write((char*) &witer->second.second, sizeof(logprob_type));
+	os_logprobs[0]->write((char*) &witer->second.first, sizeof(logprob_type));
+	os_backoffs[0]->write((char*) &witer->second.second, sizeof(logprob_type));
 	
 	if (witer->first.id() >= vocab_map.size())
 	  vocab_map.resize(witer->first.id() + 1, id_type(-1));
@@ -2501,6 +2387,7 @@ namespace expgram
 
       vocab.open(path_vocab);
       
+      
       const size_type unigram_size = unigrams.size();
       
       if (debug)
@@ -2511,9 +2398,12 @@ namespace expgram
 	index[shard].offsets.push_back(0);
 	index[shard].offsets.push_back(unigram_size);
 	
-	logprobs[shard].offset = utils::bithack::branch(shard == 0, size_type(0), unigram_size);
-	backoffs[shard].offset = utils::bithack::branch(shard == 0, size_type(0), unigram_size);
+	logprobs[shard].offset = unigram_size;
+	backoffs[shard].offset = unigram_size;
       }
+      
+      logprobs[0].offset = 0;
+      backoffs[0].offset = 0;
       
       // setup smooth... is this correct?
       // do we have to estimate again...?
@@ -2528,12 +2418,14 @@ namespace expgram
       word_logprob_pair_set_type(unigrams).swap(unigrams);
     }
     
+    
+    
     // prepare queues, run threads!
     queue_ptr_set_type   queues(shard_size);
     thread_ptr_set_type  threads(shard_size);
     for (size_type shard = 0; shard != shard_size; ++ shard) {
       queues[shard].reset(new queue_type(1024 * 64));
-      threads[shard].reset(new thread_type(reducer_type(*this, *queues[shard], shards[shard], shard, max_order, debug)));
+      threads[shard].reset(new thread_type(reducer_type(*this, *queues[shard], *os_logprobs[shard], *os_backoffs[shard], shard, max_order, debug)));
     }
     
     context_type context;
@@ -2584,26 +2476,11 @@ namespace expgram
 	
 	context.push_back(vocab_map[id]);
       }
-
-      if (context.size() == 2) {
-	const size_type shard = index.shard_index(context[0], context[1]);
-	
-	queues[shard]->push(std::make_pair(context, std::make_pair(logprob, logprob_min())));
-	if (context.size() != static_cast<size_type>(max_order))
-	  queues[shard]->push(std::make_pair(context, std::make_pair(logprob_min(), logbackoff)));
-      } else if (context.size() == static_cast<size_type>(max_order)) {
-	const size_type shard = index.shard_index(context[max_order - 3], context[max_order - 2]);
-	
-	queues[shard]->push(std::make_pair(context, std::make_pair(logprob, logprob_min())));
-      } else {
-	const size_type context_size = context.size();
-	const size_type shard_logprob    = index.shard_index(context[context_size - 3], context[context_size - 2]);
-	const size_type shard_logbackoff = index.shard_index(context[context_size - 2], context[context_size - 1]);
-	
-	queues[shard_logprob]->push(std::make_pair(context, std::make_pair(logprob, logprob_min())));
-	queues[shard_logbackoff]->push(std::make_pair(context, std::make_pair(logprob_min(), logbackoff)));
-      }
+      
+      const size_type shard = index.shard_index(context.begin(), context.end());
+      queues[shard]->push(std::make_pair(context, std::make_pair(logprob, logbackoff)));
     }
+    
     
     // termination...
     for (size_type shard = 0; shard != index.size(); ++ shard)
@@ -2612,19 +2489,36 @@ namespace expgram
     for (size_type shard = 0; shard != index.size(); ++ shard) {
       threads[shard]->join();
       
+      os_logprobs[shard].reset();
+      os_backoffs[shard].reset();
+
+      while (! boost::filesystem::exists(path_logprobs[shard]))
+	boost::thread::yield();
+      while (! boost::filesystem::exists(path_backoffs[shard]))
+	boost::thread::yield();
+
+      utils::tempfile::permission(path_logprobs[shard]);
+      utils::tempfile::permission(path_backoffs[shard]);
+      
+      logprobs[shard].logprobs.open(path_logprobs[shard]);
+      backoffs[shard].logprobs.open(path_backoffs[shard]);
+      
       if (debug)
-	std::cerr << "ngram shard: " << shard
+	std::cerr << "shard: " << shard
 		  << " logprob: " << logprobs[shard].size()
 		  << " backoff: " << backoffs[shard].size()
 		  << std::endl;
     }
     threads.clear();
-
-    // set backward indexing!
-    index.backward() = true;
     
     // compute upper bounds...
+    
     bounds();
+
+    // backward...
+    
+    backward();
   }
+
 
 };

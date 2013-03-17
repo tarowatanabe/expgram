@@ -312,6 +312,7 @@ void ngram_backward_mapper(const ngram_type& ngram, intercomm_type& reducer)
   }
   
   context_type context;
+  context_type context_mapped;
   
   ngram_generator_type ngram_generator;
 
@@ -328,6 +329,7 @@ void ngram_backward_mapper(const ngram_type& ngram, intercomm_type& reducer)
     const size_type context_size = order_prev + 1;
     
     context.resize(context_size);
+    context_mapped.resize(context_size);
     
     size_type pos_last_prev = pos_context_last;
     for (size_type pos_context = pos_context_first; pos_context < pos_context_last; ++ pos_context) {
@@ -355,24 +357,42 @@ void ngram_backward_mapper(const ngram_type& ngram, intercomm_type& reducer)
 	if (context_size == 2){
 	  const size_type shard_index = ngram.index.shard_index(context[0], context[1]);
 	  
-	  if (logprob != logprob_min || logbound != logprob_min)
-	    ngram_generator(*stream[shard_index], context, logprob, logbound, logprob_min);
+	  if (logprob != logprob_min || logbound != logprob_min) {
+	    context_mapped = context;
+	    std::reverse(context_mapped.begin(), context_mapped.end() - 1);
+	    ngram_generator(*stream[shard_index], context_mapped, logprob, logbound, logprob_min);
+	  }
 	  
-	  if (context_size != order_max)
-	    ngram_generator(*stream[shard_index], context, logprob_min, logprob_min, backoff);
+	  if (context_size != order_max) {
+	    context_mapped = context;
+	    std::reverse(context_mapped.begin(), context_mapped.end());
+	    ngram_generator(*stream[shard_index], context_mapped, logprob_min, logprob_min, backoff);
+	  }
 	} else if (context_size == order_max) {
 	  const size_type shard_index = ngram.index.shard_index(context[context_size - 3], context[context_size - 2]);
 	  
-	  if (logprob != logprob_min || logbound != logprob_min)
-	    ngram_generator(*stream[shard_index], context, logprob, logbound, backoff);
+	  if (logprob != logprob_min || logbound != logprob_min) {
+	    context_mapped = context;
+	    std::reverse(context_mapped.begin(), context_mapped.end() - 1);
+	    ngram_generator(*stream[shard_index], context_mapped, logprob, logbound, backoff);
+	  }
 	} else {
 	  const size_type shard_prob    = ngram.index.shard_index(context[context_size - 3], context[context_size - 2]);
 	  const size_type shard_backoff = ngram.index.shard_index(context[context_size - 2], context[context_size - 1]);
 	  
-	  if (logprob != logprob_min || logbound != logprob_min)
-	    ngram_generator(*stream[shard_prob], context, logprob, logbound, logprob_min);
+	  if (logprob != logprob_min || logbound != logprob_min) {
+	    context_mapped = context;
+	    std::reverse(context_mapped.begin(), context_mapped.end() - 1);
+	    ngram_generator(*stream[shard_prob], context_mapped, logprob, logbound, logprob_min);
+	  }
 	  
-	  ngram_generator(*stream[shard_backoff], context, logprob_min, logprob_min, backoff);
+	  context_mapped = context;
+	  std::reverse(context_mapped.begin(), context_mapped.end());
+	  ngram_generator(*stream[shard_backoff], context_mapped, logprob_min, logprob_min, backoff);
+	  
+	  // make sure this backoff exists...
+	  context_mapped.pop_back();
+	  ngram_generator(*stream[shard_backoff], context_mapped, logprob_min, logprob_min, logprob_min);
 	}
       }
       
@@ -734,6 +754,8 @@ struct Task
       
     context_type prefix;
     word_logprob_map_type words;
+
+    const logprob_type logprob_min = ngram_type::logprob_min();
       
     ngram_set_type::const_iterator niter_end = ngrams.end();
     for (ngram_set_type::const_iterator niter = ngrams.begin(); niter != niter_end; ++ niter) {
@@ -754,11 +776,11 @@ struct Task
       if (words.empty() || words.back().first != word)
 	words.push_back(std::make_pair(word, logprobs));
       else {
-	if (words.back().second.prob == ngram_type::logprob_min())
+	if (words.back().second.prob == logprob_min)
 	  words.back().second.prob = logprobs.prob;
-	if (words.back().second.bound == ngram_type::logprob_min())
+	if (words.back().second.bound == logprob_min)
 	  words.back().second.bound = logprobs.bound;
-	if (words.back().second.backoff == ngram_type::logprob_min())
+	if (words.back().second.backoff == logprob_min)
 	  words.back().second.backoff = logprobs.backoff;
       }
     }
@@ -845,14 +867,7 @@ struct Task
   {
     context_type&     context  = context_logprobs.first;
     logprob_set_type& logprobs = context_logprobs.second;
-    
-    if (logprobs.backoff == ngram_type::logprob_min())
-      std::reverse(context.begin(), context.end() - 1); // probability
-    else if (logprobs.prob == ngram_type::logprob_min() && logprobs.bound == ngram_type::logprob_min())
-      std::reverse(context.begin(), context.end()); // backoff
-    else
-      throw std::runtime_error("invalid ngram probabilities");
-    
+        
     const int order = context.size();
     
     ngrams[order].os.write((char*) &(*context.begin()), sizeof(context_type::value_type) * order);

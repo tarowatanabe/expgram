@@ -67,6 +67,8 @@ int main(int argc, char** argv)
     const word_type::id_type unk_id = ngram.index.vocab()[vocab_type::UNK];
     const word_type::id_type none_id = word_type::id_type(-1);
     
+    const state_type state_bos = ngram.index.next(state_type(), bos_id);
+    
     while (is >> sentence) {
       // add BOS and EOS
       
@@ -74,7 +76,7 @@ int main(int argc, char** argv)
       
       int oov = 0;
       double logprob = 0.0;
-      state_type state = ngram.index.next(state_type(), bos_id);
+      state_type state = state_bos;
       sentence_type::const_iterator siter_end = sentence.end();
       for (sentence_type::const_iterator siter = sentence.begin(); siter != siter_end; ++ siter) {
 	const word_type::id_type id = ngram.index.vocab()[*siter];
