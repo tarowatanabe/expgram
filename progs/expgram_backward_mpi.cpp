@@ -702,7 +702,7 @@ struct Task
 	backoffs.push_back(witer->second.backoff != ngram_type::logprob_min() ? witer->second.backoff : logprob_type(0.0));
       }
     }
-  }  
+  }
   
   template <typename Tp>
   struct sized_key_less
