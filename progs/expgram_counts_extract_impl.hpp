@@ -44,6 +44,7 @@
 #include <utils/malloc_stats.hpp>
 #include <utils/piece.hpp>
 #include <utils/unordered_set.hpp>
+#include <utils/unordered_map.hpp>
 
 #include <expgram/Word.hpp>
 #include <expgram/Vocab.hpp>
@@ -471,6 +472,15 @@ struct GoogleNGramCounts
     // tempfile
     utils::tempfile::insert(path);
   }
+
+  template <typename Tp>
+  struct less_firstp
+  {
+    bool operator()(const Tp* x, const Tp* y) const
+    {
+      return x->first < y->first;
+    }
+  };
   
   template <typename Tp>
   struct greater_secondp
@@ -501,7 +511,7 @@ struct GoogleNGramCounts
     
     // process unigrams...
     {
-      typedef std::map<std::string, count_type, std::less<std::string>, std::allocator<std::pair<const std::string, count_type> > > word_set_type;
+      typedef utils::unordered_map<std::string, count_type, boost::hash<std::string>, std::equal_to<std::string>, std::allocator<std::pair<const std::string, count_type> > >::type word_set_type;
       typedef word_set_type::value_type value_type;
       typedef std::vector<const value_type*, std::allocator<const value_type*> > sorted_type;
       
@@ -540,20 +550,26 @@ struct GoogleNGramCounts
       
       count_type total = 0;
       {
-	utils::compress_ostream os(vocab_file, 1024 * 1024);
 	word_set_type::const_iterator witer_end = words.end();
 	for (word_set_type::const_iterator witer = words.begin(); witer != witer_end; ++ witer) {
-	  os << witer->first << '\t' << witer->second << '\n';
-	  
 	  sorted.push_back(&(*witer));
-	  
 	  total += witer->second;
 	}
       }
       
-      std::sort(sorted.begin(), sorted.end(), greater_secondp<value_type>());
+      {
+	std::sort(sorted.begin(), sorted.end(), less_firstp<value_type>());
+	
+	utils::compress_ostream os(vocab_file, 1024 * 1024);
+	
+	sorted_type::const_iterator siter_end = sorted.end();
+	for (sorted_type::const_iterator siter = sorted.begin(); siter != siter_end; ++ siter)
+	  os << (*siter)->first << '\t' << (*siter)->second << '\n';
+      }
       
       {
+	std::sort(sorted.begin(), sorted.end(), greater_secondp<value_type>());
+	
 	utils::compress_ostream os(vocab_sorted_file, 1024 * 1024);
 	
 	sorted_type::const_iterator siter_end = sorted.end();
