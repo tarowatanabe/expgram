@@ -447,10 +447,7 @@ namespace expgram
       
       if (first == last || first + 1 == last) return std::make_pair(first, last);
       
-      // decrement first...
-      -- last;
-      
-      return std::make_pair(first, next(state_type(), first, last).second + 1);
+      return std::make_pair(first, next(state_type(), first, last - 1).second + 1);
     }
 
     template <typename Iterator>
