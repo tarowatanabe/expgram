@@ -14,7 +14,6 @@ LIBUTILS   = $(top_builddir)/utils/libutils.la
 if WITH_MPI
 bin_mpi = \
 	expgram_quantize_mpi \
-	expgram_backward_mpi \
 	expgram_bound_mpi \
 	expgram_counts_extract_mpi \
 	expgram_counts_index_mpi \
@@ -28,7 +27,6 @@ bin_PROGRAMS = \
 	expgram_index \
 	expgram_dump \
 	expgram_quantize \
-	expgram_backward \
 	expgram_bound \
 	expgram_diff \
 	expgram_stat \
@@ -63,9 +61,6 @@ noinst_DATA = .gitignore
 
 expgram_SOURCES = expgram.cpp
 expgram_LDADD   = $(LIBEXPGRAM) $(LIBUTILS) $(boost_LDADD) $(perftools_LDADD)
-
-expgram_backward_SOURCES = expgram_backward.cpp
-expgram_backward_LDADD   = $(LIBEXPGRAM) $(LIBUTILS) $(boost_LDADD) $(perftools_LDADD)
 
 expgram_clean_SOURCES = expgram_clean.cpp
 expgram_clean_LDADD   = $(LIBUTILS) $(boost_LDADD) $(perftools_LDADD)
@@ -116,10 +111,6 @@ expgram_vocab_SOURCES = expgram_vocab.cpp expgram_vocab_impl.hpp
 expgram_vocab_LDADD   = $(LIBEXPGRAM) $(LIBUTILS) $(boost_LDADD) $(perftools_LDADD)
 
 if WITH_MPI
-
-expgram_backward_mpi_SOURCES = expgram_backward_mpi.cpp
-expgram_backward_mpi_CPPFLAGS = $(MPI_CPPFLAGS) $(AM_CPPFLAGS)
-expgram_backward_mpi_LDADD   = $(MPI_LDFLAGS) $(LIBEXPGRAM) $(LIBUTILS) $(boost_LDADD) $(perftools_LDADD)
 
 expgram_bound_mpi_SOURCES = expgram_bound_mpi.cpp
 expgram_bound_mpi_CPPFLAGS = $(MPI_CPPFLAGS) $(AM_CPPFLAGS)

@@ -49,18 +49,16 @@ opt_parser = OptionParser(
                     " 2 = counts extraction,"
                     " 3 = counts index,"
                     " 4 = counts modification,"
-                    " 5 = estimation,"
-                    " 6 = language model,"
-                    " 7 = quantization"),
-        make_option("--last-step",  default=7, action="store", type="int", metavar='STEP',
+                    " 5 = language model,"
+                    " 6 = quantization"),
+        make_option("--last-step",  default=6, action="store", type="int", metavar='STEP',
                     help="last step (default: %default):"
                     " 1 = vocabulary,"
                     " 2 = counts extraction,"
                     " 3 = counts index,"
                     " 4 = counts modification,"
-                    " 5 = estimation,"
-                    " 6 = language model,"
-                    " 7 = quantization"),
+                    " 5 = language model,"
+                    " 6 = quantization"),
         
         # expgram Expgram directory
         make_option("--expgram-dir", default="", action="store", type="string",
@@ -348,7 +346,6 @@ class Expgram:
                         
                         ## final post-processing
                         'expgram_bound',    'expgram_bound_mpi',
-                        'expgram_backward', 'expgram_backward_mpi',
                         'expgram_quantize', 'expgram_quantize_mpi',):
 	    
 	    for bindir in bindirs:
@@ -631,7 +628,7 @@ class Estimate:
                  max_malloc=4,
                  threads=4, mpi=None, pbs=None, debug=None):
         
-        self.ngram = output + '.estimated'
+        self.ngram = output + '.lm'
         self.log = self.ngram + '.log'
         
         self.mpi = mpi
@@ -674,57 +671,10 @@ class Estimate:
         else:
             qsub.run(self.command, threads=self.threads, name="estimate", memory=self.max_malloc, logfile=self.log)
 
-class Backward:
-
-    def __init__(self, expgram=None, output="", temporary="",
-                 estimate=None,
-                 max_malloc=4,
-                 threads=4, mpi=None, pbs=None, debug=None):
-        
-        self.ngram = output + '.lm'
-        self.log = self.ngram + '.log'
-        
-        self.mpi     = mpi
-        self.threads = threads
-        self.pbs     = pbs
-
-        if self.mpi:
-            self.threads = 2
-        
-        self.max_malloc = max_malloc
-        
-        command = Program(expgram.expgram_backward)
-        if mpi:
-            command = Program(expgram.expgram_backward_mpi)
-        
-        command += Option('--ngram', Quoted(estimate.ngram))
-        command += Option('--output', Quoted(self.ngram))
-
-        if temporary:
-            command += Option('--temporary', Quoted(temporary))
-        
-        if mpi:
-            command += Option('--prog', Quoted(expgram.expgram_backward_mpi))
-
-        if debug >= 2:
-            command += Option('--debug', debug)
-        else:
-            command += Option('--debug')
-
-        self.command = command
-
-    def run(self):
-        qsub = QSub(mpi=self.mpi, pbs=self.pbs)
-
-        if self.mpi:
-            qsub.mpirun(self.command, threads=self.threads, name="backward", memory=self.max_malloc, logfile=self.log)
-        else:
-            qsub.run(self.command, threads=self.threads, name="backward", memory=self.max_malloc, logfile=self.log)
-
 class Quantize:
 
     def __init__(self, expgram=None, output="", temporary="",
-                 backward=None,
+                 estimate=None,
                  max_malloc=4,
                  threads=4, mpi=None, pbs=None, debug=None):
         
@@ -744,7 +694,7 @@ class Quantize:
         if mpi:
             command = Program(expgram.expgram_quantize_mpi)
         
-        command += Option('--ngram', Quoted(backward.ngram))
+        command += Option('--ngram', Quoted(estimate.ngram))
         command += Option('--output', Quoted(self.ngram))
 
         if temporary:
@@ -917,8 +867,8 @@ if __name__ == '__main__':
         estimate.run()
         print "(5) estimate language model finished @", time.ctime()
         print "(5) language model:", estimate.ngram
-
-    backward = Backward(expgram=expgram,
+    
+    quantize = Quantize(expgram=expgram,
                         output=options.output,
                         temporary=options.temporary_dir,
                         estimate=estimate,
@@ -927,26 +877,11 @@ if __name__ == '__main__':
                         debug=options.debug)
 
     if options.first_step <= 6 and options.last_step >= 6:
-        print "(6) backward trie language model started  @", time.ctime()
-        backward.run()
-        print "(6) backward trie language model finished @", time.ctime()
-        print "(6) language model:", backward.ngram
-    
-    quantize = Quantize(expgram=expgram,
-                        output=options.output,
-                        temporary=options.temporary_dir,
-                        backward=backward,
-                        max_malloc=options.max_malloc,
-                        threads=options.threads, mpi=mpi, pbs=pbs,
-                        debug=options.debug)
-
-    if options.first_step <= 7 and options.last_step >= 7:
-        print "(7) quantization started  @", time.ctime()
+        print "(6) quantization started  @", time.ctime()
         quantize.run()
-        print "(7) quantization finished @", time.ctime()
-        print "(7) quantized language model:", quantize.ngram
+        print "(6) quantization finished @", time.ctime()
+        print "(6) quantized language model:", quantize.ngram
     
     if options.erase_temporary:
         shutil.rmtree(index.ngram)
-        shutil.rmtree(estimate.ngram)
         shutil.rmtree(modify.ngram)

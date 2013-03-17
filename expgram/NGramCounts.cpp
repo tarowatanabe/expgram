@@ -1220,9 +1220,6 @@ namespace expgram
       logbound_shard_type(logbounds[shard]).swap(logbounds[shard]);
       backoff_shard_type(backoffs[shard]).swap(backoffs[shard]);
     }
-
-    // backard trie...
-    ngram.backward();
   }
   
   struct NGramCountsDumpMapReduce

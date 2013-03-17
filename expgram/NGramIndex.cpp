@@ -133,11 +133,6 @@ namespace expgram
       throw std::runtime_error("no order");
     __order = utils::lexical_cast<int>(oiter->second);
     
-    // backward
-    repository_type::const_iterator biter = rep.find("backward");
-    if (biter != rep.end())
-      __backward = utils::lexical_cast<bool>(biter->second);
-
     // vocabulary...
     __vocab.open(rep.path("vocab"));
     
@@ -191,7 +186,6 @@ namespace expgram
       stream_order << __order;
       rep["shard"] = stream_shard.str();
       rep["order"] = stream_order.str();
-      rep["backward"] = (__backward ? "true" : "false");
     }
     
     thread_ptr_set_type threads(__shards.size());
@@ -237,11 +231,6 @@ namespace expgram
     if (oiter == rep.end())
       throw std::runtime_error("no order");
     __order = utils::lexical_cast<int>(oiter->second);
-
-    // backward
-    repository_type::const_iterator biter = rep.find("backward");
-    if (biter != rep.end())
-      __backward = utils::lexical_cast<bool>(biter->second);
     
     // vocabulary...
     __vocab.open(rep.path("vocab"));
@@ -271,7 +260,6 @@ namespace expgram
     stream_order << __order;
     rep["shard"] = stream_shard.str();
     rep["order"] = stream_order.str();
-    rep["backward"] = (__backward ? "true" : "false");
   }
   
   void NGramIndex::write_shard(const path_type& file, int shard) const
@@ -294,7 +282,6 @@ namespace expgram
       std::ostringstream stream_order;
       stream_order << __order;
       rep["order"] = stream_order.str();
-      rep["backward"] = (__backward ? "true" : "false");
     }
   }
 };
