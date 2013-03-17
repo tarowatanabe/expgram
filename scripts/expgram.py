@@ -50,7 +50,7 @@ opt_parser = OptionParser(
                     " 3 = counts index,"
                     " 4 = counts modification,"
                     " 5 = estimation,"
-                    " 6 = backward trie,"
+                    " 6 = language model,"
                     " 7 = quantization"),
         make_option("--last-step",  default=7, action="store", type="int", metavar='STEP',
                     help="last step (default: %default):"
@@ -59,7 +59,7 @@ opt_parser = OptionParser(
                     " 3 = counts index,"
                     " 4 = counts modification,"
                     " 5 = estimation,"
-                    " 6 = backward trie,"
+                    " 6 = language model,"
                     " 7 = quantization"),
         
         # expgram Expgram directory

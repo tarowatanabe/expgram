@@ -53,8 +53,18 @@ You can learn ngram language model by:
    - This will result in an indexed counts as *<output>.modified*.
 
 5. Estimate ngram language model and output as *<output>.estimated*.
+
+   - Note that this is a temporary language model, and this should be
+     transformed into a backward tri structure for an efficient
+     language model score computation.
+
 6. Tranform into a backward trie and output as *<output>.lm*.
+
+   - This is the actual language model for use in your application.
+
 7. Quantize estimated ngram language model and output as *<output>.lm.quantize*.
+
+   -  We perofmr 8-bit quantization.
 
 You can perform the whole pipeline in parallel either by specifying
 the number of threads (via **--threads** option), or by specifying the
@@ -91,10 +101,10 @@ Options:
   --erase-temporary     erase temporary allocated disk space
   --first-step=STEP     first step (default: 1): 1 = vocabulary, 2 = counts
                         extraction, 3 = counts index, 4 = counts modification,
-                        5 = estimation, 6 = backward trie, 7 = quantization
+                        5 = estimation, 6 = language model, 7 = quantization
   --last-step=STEP      last step (default: 7): 1 = vocabulary, 2 = counts
                         extraction, 3 = counts index, 4 = counts modification,
-                        5 = estimation, 6 = backward trie, 7 = quantization
+                        5 = estimation, 6 = language model, 7 = quantization
   --expgram-dir=DIRECTORY
                         expgram directory
   --mpi-dir=DIRECTORY   MPI directory
