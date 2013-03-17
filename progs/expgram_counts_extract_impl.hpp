@@ -477,7 +477,7 @@ struct GoogleNGramCounts
   {
     bool operator()(const Tp* x, const Tp* y) const
     {
-      return x->second > y->second;
+      return x->second > y->second || (!(y->second > x->second) && x->first < y->first);
     }
   };
   

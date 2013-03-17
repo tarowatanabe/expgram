@@ -1478,7 +1478,7 @@ namespace expgram
   {
     bool operator()(const Tp& x, const Tp& y) const
     {
-      return x.second.first > y.second.first;
+      return x.second.first > y.second.first || (!(y.second.first > x.second.first) && x.first < y.first);
     }
   };
   
