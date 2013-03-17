@@ -477,7 +477,6 @@ namespace expgram
 	*biter = __vocab[*first];
       
       return __suffix_dispatch(buffer.begin(), buffer.end(), id_type());
-      
     }
     
     template <typename Iterator>

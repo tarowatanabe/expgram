@@ -353,8 +353,6 @@ namespace expgram
 		 ? logprob_bos()
 		 : (smooth_smallest ? logprob_min() : logbackoff + smooth)));
     }
-
-  private:
     
   public:
     void swap(NGram& x)
