@@ -222,18 +222,19 @@ namespace expgram
       
       size_type children_last(size_type pos) const
       {
-	if (pos == size_type(-1) || pos >= position_size()) {
-	  const size_type is_root_mask = size_type(pos == size_type(-1)) - 1;
-	  return ((~is_root_mask) & offsets[1]) | (is_root_mask & size());
-	}
-	
-	position_set_type::size_type last = positions.select(pos + 2 - 1, false);
+	const size_type offset = offsets[1];
 
-	const size_type last_mask = size_type(last == position_set_type::size_type(-1)) - 1;
-	
-	return ((~last_mask) & size()) | (last_mask & ((last + 1 + offsets[1] + 1) - (pos + 2)));
-	
-	//return (last == position_set_type::size_type(-1) ? size() : (last + 1 + offsets[1] + 1) - (pos + 2));
+	if (pos == size_type(-1))
+	  return offset;
+	else if (pos >= position_size())
+	  return size();
+	else {
+	  position_set_type::size_type last = positions.select(pos + 2 - 1, false);
+	  
+	  return utils::bithack::branch(last == position_set_type::size_type(-1), size(), (last + 1 + offset + 1) - (pos + 2));
+	  
+	  //return (last == position_set_type::size_type(-1) ? size() : (last + 1 + offset + 1) - (pos + 2));
+	}
       }
       
       template <typename Iterator>
@@ -248,10 +249,9 @@ namespace expgram
       {
 	if (id == id_type(-1))
 	  return size_type(-1);
-	else if (pos == size_type(-1)) {
-          const size_type child_mask = size_type(id < offsets[1]) - 1;
-          return (~child_mask & size_type(id)) | child_mask;
-        } else {
+	else if (pos == size_type(-1))
+	  return utils::bithack::branch(id < offsets[1], size_type(id), size_type(-1));
+	else {
 	  // lock here!
 	  trylock_type lock(const_cast<spinlock_type&>(spinlock_pos));
 	  
