@@ -1,4 +1,5 @@
 expgram: EXPonential-order n-GRAM toolkit
+=========================================
 
 This is an ngram package with efficient handling of large data in mind, based on a succinct storage [1].
 The target is to index Google's ngrams into 10GB.
@@ -9,55 +10,41 @@ In order to support better rest cost estimation, particulary used in SMT systems
 upper bound estimates by correctly estimating lower-order ngram language models [3].
 We also supports transducer-like interface motivated by [4] for a faster lm score computation.
 
-Basically, you have only to use expgram.py which encapsulate all the routimes to estimate LM:
+Quick Start
+-----------
 
-Usage: expgram.py [options]
+Compile
+~~~~~~~
 
-Options:
-  --counts=COUNTS       counts in Google format
-  --counts-list=COUNTS_LIST
-                        list of ngram counts either in Google format or in a
-                        plain format
-  --corpus=CORPUS       corpus
-  --corpus-list=CORPUS_LIST
-                        list of corpus
-  --order=ORDER         ngram order (default: 5)
-  --output=OUTPUT       ngram output
-  --cutoff=CUTOFF       count cutoff threshold (default: 1 == keep all the
-                        counts)
-  --kbest=KBEST         kbest vocabulary (default: 0 == keep all the counts)
-  --vocab=VOCAB         vocabulary
-  --tokenizer=TOKENIZER
-                        tokenizer applied to data
-  --remove-unk          remove unk from lm estimation
-  --erase-temporary     erase temporary allocated disk space
-  --first-step=STEP     first step (default: 1): 1 = vocabulary, 2 = counts
-                        extraction, 3 = counts index, 4 = counts modification,
-                        5 = estimation, 6 = quantization
-  --last-step=STEP      last step (default: 6): 1 = vocabulary, 2 = counts
-                        extraction, 3 = counts index, 4 = counts modification,
-                        5 = estimation, 6 = quantization
-  --expgram-dir=DIRECTORY
-                        expgram directory
-  --mpi-dir=DIRECTORY   MPI directory
-  --temporary-dir=DIRECTORY
-                        expgram directory
-  --max-malloc=MALLOC   maximum memory in GB (default: 8)
-  --mpi=MPI             # of processes for MPI-based parallel processing.
-                        Identical to --np for mpirun
-  --mpi-host=HOSTS      list of hosts to run job. Identical to --host for
-                        mpirun
-  --mpi-host-file=FILE  host list file to run job. Identical to --hostfile for
-                        mpirun
-  --threads=THREADS     # of thrads for thread-based parallel processing
-  --pbs                 PBS for launching processes
-  --pbs-queue=NAME      PBS queue for launching processes (default: ltg)
-  --debug=DEBUG         
-  -h, --help            show this help message and exit
+Get the source code from `expgram <>`_.
 
+::
+
+   ./autogen.sh
+   ./configure
+   make
+   make install (optional)
+
+Dependencies
+~~~~~~~~~~~~
+
+expgram is dependent on `boost library <http://boost.org>`_.
+Optionally, following libraries are recommended:
+
+- MPI impllementation
+
+
+- Fast malloc replacement (recommended for LInux)
+
+Run
+~~~
+
+Basically, you have only to use expgram.py which encapsulate all the routimes to estimate LM.
 For instance, you can run:
 
-./expgram.py \
+::
+
+  ./expgram.py
 	   --expgram-dir <installed expgram>
        	   --corpus <corpus> or --corpus-list <list of corpus> or --counts-list <list of counts>
 	   --output <prefix of lm name>
@@ -65,6 +52,9 @@ For instance, you can run:
 	   --temporary-dir <temporary disk space>
 
 This will dump 4 models:
+
+::
+
      <prefix>.counts		indexed counts
      <prefix>.modified		indexed counts with modified counts for modified-KN smoothing
      <prefix>.lm		estiamted LM
@@ -72,7 +62,9 @@ This will dump 4 models:
 
 or, if you already have count data organized into Google format, simply run
 
-./expgram.py \
+::
+
+  ./expgram.py
 	   --expgram-dir <installed expgram>
 	   --counts <counts in Google format>
 	   --output <prefix of lm name>
@@ -80,9 +72,15 @@ or, if you already have count data organized into Google format, simply run
 	   --temporary-dir <temporary disk space>
 
 This will dump 3 models:
+
+::
+
      <prefix>.modified		indexed counts with modified counts for modified-KN smoothing
      <prefix>.lm		estiamted LM
      <prefix>.lm.quantize	8-bit quantized LM
+
+Internals
+---------
 
 Brief descriptions of binaries:
 
@@ -136,6 +134,8 @@ Brief descriptions of binaries:
 
 For larger data, it is recommended to use mpi-version for scalability.
 
+::
+
       expgram_vocab_mpi
       expgram_counts_extract_mpi
       expgram_counts_index_mpi
@@ -145,6 +145,9 @@ For larger data, it is recommended to use mpi-version for scalability.
       expgram_quantize_mpi
 
 They performed similar to threaded version, but differ in that you have to explicitly run from index though quantize in order.
+
+APIs
+----
 
 API: Sample codes exists at sample directory, ngram.cc and ngram_counts.cc
 
@@ -201,6 +204,9 @@ Optional Libraries:
 	jemalloc  			http://www.canonware.com/jemalloc/
 	or,
 	gperftools (tcmalloc)		http://code.google.com/p/gperftools/
+
+
+
 
 Included codes and their licenses:
 	Murmurhash2
