@@ -1,5 +1,5 @@
 //
-//  Copyright(C) 2009-2012 Taro Watanabe <taro.watanabe@nict.go.jp>
+//  Copyright(C) 2009-2013 Taro Watanabe <taro.watanabe@nict.go.jp>
 //
 
 #include <iostream>
@@ -49,8 +49,44 @@ int main(int argc, char** argv)
     while (std::getline(std::cin, line)) {
       tokenizer_type tokenizer(line);
       
+      // Here, we store in vector<string>.
+      
       tokens.clear();
       tokens.insert(tokens.end(), tokenizer.begin(), tokenizer.end());
+      
+      
+      //
+      // Alternatively, you can try: (Remark: sentence is simply vector<word_type>)
+      // 
+      // sentence.clear();
+      // sentence.insert(sentence.end(), tokenizer.begin(), tokenizer.end());
+      //
+      // and iterate over sentence type, not tokens.
+      //
+      
+      //
+      // The above example still automatically convert word_type into word_type::id_type on the fly.
+      // An alternative faster approach is: (Remark: we assume id_set is vector<word_type::id_type> )
+      //
+      // id_set.clear();
+      // for (tokenizer_type::iterator titer = tokenizer.begin(); titer != tokenizer.end(); ++ titer)
+      //   id_set.push_back(ngram.index.vocab()[*titer]);
+      //
+      // then, you can iterate over id_set, not tokens.
+      //
+      
+      // 
+      // Note that the word_type will automatically assign id which may not
+      // match with the word-id assigned by the indexed ngram language model.
+      // This means that even OOV by the ngram language model may be assigned word-id.
+      // If you want to avoid this, here is a solution:
+      //
+      // const word_type::id_type unk_id = ngram.index.vocab()[vocab_type::UNK]
+      //
+      // id_set.clear();
+      // for (tokenizer_type::iterator titer = tokenizer.begin(); titer != tokenizer.end(); ++ titer)
+      //   id_set.push_back(ngram.index.vocab().exists(*titer) ? ngram.index.vocab()[*titer] : unk_id);
+      //
 
       // ngram access must use containser that supports forward-iterator concepts.
       // If not sure, use vector!

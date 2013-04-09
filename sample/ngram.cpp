@@ -102,7 +102,6 @@ int main(int argc, char** argv)
       // This means that even OOV by the ngram language model may be assigned word-id.
       // If you want to avoid this, here is a solution:
       //
-      //
       // const word_type::id_type bos_id = ngram.index.vocab()[vocab_type::BOS]
       // const word_type::id_type eos_id = ngram.index.vocab()[vocab_type::EOS]
       // const word_type::id_type unk_id = ngram.index.vocab()[vocab_type::UNK]
