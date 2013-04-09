@@ -47,8 +47,9 @@ Optionally, following libraries are recommended:
 Run
 ```
 
-Basically, you have only to use expgram.py which encapsulate all the routimes to estimate LM.
-For instance, you can run:
+Basically, you have only to use expgram.py (found at
+`<builddir>/scripts` or `<install prefix>/bin`) which encapsulate all the
+routimes to estimate LM. For instance, you can run:
 
 ::
 
@@ -59,7 +60,11 @@ For instance, you can run:
 	   --order  <order of ngram lm>
 	   --temporary-dir <temporary disk space>
 
-This will dump 4 models:
+Here, we assume a corpus, newline delimited set of sentences,
+indicated by `--corpus <corpus>` or a list of corpus, newline
+delimited set of corpora specified by `--corpus-list <list of corpus>`
+or `--counts-list <list of counts>` a list of count data.
+This will dump 4 data:
 
 ::
 
@@ -68,7 +73,7 @@ This will dump 4 models:
      <prefix>.lm		estiamted LM
      <prefix>.lm.quantize	8-bit quantized LM
 
-or, if you already have count data organized into Google format, simply run
+or, if you already have count data organized into a Google format, simply run
 
 ::
 
@@ -87,121 +92,6 @@ This will dump 3 models:
      <prefix>.lm		estiamted LM
      <prefix>.lm.quantize	8-bit quantized LM
 
-Internals
----------
-
-Brief descriptions of binaries:
-
-      expgram_vocab
-        Compute vocabulary (unigram with count). From this file, you can create count thresholded word-list, for instance, by
-	 
-        cat [output of expgram_vocab] | gawk '{ if ($12 >= 20) {print $1;}}' > vocab.list
-
-      expgram_counts_extract
-	compute ngram counts given  sentence data or ngram counts collection. The output is almost compatible with
-	Google ngram data specification, but differ in that counts are not reduced.
-	If you want to restrict vocabulary, supply word-list via --vocab option.
-
-      expgram_counts_index
-	ngram counts indexer from Googles ngram data format.
-	--shard control # of threads, which implies # of shards (or # of data splitting)
-
-      expgram_counts_modify
-	perform counts modification in ngram data for KN smoothing. If not indexed, perform indexing.
-
-      expgram_counts_estimate
-	perform ngram probabilities estimation. If not indexed, perfomr indexing. If not modified, perform counts modification.
-
-      expgram_index
-	ngram indexer from arpa format. For instance, you can use srilm to estimate your LM, and index it as an expgram format.
-
-      expgram_bound
-	ngram upper bound estimator. Compute upper bounds for ngrams. You do not have to run this, since ngram_index will
-	compute upper bounds simultaneously. It remains here for compatibility with mpi version (see below).
-	This is not required any more if you estimate your LM using this toolkit.
-
-      expgram_quantize
-	perform quantization for ngram probabilities, backoffs and upper bounds. If not indexed, perform indexing.
-
-      expgram_stat/expgram_counts_stat
-	dump statistics on storage size
-
-      expgram_clean
-	If you found spurious data on your temporary directory, run this to clean up the data. 
-	REMARK: make sure you are not runnning other expgram tools!
-
-     The set of tools provided here extensively use temporary disk space specified either by the environgment
-     variable, TMPDIR or TMPDIR_SPEC, or program option, --temporary-dir.
-     TMPDIR is usually set by default, and usually specified /tmp or /var/tmp
-     Alternatively, you can specify via TMPDIR_SPEC: 
-     
-     export TMPDIR_SPEC=/export/%host/users/${USER}
-     
-     The %host key word is simply replaced by the host of running machine (so that each binary may abuse only local-storage).
-     (This %host replace format can be specified via --temporary-dir option.)
-
-For larger data, it is recommended to use mpi-version for scalability.
-
-::
-
-      expgram_vocab_mpi
-      expgram_counts_extract_mpi
-      expgram_counts_index_mpi
-      expgram_counts_modify_mpi
-      expgram_counts_estimate_mpi
-      expgram_bound_mpi
-      expgram_quantize_mpi
-
-They performed similar to threaded version, but differ in that you have to explicitly run from index though quantize in order.
-
-APIs
-----
-
-API: Sample codes exists at sample directory, ngram.cc and ngram_counts.cc
-
-	NGram:
-		:code:`operator()(first, last)`: return backoff log-probabilities for ngram. Iterator must supports random-access
-				  	  concepts, such as vector's iterator.
-
-		:code:`logprob(first, last)` : synonym to operator()(first, last)
-		
-		:code:`logbound(first, last)` : Return upper-bound log-probability for ngram. Specifically,
-				        :math:`P_{bound}(w_n | w_i ... w_{n-1}) = max_{w_{i-1}} P(w_n | w_{i-1}, ... w_{n-1})`.
-				      	It is useful for a task, such as decoding, when we want to pre-compute heuristic
-					score in advance.
-		
-		:code:`exists(first, last)` : check whether a particular ngram exists or not.
-
-		:code:`index.order()`: returns ngram's maximum order
-		
-	NGramCounts:
-		:code:`operator()(first, last)` : return ngram count. if an ngram [first, last) does not exist, return zero.
-		
-		:code:`count(first, last)` : synonym to operator()(first, last)
-		:code:`modified(first, last)` : returnn "modified" ngram count for KN smoothing (when estimated...)
-		
-		:code:`exists(first, last)` : check whether a particular ngram exists or not.
-		
-		:code:`index.order()`: returns ngram's maximum order
-	
-	Internally, words (assuming std::string) are autoamtically converted into word_type (expgram::Word), then word_id
-	(expgram::Word::id_type). If you want to avoid such conversion on-the-fly, you can pre convert them by
-		
-	.. code:: c++
-
-	   expgram::Word::id_type word_id = {ngram or ngram_counts}.index.vocab()[word];
-
-	or, if you don't want to waste extra memory for expgram::Word type, use: (assuming "word" is std::string)
-
-	.. code:: c++
-	  
-	  expgram::Word::id_type word_id = {ngram or ngram_counts}.index.vocab()[expgram::Vocab::UNK];
-	  
-	  if ({ngram or ngram_counts}.index.vocab().exists(word))
-	    word_id = {ngram or ngram_counts}.index.vocab()[word];
-	
-	All the operations are thread-safe, meaning that concurrent
-	programs may call any API any time without locking! (except for ngram loading...)
 
 References
 ----------
