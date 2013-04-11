@@ -121,8 +121,10 @@ int main(int argc, char** argv)
     os << "ppl(+oov)     = " << utils::mathop::exp(- logprob_total_oov / (num_word + num_sentence)) << std::endl;
     os << "ppl1(+oov)    = " << utils::mathop::exp(- logprob_total_oov / (num_word)) << std::endl;
     
-    os << "cpu:  " << 1e-6 * (num_word + num_sentence) / (end.cpu_time() - start.cpu_time()) << " queries/ms" << std::endl
-       << "user: " << 1e-6 * (num_word + num_sentence) / (end.user_time() - start.user_time()) << " queries/ms" << std::endl;
+    os << "cpu:    " << 1e-6 * (num_word + num_sentence) / (end.cpu_time() - start.cpu_time()) << " queries/ms" << std::endl
+       << "user:   " << 1e-6 * (num_word + num_sentence) / (end.user_time() - start.user_time()) << " queries/ms" << std::endl
+       << "thread: " << 1e-6 * (num_word + num_sentence) / (end.thread_time() - start.thread_time()) << " queries/ms" << std::endl;
+    
   }
   catch (std::exception& err) {
     std::cerr << "error: " << err.what() << std::endl;
