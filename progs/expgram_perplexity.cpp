@@ -9,6 +9,7 @@
 
 #include <utils/compress_stream.hpp>
 #include <utils/program_options.hpp>
+#include <utils/resource.hpp>
 #include <utils/mathop.hpp>
 
 #include <expgram/NGram.hpp>
@@ -25,6 +26,7 @@ path_type temporary_dir = "";
 int order = 0;
 
 int shards = 4;
+bool populate = false;
 int debug = 0;
 
 int getoptions(int argc, char** argv);
@@ -46,6 +48,9 @@ int main(int argc, char** argv)
     typedef ngram_type::state_type state_type;
 
     ngram_type ngram(ngram_file, shards, debug);
+
+    if (populate)
+      ngram.populate();
     
     double logprob_total = 0.0;
     double logprob_total_oov = 0.0;
@@ -65,6 +70,8 @@ int main(int argc, char** argv)
     const word_type::id_type none_id = word_type::id_type(-1);
 
     const state_type state_bos = ngram.index.next(state_type(), bos_id);
+
+    utils::resource start;
     
     while (is >> sentence) {
       // add BOS and EOS
@@ -97,6 +104,8 @@ int main(int argc, char** argv)
       num_word += sentence.size();
       ++ num_sentence;
     }
+
+    utils::resource end;
     
     utils::compress_ostream os(output_file);
     os << "# of sentences: " << num_sentence
@@ -112,6 +121,8 @@ int main(int argc, char** argv)
     os << "ppl(+oov)     = " << utils::mathop::exp(- logprob_total_oov / (num_word + num_sentence)) << std::endl;
     os << "ppl1(+oov)    = " << utils::mathop::exp(- logprob_total_oov / (num_word)) << std::endl;
     
+    os << "cpu:  " << 1e-6 * (num_word + num_sentence) / (end.cpu_time() - start.cpu_time()) << " queries/ms" << std::endl
+       << "user: " << 1e-6 * (num_word + num_sentence) / (end.user_time() - start.user_time()) << " queries/ms" << std::endl;
   }
   catch (std::exception& err) {
     std::cerr << "error: " << err.what() << std::endl;
@@ -134,6 +145,7 @@ int getoptions(int argc, char** argv)
     ("order",       po::value<int>(&order)->default_value(order),              "ngram order")
     
     ("shard",  po::value<int>(&shards)->default_value(shards),                 "# of shards (or # of threads)")
+    ("populate", po::bool_switch(&populate), "perform memory population")
     ("debug", po::value<int>(&debug)->implicit_value(1), "debug level")
     ("help", "help message");
   

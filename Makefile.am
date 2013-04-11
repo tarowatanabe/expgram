@@ -5,5 +5,7 @@ SUBDIRS = utils succinct_db expgram progs sample scripts doc
 AUTOMAKE_OPTIONS = foreign
 
 EXTRA_DIST = \
-README.rst \
-LICENSES.rst
+BUILD.rst \
+LICENSES.rst \
+README.rst
+

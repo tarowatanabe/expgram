@@ -16,8 +16,8 @@ Quick Start
 
 Compile
 ```````
-
-Get the source code from `expgram <...>`_.
+Get the source code from `expgram <...>`_ by git and simply follow GNU
+the standard pipiline. For details, see BUILD.rst.
 
 ::
 
@@ -25,24 +25,6 @@ Get the source code from `expgram <...>`_.
    ./configure --prefix <prefix where you want to install. detault = /usr/local>
    make
    make install (optional)
-
-Dependencies
-````````````
-
-expgram is dependent on `boost library <http://boost.org>`_.
-Optionally, following libraries are recommended:
-
-  - MPI impllementation
-    We strongly recommends `open mpi <http://www.open-mpi.org>`_
-    which is regularly tested by the author.
-    
-  - Fast malloc replacement (recommended for Linux)
-    In general, Linux is very slow for malloc and it is recommended
-    to link with a faster malloc implementation. Some of the
-    recommended mallocs are:
-
-     - `jemalloc <http://www.canonware.com/jemalloc/>`_
-     - `gperftools (tcmalloc) <http://code.google.com/p/gperftools/>`_
 
 Run
 ```
