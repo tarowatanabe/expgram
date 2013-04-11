@@ -1,9 +1,12 @@
+* Implement vocabulary mapper which simply transform text into
+  vocabulary-id given ngram language model or counts
+
 * Implement --min-ngram to perform filtering duing indexing (for bigrams and upward)
 
 * Implement mini-expgram, which supports only loading.
 
 * Implement lower-order ngram estimates (use of bounds!)
-	and remove accumulated from NGramCounts
+  and remove accumulated from NGramCounts
 
 * Re-implement ngram language model code:
   We will re-implement by the back-inserted trie...
@@ -14,14 +17,16 @@
   1. Keep traverse interface, which is specific to ngram-counts.
   2. Use of prefix/suffix interface, which is specific to ngram-lm, backsorted structure.
   3. Unlike Google implementation, we will shard the ngram-lm:
-      using the last two words of the history for 3-gram and up
-      using the two words for bigram
-      zero-shard for the unigram
+
+      - using the last two words of the history for 3-gram and up
+      - using the two words for bigram
+      - zero-shard for the unigram
 
   Re-indexing implementation:
-    Each ngram is dumped with length word-id^{length} float-for-backoff float-for-prob 
-    	 by default, float-for-backoff float-for-prob are min-value
-    Sort and merge (taking max of float-for-backoff and flaot-for-prob)
-    Re-index according to the sorted information...
+
+    - Each ngram is dumped with length word-id^{length} float-for-backoff float-for-prob 
+      by default, float-for-backoff float-for-prob are min-value
+    - Sort and merge (taking max of float-for-backoff and flaot-for-prob)
+    - Re-index according to the sorted information...
 
     

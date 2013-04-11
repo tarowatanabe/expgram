@@ -2,6 +2,12 @@
 //  Copyright(C) 2009-2013 Taro Watanabe <taro.watanabe@nict.go.jp>
 //
 
+#define BOOST_SPIRIT_THREADSAFE
+#define PHOENIX_THREADSAFE
+
+#include <boost/spirit/include/qi.hpp>
+#include <boost/spirit/include/karma.hpp>
+
 #include <iostream>
 
 #include <boost/filesystem.hpp>
@@ -27,6 +33,7 @@ int order = 0;
 
 int shards = 4;
 bool populate = false;
+bool precompute = false;
 int debug = 0;
 
 int getoptions(int argc, char** argv);
@@ -47,6 +54,9 @@ int main(int argc, char** argv)
 
     typedef ngram_type::state_type state_type;
 
+    typedef word_type::id_type id_type;
+    typedef std::vector<id_type, std::allocator<id_type> > id_set_type;
+
     ngram_type ngram(ngram_file, shards, debug);
 
     if (populate)
@@ -59,6 +69,7 @@ int main(int argc, char** argv)
     size_t num_sentence = 0;
     
     sentence_type sentence;
+    id_set_type   ids;
     
     utils::compress_istream is(input_file);
 
@@ -70,39 +81,87 @@ int main(int argc, char** argv)
     const word_type::id_type none_id = word_type::id_type(-1);
 
     const state_type state_bos = ngram.index.next(state_type(), bos_id);
-
+    
     utils::resource start;
     
-    while (is >> sentence) {
-      // add BOS and EOS
+    if (precompute) {
+      namespace qi = boost::spirit::qi;
+      namespace standard = boost::spirit::standard;
       
-      if (sentence.empty()) continue;
+      typedef boost::spirit::istream_iterator iter_type;
       
-      state_type state = state_bos;
+      is.unsetf(std::ios::skipws);
       
-      sentence_type::const_iterator siter_end = sentence.end();
-      for (sentence_type::const_iterator siter = sentence.begin(); siter != siter_end; ++ siter) {
-	const word_type::id_type word_id = ngram.index.vocab()[*siter];
-	const bool is_oov = (word_id == unk_id) || (word_id == none_id);
+      iter_type iter(is);
+      iter_type iter_end;
+      
+      while (iter != iter_end) {
 	
-	const std::pair<state_type, float> result = ngram.logprob(state, word_id);
+	ids.clear();
+	if (! qi::phrase_parse(iter, iter_end, *qi::uint_ >> (qi::eol | qi::eoi), standard::blank, ids))
+	  throw std::runtime_error("parsing failed");
+
+	if (ids.empty()) continue;
+
+	state_type state = state_bos;
 	
-	state = result.first;
+	id_set_type::const_iterator siter_end = ids.end();
+	for (id_set_type::const_iterator siter = ids.begin(); siter != siter_end; ++ siter) {
+	  const word_type::id_type& word_id = *siter;
+	  const bool is_oov = (word_id == unk_id) || (word_id == none_id);
+	  
+	  const std::pair<state_type, float> result = ngram.logprob(state, word_id);
+	  
+	  state = result.first;
+	  
+	  if (! is_oov)
+	    logprob_total += result.second;
+	  logprob_total_oov += result.second;
+	  
+	  num_oov += is_oov;
+	}
 	
-	if (! is_oov)
-	  logprob_total += result.second;
-	logprob_total_oov += result.second;
+	const float logprob = ngram.logprob(state, eos_id).second;
 	
-	num_oov += is_oov;
+	logprob_total     += logprob;
+	logprob_total_oov += logprob;
+	
+	num_word += sentence.size();
+	++ num_sentence;	
       }
       
-      const float logprob = ngram.logprob(state, eos_id).second;
-      
-      logprob_total     += logprob;
-      logprob_total_oov += logprob;
-      
-      num_word += sentence.size();
-      ++ num_sentence;
+    } else {
+      while (is >> sentence) {
+	// add BOS and EOS
+	
+	if (sentence.empty()) continue;
+	
+	state_type state = state_bos;
+	
+	sentence_type::const_iterator siter_end = sentence.end();
+	for (sentence_type::const_iterator siter = sentence.begin(); siter != siter_end; ++ siter) {
+	  const word_type::id_type word_id = ngram.index.vocab()[*siter];
+	  const bool is_oov = (word_id == unk_id) || (word_id == none_id);
+	  
+	  const std::pair<state_type, float> result = ngram.logprob(state, word_id);
+	  
+	  state = result.first;
+	  
+	  if (! is_oov)
+	    logprob_total += result.second;
+	  logprob_total_oov += result.second;
+	  
+	  num_oov += is_oov;
+	}
+	
+	const float logprob = ngram.logprob(state, eos_id).second;
+	
+	logprob_total     += logprob;
+	logprob_total_oov += logprob;
+	
+	num_word += sentence.size();
+	++ num_sentence;
+      }
     }
 
     utils::resource end;
@@ -147,7 +206,10 @@ int getoptions(int argc, char** argv)
     ("order",       po::value<int>(&order)->default_value(order),              "ngram order")
     
     ("shard",  po::value<int>(&shards)->default_value(shards),                 "# of shards (or # of threads)")
-    ("populate", po::bool_switch(&populate), "perform memory population")
+
+    ("populate",   po::bool_switch(&populate),   "perform memory population")
+    ("precompute", po::bool_switch(&precompute), "assume precomputed word-id input")
+    
     ("debug", po::value<int>(&debug)->implicit_value(1), "debug level")
     ("help", "help message");
   
