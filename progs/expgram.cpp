@@ -16,6 +16,7 @@
 #include <utils/compress_stream.hpp>
 #include <utils/program_options.hpp>
 #include <utils/mathop.hpp>
+#include <utils/resource.hpp>
 
 #include <expgram/NGram.hpp>
 #include <expgram/Sentence.hpp>
@@ -69,6 +70,11 @@ int main(int argc, char** argv)
     
     const state_type state_bos = ngram.index.next(state_type(), bos_id);
     
+    size_t num_word = 0;
+    size_t num_sentence = 0;
+
+    utils::resource start;
+    
     while (is >> sentence) {
       // add BOS and EOS
       
@@ -109,7 +115,17 @@ int main(int argc, char** argv)
 			    karma::double_ << ' ' << karma::int_ << '\n',
 			    logprob, oov))
 	throw std::runtime_error("generation failed");
+
+      ++ num_sentence;
+      num_word += sentence.size();
     }
+    
+    utils::resource end;
+    
+    if (debug)
+      std::cerr << "cpu:    " << 1e-3 * (num_word + num_sentence) / (end.cpu_time() - start.cpu_time()) << " queries/ms" << std::endl
+		<< "user:   " << 1e-3 * (num_word + num_sentence) / (end.user_time() - start.user_time()) << " queries/ms" << std::endl
+		<< "thread: " << 1e-3 * (num_word + num_sentence) / (end.thread_time() - start.thread_time()) << " queries/ms" << std::endl;
   }
   catch (std::exception& err) {
     std::cerr << "error: " << err.what() << std::endl;
