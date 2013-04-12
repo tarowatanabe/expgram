@@ -123,7 +123,8 @@ int main(int argc, char** argv)
     utils::resource end;
     
     if (debug)
-      std::cerr << "cpu:    " << 1e-3 * (num_word + num_sentence) / (end.cpu_time() - start.cpu_time()) << " queries/ms" << std::endl
+      std::cerr << "queries: " << (num_word + num_sentence) << std::endl
+		<< "cpu:    " << 1e-3 * (num_word + num_sentence) / (end.cpu_time() - start.cpu_time()) << " queries/ms" << std::endl
 		<< "user:   " << 1e-3 * (num_word + num_sentence) / (end.user_time() - start.user_time()) << " queries/ms" << std::endl
 		<< "thread: " << 1e-3 * (num_word + num_sentence) / (end.thread_time() - start.thread_time()) << " queries/ms" << std::endl;
   }
