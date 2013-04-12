@@ -679,9 +679,6 @@ namespace expgram
       context_type         context;
       context_logprob_type context_logprob;
 
-
-      const int order_prev_max = ngram.index.order() - 1;
-
       for (int order_prev = 1; order_prev < ngram.index.order(); ++ order_prev) {
 	const size_type pos_context_first = ngram.index[shard].offsets[order_prev - 1];
 	const size_type pos_context_last  = ngram.index[shard].offsets[order_prev];
@@ -696,7 +693,7 @@ namespace expgram
 	  
 	  if (pos_first == pos_last) continue;
 	  
-	  context_type::iterator citer_curr = context.end() - 2;
+	  context_type::iterator citer_curr = context.end() - 1;
 	  for (size_type pos_curr = pos_context; pos_curr != size_type(-1); pos_curr = ngram.index[shard].parent(pos_curr), -- citer_curr)
 	    *citer_curr = ngram.index[shard][pos_curr];
 	  
@@ -705,34 +702,9 @@ namespace expgram
 	  
 	  word_set_type& words = context_logprob.second;
 	  for (size_type pos = pos_first; pos != pos_last; ++ pos) {
-	    logprob_type logprob = ngram.logprobs[shard](pos, order_prev + 1);
-	    
+	    const logprob_type logprob = ngram.logprobs[shard](pos, order_prev + 1);
 	    if (logprob != ngram.logprob_min()) {
-	      const id_type word = ngram.index[shard][pos];
-	      logprob_type backoff(0.0);
-	      
-	      if (order_prev < order_prev_max) {
-		const int backoff_shard = ngram.index.shard_index(context.back(), word);
-		
-		ngram_type::state_type state = ngram.index.next(ngram_type::state_type(backoff_shard), word);
-		
-		
-		if (state.is_root_node())
-		  throw std::runtime_error("invalid backoff??");
-		
-		context_type::const_reverse_iterator citer_end = context.rend();
-		for (context_type::const_reverse_iterator citer = context.rbegin(); citer != citer_end; ++ citer) {
-		  state = ngram.index.next(state, *citer);
-		  
-		  if (state.is_root_node())
-		    throw std::runtime_error("invalid backoff??");
-		}
-		
-		const size_type backoff_pos = state.node();
-		if (backoff_pos < ngram.backoffs[backoff_shard].size())
-		  backoff = ngram.backoffs[backoff_shard](backoff_pos, order_prev + 1);
-	      }
-	      
+	      const logprob_type backoff = (pos < ngram.backoffs[shard].size() ? ngram.backoffs[shard](pos, order_prev + 1) : logprob_type(0.0));
 	      words.push_back(std::make_pair(ngram.index[shard][pos], std::make_pair(logprob, backoff)));
 	    }
 	  }
