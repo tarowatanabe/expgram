@@ -62,6 +62,8 @@ namespace expgram
       offsets.push_back(utils::lexical_cast<size_type>(iter->second));
     }
 
+    off_set_type(offsets).swap(offsets);
+    
     clear_cache();
   }
 
