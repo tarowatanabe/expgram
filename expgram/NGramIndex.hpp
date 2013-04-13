@@ -136,22 +136,24 @@ namespace expgram
 	cache_suffix_type() : state(), suffix() {}
       };
 
-      typedef utils::array_power2<cache_pos_type,    1024 * 64, std::allocator<cache_pos_type> >    cache_pos_set_type;
-      typedef utils::array_power2<cache_suffix_type, 1024 * 64, std::allocator<cache_suffix_type> > cache_suffix_set_type;
+      //typedef utils::array_power2<cache_pos_type,    1024 * 64, std::allocator<cache_pos_type> >    cache_pos_set_type;
+      //typedef utils::array_power2<cache_suffix_type, 1024 * 64, std::allocator<cache_suffix_type> > cache_suffix_set_type;
+
+      typedef std::vector<cache_pos_type,    std::allocator<cache_pos_type> >    cache_pos_set_type;
+      typedef std::vector<cache_suffix_type, std::allocator<cache_suffix_type> > cache_suffix_set_type;
       
     public:
       Shard() {}
       Shard(const path_type& path) { open(path); }
-
-      Shard(const Shard& x) : ids(x.ids), positions(x.positions), offsets(x.offsets) {}
+      
+      Shard(const Shard& x) : ids(x.ids), positions(x.positions), offsets(x.offsets) { clear_cache(); }
       Shard& operator=(const Shard& x)
       {
 	ids = x.ids;
 	positions = x.positions;
 	offsets = x.offsets;
 	
-	caches_pos.clear();
-	caches_suffix.clear();
+	clear_cache();
 	return *this;
       }
 
@@ -164,15 +166,10 @@ namespace expgram
 	positions.clear();
 	offsets.clear();
 	
-	caches_pos.clear();
-	caches_suffix.clear();
+	clear_cache();
       };
 
-      void clear_cache()
-      {
-	caches_pos.clear();
-	caches_suffix.clear();
-      }
+      void clear_cache();
       
       void open(const path_type& path);
       void write(const path_type& file) const;
