@@ -269,6 +269,11 @@ namespace expgram
         }
       }
 
+      size_type interpolation_pivot(size_type offset, size_type range, size_type width) const
+      {
+	return (offset * width) / (range + 1);
+      }
+
       size_type lower_bound(size_type first, size_type last, const id_type& id) const
       {
 	const size_type offset = offsets[1];
@@ -281,10 +286,41 @@ namespace expgram
 	  first -= offset;
 	  last  -= offset;
 	  
-	  if (length <= 128) {
+	  if (length <= 64) {
 	    for (/**/; first != last && ids[first] < id; ++ first) {}
 	    return first + offset;
 	  } else {
+	    // keep failure...
+	    const size_type __last = last;
+	    
+	    // search the values of [0, offset]
+	    -- first;
+	    ++ length;
+	    // thus, we search the range [first + 1, last - 1]
+	    
+	    id_type front = 0;
+	    id_type back  = offset - 1;
+	    
+	    while (length > 1) {
+	      const difference_type diff = 1 + interpolation_pivot(id - front, back - front, length - 1);
+	      const size_type middle = first + diff;
+	      const id_type pivot = ids[middle];
+	      
+	      if (pivot < id) {
+		first = middle;
+		front = pivot;
+		length -= diff;
+	      } else if (id < pivot) {
+		last = middle;
+		back = pivot;
+		length = diff;
+	      } else
+		return middle + offset;
+	    }
+
+	    return __last + offset;
+	    
+#if 0
 	    while (length) {
 	      const size_t half  = length >> 1;
 	      const size_t middle = first + half;
@@ -295,6 +331,7 @@ namespace expgram
 	      length = utils::bithack::branch(is_less, length - half - 1, half);
 	    }
 	    return first + offset;
+#endif
 	  }
 	}
       }
