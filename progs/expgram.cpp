@@ -18,7 +18,7 @@
 #include <utils/mathop.hpp>
 #include <utils/resource.hpp>
 #include <utils/hashmurmur3.hpp>
-#include <utils/array_power2.hpp>
+#include <utils/bithack.hpp>
 
 #include <expgram/NGram.hpp>
 #include <expgram/Sentence.hpp>
@@ -32,49 +32,6 @@ typedef expgram::Vocab    vocab_type;
 typedef expgram::Sentence sentence_type;
 
 typedef ngram_type::state_type state_type;
-
-struct NGramCache : public utils::hashmurmur3<size_t>
-{
-
-  struct Cache
-  {
-    state_type         curr_;
-    state_type         next_;
-    word_type::id_type word_;
-    float              prob_;
-    
-    Cache() : curr_(), next_(), word_(word_type::id_type(-1)), prob_(std::numeric_limits<float>::quiet_NaN()) {}
-  };
-  
-  typedef Cache cache_type;
-  typedef utils::array_power2<cache_type, 1024 * 1024, std::allocator<cache_type> > cache_set_type;
-  
-  typedef utils::hashmurmur3<size_t> hasher_type;
-  
-  NGramCache(const ngram_type& ngram) : caches_(), ngram_(ngram) {}
-  
-  const std::pair<state_type, float> operator()(const state_type& state, const word_type::id_type& id) const
-  {
-    const size_t cache_pos = hasher_type()(state, id) & (caches_.size() - 1);
-
-    cache_type& cache = const_cast<cache_type&>(caches_[cache_pos]);
-    
-    if (cache.curr_ != state || cache.word_ != id || cache.prob_ == std::numeric_limits<float>::quiet_NaN()) {
-      cache.curr_ = state;
-      cache.word_ = id;
-      
-      const std::pair<state_type, float> result = ngram_.logprob(state, id);
-
-      cache.next_ = result.first;
-      cache.prob_ = result.second;
-    }
-    
-    return std::make_pair(cache.next_, cache.prob_);
-  }
-  
-  cache_set_type caches_;
-  const ngram_type& ngram_;
-};
 
 path_type ngram_file;
 path_type input_file = "-";
@@ -98,7 +55,6 @@ int main(int argc, char** argv)
     namespace standard = boost::spirit::standard;
         
     ngram_type ngram(ngram_file, shards, debug);
-    NGramCache cache(ngram);
     
     sentence_type sentence;
     
@@ -133,8 +89,7 @@ int main(int argc, char** argv)
       for (sentence_type::const_iterator siter = sentence.begin(); siter != siter_end; ++ siter) {
 	const word_type::id_type id = ngram.index.vocab()[*siter];
 	
-	//const std::pair<state_type, float> result = ngram.logprob(state, id);
-	const std::pair<state_type, float> result = cache(state, id);
+	const std::pair<state_type, float> result = ngram.logprob(state, id);
 	
 	if (verbose)
 	  if (! karma::generate(std::ostream_iterator<char>(os),
@@ -148,8 +103,7 @@ int main(int argc, char** argv)
 	logprob += result.second;
       }
       
-      //const std::pair<state_type, float> result = ngram.logprob(state, eos_id);
-      const std::pair<state_type, float> result = cache(state, eos_id);
+      const std::pair<state_type, float> result = ngram.logprob(state, eos_id);
       
       if (verbose)
 	if (! karma::generate(std::ostream_iterator<char>(os),
