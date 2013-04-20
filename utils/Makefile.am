@@ -40,6 +40,7 @@ compress_stream.hpp \
 config.hpp \
 config.h \
 filesystem.hpp \
+getline.hpp \
 group_aligned_code.hpp \
 group_aligned_code_offsets.hpp \
 hashmurmur.hpp \
