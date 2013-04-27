@@ -408,6 +408,11 @@ namespace utils
 	
 	request_size.Start();
 	request_buffer.Start();
+
+	// test here to avoid strange behavior...
+	request_size.Test();
+	request_buffer.Test();
+	
 	return send_size;
       } else
 	return 0;
@@ -418,6 +423,11 @@ namespace utils
 	
 	request_size.Start();
 	request_buffer.Start();
+
+	// test here to avoid strange behavior...
+	request_size.Test();
+	request_buffer.Test();
+	
 	return send_size;
       } else
 	return 0;
@@ -451,6 +461,10 @@ namespace utils
     
     request_size.Start();
     request_buffer.Start();
+
+    // test here to avoid strange behavior...
+    request_size.Test();
+    request_buffer.Test();
   };
   
   void mpi_device_sink::impl::finalize()
@@ -547,6 +561,11 @@ namespace utils
     if (buffer_offset == recv_size) {
       request_size.Start();
       request_buffer.Start();
+      
+      // test here to avoid strange behavior...
+      request_size.Test();
+      request_buffer.Test();
+      
       buffer_offset = 0;
     }
     
@@ -586,6 +605,10 @@ namespace utils
     
     request_size.Start();
     request_buffer.Start();
+    
+    // test here to avoid strange behavior...
+    request_size.Test();
+    request_buffer.Test();
   }
 
 };
