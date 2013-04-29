@@ -64,11 +64,17 @@ int getoptions(int argc, char** argv);
 
 struct greaterp
 {
-  template <typename Tp>
-  bool operator()(const Tp& x, const Tp& y) const
+  greaterp(const count_set_type::const_iterator& __first) : first(__first) {}
+
+  bool operator()(const count_set_type::const_iterator& x, const count_set_type::const_iterator& y) const
   {
-    return *x > *y;
+    return (*x > *y
+	    || (*x == *y
+		&& (static_cast<const std::string&>(word_type(word_type::id_type(x - first)))
+		    < static_cast<const std::string&>(word_type(word_type::id_type(y - first))))));
   }
+
+  count_set_type::const_iterator first;
 };
 
 int main(int argc, char** argv)
@@ -143,7 +149,7 @@ int main(int argc, char** argv)
     for (count_set_type::const_iterator citer = citer_begin; citer != citer_end; ++ citer)
       sorted.push_back(citer);
     
-    std::sort(sorted.begin(), sorted.end(), greaterp());
+    std::sort(sorted.begin(), sorted.end(), greaterp(counts.begin()));
 
     
     utils::compress_ostream os(output_file, 1024 * 1024);
