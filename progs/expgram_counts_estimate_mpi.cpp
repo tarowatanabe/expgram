@@ -125,6 +125,8 @@ path_type output_file;
 path_type temporary_dir = "";
 
 path_type prog_name;
+std::string host;
+std::string hostfile;
 
 bool remove_unk = false;
 
@@ -2062,7 +2064,10 @@ int getoptions(int argc, char** argv)
     ("output",    po::value<path_type>(&output_file)->default_value(output_file), "output in binary format")
     ("temporary", po::value<path_type>(&temporary_dir),                           "temporary directory")
 
-    ("prog",   po::value<path_type>(&prog_name),   "this binary")
+    ("prog",       po::value<path_type>(&prog_name),  "this binary")
+    ("host",       po::value<std::string>(&host),     "host name")
+    ("hostfile",   po::value<std::string>(&hostfile), "hostfile name")
+    
     
     ("remove-unk", po::bool_switch(&remove_unk),   "remove UNK when estimating language model")
     

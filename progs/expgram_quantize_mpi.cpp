@@ -34,6 +34,8 @@ path_type output_file;
 path_type temporary_dir = "";
 
 path_type prog_name;
+std::string host;
+std::string hostfile;
 
 int debug = 0;
 
@@ -266,7 +268,9 @@ int getoptions(int argc, char** argv)
     ("output",    po::value<path_type>(&output_file)->default_value(output_file), "output in expgram format")
     ("temporary", po::value<path_type>(&temporary_dir),                           "temporary directory")
     
-    ("prog",   po::value<path_type>(&prog_name),   "this binary")
+    ("prog",       po::value<path_type>(&prog_name),  "this binary")
+    ("host",       po::value<std::string>(&host),     "host name")
+    ("hostfile",   po::value<std::string>(&hostfile), "hostfile name")    
     
     ("debug", po::value<int>(&debug)->implicit_value(1), "debug level")
     ("help", "help message");

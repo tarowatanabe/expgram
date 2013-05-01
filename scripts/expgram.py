@@ -418,6 +418,12 @@ class Vocab:
 
         if mpi:
             command += Option('--prog', Quoted(expgram.expgram_vocab_mpi))
+
+            if mpi.hosts:
+                command += Option('--host', Quoted(mpi.hosts))
+            elif mpi.hosts_file:
+                command += Option('--hostfile', Quoted(mpi.hosts_file))
+
         else:
             command += Option('--threads', threads)
             
@@ -506,6 +512,12 @@ class Extract:
 
         if mpi:
             command += Option('--prog', Quoted(expgram.expgram_counts_extract_mpi))
+
+            if mpi.hosts:
+                command += Option('--host', Quoted(mpi.hosts))
+            elif mpi.hosts_file:
+                command += Option('--hostfile', Quoted(mpi.hosts_file))
+
         else:
             command += Option('--threads', threads)
 
@@ -556,6 +568,12 @@ class Index:
         
         if mpi:
             command += Option('--prog', Quoted(expgram.expgram_counts_index_mpi))
+
+            if mpi.hosts:
+                command += Option('--host', Quoted(mpi.hosts))
+            elif mpi.hosts_file:
+                command += Option('--hostfile', Quoted(mpi.hosts_file))
+
         else:
             command += Option('--shard', threads)
 
@@ -605,6 +623,11 @@ class Modify:
 
         if mpi:
             command += Option('--prog', Quoted(expgram.expgram_counts_modify_mpi))
+
+            if mpi.hosts:
+                command += Option('--host', Quoted(mpi.hosts))
+            elif mpi.hosts_file:
+                command += Option('--hostfile', Quoted(mpi.hosts_file))
 
         if debug >= 2:
             command += Option('--debug', debug)
@@ -656,6 +679,11 @@ class Estimate:
         if mpi:
             command += Option('--prog', Quoted(expgram.expgram_counts_estimate_mpi))
 
+            if mpi.hosts:
+                command += Option('--host', Quoted(mpi.hosts))
+            elif mpi.hosts_file:
+                command += Option('--hostfile', Quoted(mpi.hosts_file))
+
         if debug >= 2:
             command += Option('--debug', debug)
         else:
@@ -702,6 +730,11 @@ class Quantize:
         
         if mpi:
             command += Option('--prog', Quoted(expgram.expgram_quantize_mpi))
+
+            if mpi.hosts:
+                command += Option('--host', Quoted(mpi.hosts))
+            elif mpi.hosts_file:
+                command += Option('--hostfile', Quoted(mpi.hosts_file))
 
         if debug >= 2:
             command += Option('--debug', debug)

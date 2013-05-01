@@ -54,6 +54,8 @@ path_type output_file = "-";
 path_type filter_file;
 
 path_type prog_name;
+std::string host;
+std::string hostfile;
 
 bool map_line = false;
 
@@ -735,7 +737,9 @@ int getoptions(int argc, char** argv)
     
     ("filter", po::value<path_type>(&filter_file), "filtering script")
 
-    ("prog",   po::value<path_type>(&prog_name),   "this binary")
+    ("prog",       po::value<path_type>(&prog_name),  "this binary")
+    ("host",       po::value<std::string>(&host),     "host name")
+    ("hostfile",   po::value<std::string>(&hostfile), "hostfile name")    
     
     ("map-line",   po::bool_switch(&map_line),     "map by lines, not by files")
     
