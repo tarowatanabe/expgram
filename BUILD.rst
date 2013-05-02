@@ -33,7 +33,7 @@ Optionally, following libraries are recommended:
     The MPI libraries are automatically detected by the `configure`
     script by finding either mpic++, mpicxx or mpiCC. Thus, those mpi
     specific compilers should be on the path.
-    
+
   - Fast malloc replacement (recommended for Linux)
     In general, Linux is very slow for malloc and it is recommended
     to link with a faster malloc implementation. Some of the
