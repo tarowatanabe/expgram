@@ -682,7 +682,7 @@ struct MapReduceFile
 				      ? new thread_type(task_type(queue, *subprocess, vocabulary, output_path, paths_counts, max_malloc))
 				      : new thread_type(task_type(queue, vocabulary, output_path, paths_counts, max_malloc)));
     
-    istream_type stream(0, file_tag, 4096);
+    istream_type stream(0, file_tag, 4096, true);
     
     int num_file = 0;
     std::string file;
@@ -693,6 +693,8 @@ struct MapReduceFile
       queue.push(file);
       ++ num_file;
       queue.wait_empty();
+      
+      stream.ready();
     }
     
     file.clear();

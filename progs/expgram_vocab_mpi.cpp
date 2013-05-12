@@ -577,12 +577,13 @@ struct MapReduceFile
       
       for (int rank = 1; rank < mpi_size; ++ rank) 
 	if (stream[rank] && stream[rank]->test()) {
-	  if (! stream[rank]->terminated())
+	  if (! stream[rank]->terminated()) {
 	    stream[rank]->terminate();
-	  else if (requests[rank].Test())
+	    found = true;
+	  } else if (requests[rank].Test()) {
 	    stream[rank].reset();
-	  
-	  found = true;
+	    found = true;
+	  }
 	}
       
       if (terminated && std::count(stream.begin(), stream.end(), ostream_ptr_type()) == mpi_size) {
@@ -615,7 +616,7 @@ struct MapReduceFile
     
     std::auto_ptr<subprocess_type> subprocess(path_filter.empty() ? 0 : new subprocess_type(path_filter));
     
-    istream_type stream(0, file_tag, 4096);
+    istream_type stream(0, file_tag, 4096, true);
     
     queue_type queue(1);
     std::auto_ptr<thread_type> thread(subprocess.get()
@@ -631,6 +632,8 @@ struct MapReduceFile
       queue.push(file);
       ++ num_file;
       queue.wait_empty();
+      
+      stream.ready();
     }
     
     file.clear();
