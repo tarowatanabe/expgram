@@ -635,12 +635,13 @@ struct MapReduceFile
       
       for (int rank = 1; rank < mpi_size; ++ rank) 
 	if (stream[rank] && stream[rank]->test()) {
-	  if (! stream[rank]->terminated())
+	  if (! stream[rank]->terminated()) {
 	    stream[rank]->terminate();
-	  else if (requests[rank].Test())
+	    found = true;
+	  } else if (requests[rank].Test()) {
 	    stream[rank].reset();
-	  
-	  found = true;
+	    found = true;
+	  }
 	}
       
       if (terminated && std::count(stream.begin(), stream.end(), ostream_ptr_type()) == mpi_size) {
