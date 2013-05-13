@@ -1,5 +1,5 @@
 //
-//  Copyright(C) 2009-2012 Taro Watanabe <taro.watanabe@nict.go.jp>
+//  Copyright(C) 2009-2013 Taro Watanabe <taro.watanabe@nict.go.jp>
 //
 
 #include <iostream>
@@ -43,8 +43,8 @@ typedef GoogleNGramCounts::ngram_type    ngram_type;
 
 typedef GoogleNGramCounts::ngram_count_set_type count_set_type;
 
-path_type corpus_file;
-path_type counts_file;
+path_set_type corpus_files;
+path_set_type counts_files;
 
 path_type corpus_list_file;
 path_type counts_list_file;
@@ -108,13 +108,6 @@ int main(int argc, char** argv)
       return 1;
     
     if (mpi_rank == 0) {
-      path_set_type corpus_files;
-      path_set_type counts_files;
-      
-      if (corpus_file == "-" || boost::filesystem::exists(corpus_file))
-	corpus_files.push_back(corpus_file);
-      if (counts_file == "-" || boost::filesystem::exists(counts_file))
-	counts_files.push_back(counts_file);
       
       if (corpus_list_file == "-" || boost::filesystem::exists(corpus_list_file)) {
 	utils::compress_istream is(corpus_list_file);
@@ -730,8 +723,8 @@ int getoptions(int argc, char** argv)
   
   po::options_description desc("options");
   desc.add_options()
-    ("corpus",       po::value<path_type>(&corpus_file),  "corpus file")
-    ("counts",       po::value<path_type>(&counts_file),  "counts file")
+    ("corpus",       po::value<path_set_type>(&corpus_files)->multitoken(),  "corpus file(s)")
+    ("counts",       po::value<path_set_type>(&counts_files)->multitoken(),  "counts file(s)")
     
     ("corpus-list",  po::value<path_type>(&corpus_list_file),  "corpus list file")
     ("counts-list",  po::value<path_type>(&counts_list_file),  "counts list file")
