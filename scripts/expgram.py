@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-#  Copyright(C) 2010-2012 Taro Watanabe <taro.watanabe@nict.go.jp>
+#  Copyright(C) 2010-2013 Taro Watanabe <taro.watanabe@nict.go.jp>
 #
 
 #
@@ -361,8 +361,9 @@ class Expgram:
 	    	raise ValueError, binprog + ' does not exist'
 
 class Corpus:
-    def __init__(self, corpus="", corpus_list="", counts_list=""):
+    def __init__(self, corpus="", counts="", corpus_list="", counts_list=""):
         self.corpus      = corpus
+        self.counts      = counts
         self.corpus_list = corpus_list
         self.counts_list = counts_list
 
@@ -811,6 +812,7 @@ if __name__ == '__main__':
         pbs = PBS(queue=options.pbs_queue)
 
     corpus = Corpus(corpus=options.corpus,
+                    counts=options.counts,
                     corpus_list=options.corpus_list,
                     counts_list=options.counts_list)
 
