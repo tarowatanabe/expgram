@@ -8,14 +8,14 @@ The target is to index Google's ngrams into 10GB.
 Among ngram compression mentioned in [1]_, we do not implement
 block-wise compression (or gzip every 8k-byte) for efficiency reason. 
 Also, this toolkit implements large scale ngram language model
-proposed by Goolge [2]_.
+estimation proposed by Goolge [2]_.
 In order to support better rest cost estimation, particulary used in
-SMT systems, this toolkit also implements better upper bound estimates
+SMT systems, this toolkit also implements better bound scores
 by correctly estimating lower-order ngram language models [3]_.
 We also supports transducer-like interface motivated by [4]_ for a
 faster lm score computation.
-Note this toolkit is not called xxxxlm to avoid dependence on
-particular research institutes.
+Note this toolkit is primarily developed to handle large ngram count
+data, thus it is not called like xxxlm.
 
 Quick Start
 -----------
