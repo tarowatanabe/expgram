@@ -763,8 +763,9 @@ namespace expgram
       queues[shard].reset(new queue_type(1024 * 64));
       threads[shard].reset(new thread_type(mapper_type(*this, *queues[shard], shard)));
     }
-    
     const id_type bos_id = index.vocab()[vocab_type::BOS];
+    const id_type unk_id = index.vocab()[vocab_type::UNK];
+    const bool has_unk = (unk_id < index[0].offsets[1]);
     
     vocab_map_type vocab_map;
     vocab_map.reserve(index[0].offsets[1]);
@@ -776,7 +777,7 @@ namespace expgram
     // dump headers...
     os << "\\data\\" << '\n';
     {
-      os << "ngram " << 1 << '=' << index[0].offsets[1] << '\n';
+      os << "ngram " << 1 << '=' << (index[0].offsets[1] + !has_unk) << '\n';
       for (int order = 2; order <= index.order(); ++ order) {
 	size_type size = 0;
 	for (size_type shard = 0; shard != index.size(); ++ shard)
@@ -793,6 +794,11 @@ namespace expgram
     // unigrams...
     {
       os << "\\1-grams:" << '\n';
+      
+      if (! has_unk)
+	os << (smooth / log_10) << '\t' << vocab_type::UNK << '\n';
+      
+
       for (size_type pos = 0; pos < index[0].offsets[1]; ++ pos) {
 	logprob_type logprob = logprobs[0](pos, 1);
 	
