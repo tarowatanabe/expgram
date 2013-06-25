@@ -787,7 +787,7 @@ namespace expgram
     }
     os << '\n';
     
-    const double log_10 = M_LN10;
+    const double factor_log_10 = 1.0 / M_LN10;
 
     static const logprob_type logprob_srilm_min = double(-99) * M_LN10;
 
@@ -796,8 +796,7 @@ namespace expgram
       os << "\\1-grams:" << '\n';
       
       if (! has_unk)
-	os << (smooth / log_10) << '\t' << vocab_type::UNK << '\n';
-      
+	os << (smooth * factor_log_10) << '\t' << vocab_type::UNK << '\n';
 
       for (size_type pos = 0; pos < index[0].offsets[1]; ++ pos) {
 	logprob_type logprob = logprobs[0](pos, 1);
@@ -815,9 +814,9 @@ namespace expgram
 	    vocab_map[id] = static_cast<const std::string&>(index.vocab()[id]).c_str();
 	  
 	  const logprob_type backoff = (pos < backoffs[0].size() ? backoffs[0](pos, 1) : logprob_type(0.0));	  
-	  os << (logprob / log_10) << '\t' << vocab_map[id];
+	  os << (logprob * factor_log_10) << '\t' << vocab_map[id];
 	  if (backoff != 0.0)
-	    os << '\t' << (backoff / log_10);
+	    os << '\t' << (backoff * factor_log_10);
 	  os << '\n';
 	}
       }
@@ -875,12 +874,12 @@ namespace expgram
 	if (! vocab_map[id])
 	  vocab_map[id] = static_cast<const std::string&>(index.vocab()[id]).c_str();
 	
-	os << (logprob / log_10) << '\t';
+	os << (logprob * factor_log_10) << '\t';
 	std::copy(phrase.begin(), phrase.end(), std::ostream_iterator<const char*>(os, " "));
 	os << vocab_map[id];
 	
 	if (backoff != 0.0)
-	  os << '\t' << (backoff / log_10);
+	  os << '\t' << (backoff * factor_log_10);
 	os << '\n';
       }
       

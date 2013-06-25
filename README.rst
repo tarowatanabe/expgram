@@ -80,6 +80,14 @@ This will dump 3 models:
      <prefix>.lm		estiamted LM
      <prefix>.lm.quantize	8-bit quantized LM
 
+The language model probabilities are stored by the natural logarithm
+(with e as a base), not by the logarithm with base 10. If you want to
+see the LM, use:
+
+::
+   ./expgram_dump --ngram <prefix>.lm (or <prefix>.lm.quantize)
+
+which write LM in ARPA format, using the common logarithm with base 10.
 
 References
 ----------
