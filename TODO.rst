@@ -5,8 +5,8 @@
 
 * Implement mini-expgram, which supports only loading.
 
-* Implement lower-order ngram estimates (use of bounds!)
-  and remove accumulated from NGramCounts
+* Implement lower-order ngram dumping to support lower order rest cost
+  estimation for kenlm.
 
 * Re-implement ngram language model code:
   We will re-implement by the back-inserted trie...
