@@ -745,7 +745,7 @@ namespace expgram
     typedef map_reduce_type::word_set_type        word_set_type;
     typedef map_reduce_type::context_logprob_type context_logprob_type;
 
-    typedef std::vector<const char*, std::allocator<const char*> > vocab_map_type;
+    typedef std::vector<utils::piece, std::allocator<utils::piece> > vocab_map_type;
     
     typedef std::pair<word_set_type, queue_type*>       words_queue_type;
     typedef std::pair<context_type, words_queue_type>   context_words_queue_type;
@@ -809,9 +809,9 @@ namespace expgram
 	  const id_type id(pos);
 	  
 	  if (id >= vocab_map.size())
-	    vocab_map.resize(id + 1, 0);
-	  if (! vocab_map[id])
-	    vocab_map[id] = static_cast<const std::string&>(index.vocab()[id]).c_str();
+	    vocab_map.resize(id + 1, utils::piece());
+	  if (vocab_map[id].empty())
+	    vocab_map[id] = index.vocab()[id];
 	  
 	  const logprob_type backoff = (pos < backoffs[0].size() ? backoffs[0](pos, 1) : logprob_type(0.0));	  
 	  os << (logprob * factor_log_10) << '\t' << vocab_map[id];
@@ -838,7 +838,7 @@ namespace expgram
       }
     }
     
-    typedef std::vector<const char*, std::allocator<const char*> > phrase_type;
+    typedef std::vector<utils::piece, std::allocator<utils::piece> > phrase_type;
 
     phrase_type phrase;
     int order = 1;
@@ -856,9 +856,9 @@ namespace expgram
       context_type::const_iterator citer_end = context_queue->first.end();
       for (context_type::const_iterator citer = context_queue->first.begin(); citer != citer_end; ++ citer) {
 	if (*citer >= vocab_map.size())
-	  vocab_map.resize(*citer + 1, 0);
-	if (! vocab_map[*citer])
-	  vocab_map[*citer] = static_cast<const std::string&>(index.vocab()[*citer]).c_str();
+	  vocab_map.resize(*citer + 1, utils::piece());
+	if (vocab_map[*citer].empty())
+	  vocab_map[*citer] = index.vocab()[*citer];
 	
 	phrase.push_back(vocab_map[*citer]);
       }
@@ -870,12 +870,12 @@ namespace expgram
 	const logprob_type& backoff = witer->second.second;
 	
 	if (id >= vocab_map.size())
-	  vocab_map.resize(id + 1, 0);
-	if (! vocab_map[id])
-	  vocab_map[id] = static_cast<const std::string&>(index.vocab()[id]).c_str();
+	  vocab_map.resize(id + 1, utils::piece());
+	if (vocab_map[id].empty())
+	  vocab_map[id] = index.vocab()[id];
 	
 	os << (logprob * factor_log_10) << '\t';
-	std::copy(phrase.begin(), phrase.end(), std::ostream_iterator<const char*>(os, " "));
+	std::copy(phrase.begin(), phrase.end(), std::ostream_iterator<utils::piece>(os, " "));
 	os << vocab_map[id];
 	
 	if (backoff != 0.0)
