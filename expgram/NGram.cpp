@@ -895,6 +895,10 @@ namespace expgram
     
     os << '\n';
     os << "\\end\\" << '\n';
+    
+    // join all the threads!
+    for (size_type shard = 0; shard != threads.size(); ++ shard)
+      threads[shard]->join();
   }
 
   struct NGramBoundMapReduce
