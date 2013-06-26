@@ -17,6 +17,8 @@ typedef boost::filesystem::path path_type;
 path_type ngram_file = "-";
 path_type output_file = "-";
 
+bool lower = false;
+
 int shards = 4;
 int debug = 0;
 
@@ -32,7 +34,7 @@ int main(int argc, char** argv)
       throw std::runtime_error("no output file?");
 
     expgram::NGram ngram(ngram_file, shards, debug);
-    ngram.dump(output_file);
+    ngram.dump(output_file, lower);
   }
   catch (std::exception& err) {
     std::cerr << "error: " << err.what() << std::endl;
@@ -49,6 +51,8 @@ int getoptions(int argc, char** argv)
   desc.add_options()
     ("ngram",  po::value<path_type>(&ngram_file)->default_value(ngram_file),   "ngram in ARPA/expgram format")
     ("output", po::value<path_type>(&output_file)->default_value(output_file), "output in ARPA format")
+
+    ("lower", po::bool_switch(&lower), "output lower-order probabilities")
     
     ("shard",  po::value<int>(&shards),            "# of shards (or # of threads)")
     

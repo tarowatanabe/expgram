@@ -628,7 +628,19 @@ namespace expgram
     typedef ngram_type::path_type       path_type;
     
     typedef std::vector<id_type, std::allocator<id_type> >           context_type;
-    typedef std::pair<logprob_type, logprob_type>                    logprob_pair_type;
+    
+    struct logprob_pair_type
+    {
+      logprob_type logprob;
+      logprob_type logbound;
+      logprob_type backoff;
+      
+      logprob_pair_type() : logprob(), logbound(), backoff() {}
+      logprob_pair_type(const logprob_type& __logprob,
+			const logprob_type& __logbound,
+			const logprob_type& __backoff) : logprob(__logprob), logbound(__logbound), backoff(__backoff) {}
+    };
+    
     typedef std::pair<id_type, logprob_pair_type>                    word_logprob_pair_type;
     
     typedef std::vector<word_logprob_pair_type, std::allocator<word_logprob_pair_type> > word_set_type;
@@ -650,6 +662,8 @@ namespace expgram
   struct NGramDumpMapper
   {
     typedef NGramDumpMapReduce map_reduce_type;
+
+    typedef map_reduce_type::logprob_pair_type logprob_pair_type;
 
     typedef map_reduce_type::ngram_type   ngram_type;
     
@@ -704,8 +718,13 @@ namespace expgram
 	  for (size_type pos = pos_first; pos != pos_last; ++ pos) {
 	    const logprob_type logprob = ngram.logprobs[shard](pos, order_prev + 1);
 	    if (logprob != ngram.logprob_min()) {
-	      const logprob_type backoff = (pos < ngram.backoffs[shard].size() ? ngram.backoffs[shard](pos, order_prev + 1) : logprob_type(0.0));
-	      words.push_back(std::make_pair(ngram.index[shard][pos], std::make_pair(logprob, backoff)));
+	      const logprob_type logbound = (pos < ngram.logbounds[shard].size()
+					     ? ngram.logbounds[shard](pos, order_prev + 1)
+					     : logprob_type(logprob));
+	      const logprob_type backoff = (pos < ngram.backoffs[shard].size()
+					    ? ngram.backoffs[shard](pos, order_prev + 1)
+					    : logprob_type(0.0));
+	      words.push_back(std::make_pair(ngram.index[shard][pos], logprob_pair_type(logprob, logbound, backoff)));
 	    }
 	  }
 	  
@@ -731,7 +750,7 @@ namespace expgram
     }
   };
   
-  void NGram::dump(const path_type& path) const
+  void NGram::dump(const path_type& path, const bool lower) const
   {
     typedef NGramDumpMapReduce map_reduce_type;
     typedef NGramDumpMapper    mapper_type;
@@ -741,6 +760,7 @@ namespace expgram
     typedef map_reduce_type::queue_type          queue_type;
     typedef map_reduce_type::queue_ptr_set_type  queue_ptr_set_type;
     
+    typedef map_reduce_type::logprob_pair_type    logprob_pair_type;
     typedef map_reduce_type::context_type         context_type;
     typedef map_reduce_type::word_set_type        word_set_type;
     typedef map_reduce_type::context_logprob_type context_logprob_type;
@@ -792,7 +812,42 @@ namespace expgram
     static const logprob_type logprob_srilm_min = double(-99) * M_LN10;
 
     // unigrams...
-    {
+    if (lower && ! logbounds.empty() && index.order() > 1) {
+      os << "\\1-grams:" << '\n';
+      
+      if (! has_unk)
+	os << (smooth * factor_log_10) << ' ' << (smooth * factor_log_10) << '\t' << vocab_type::UNK << '\n';
+      
+      for (size_type pos = 0; pos < index[0].offsets[1]; ++ pos) {
+	logprob_type logprob = logprobs[0](pos, 1);
+	logprob_type logbound = logbounds[0](pos, 1);
+	
+	// escape logprob-min...
+	if (logprob == logprob_min() && pos == bos_id)
+	  logprob = logprob_srilm_min;
+		
+	if (logprob != logprob_min()) {
+	  
+	  // escape logprob-min...
+	  if (logbound == logprob_min() && pos == bos_id)
+	    logbound = logprob_srilm_min;
+	  
+	  const id_type id(pos);
+	  
+	  if (id >= vocab_map.size())
+	    vocab_map.resize(id + 1, utils::piece());
+	  if (vocab_map[id].empty())
+	    vocab_map[id] = index.vocab()[id];
+	  
+	  const logprob_type backoff = (pos < backoffs[0].size() ? backoffs[0](pos, 1) : logprob_type(0.0));	  
+	  os << (logprob * factor_log_10) << ' ' << (logbound * factor_log_10) << '\t' << vocab_map[id];
+	  if (backoff != 0.0)
+	    os << '\t' << (backoff * factor_log_10);
+	  os << '\n';
+	}
+      }
+      
+    } else {
       os << "\\1-grams:" << '\n';
       
       if (! has_unk)
@@ -862,25 +917,48 @@ namespace expgram
 	
 	phrase.push_back(vocab_map[*citer]);
       }
-      
-      word_set_type::const_iterator witer_end = context_queue->second.first.end();
-      for (word_set_type::const_iterator witer = context_queue->second.first.begin(); witer != witer_end; ++ witer) {
-	const id_type id = witer->first;
-	const logprob_type& logprob = witer->second.first;
-	const logprob_type& backoff = witer->second.second;
-	
-	if (id >= vocab_map.size())
-	  vocab_map.resize(id + 1, utils::piece());
-	if (vocab_map[id].empty())
-	  vocab_map[id] = index.vocab()[id];
-	
-	os << (logprob * factor_log_10) << '\t';
-	std::copy(phrase.begin(), phrase.end(), std::ostream_iterator<utils::piece>(os, " "));
-	os << vocab_map[id];
-	
-	if (backoff != 0.0)
-	  os << '\t' << (backoff * factor_log_10);
-	os << '\n';
+
+      if (lower && order < index.order()) {
+	word_set_type::const_iterator witer_end = context_queue->second.first.end();
+	for (word_set_type::const_iterator witer = context_queue->second.first.begin(); witer != witer_end; ++ witer) {
+	  const id_type id = witer->first;
+	  const logprob_type& logprob  = witer->second.logprob;
+	  const logprob_type& logbound = witer->second.logbound;
+	  const logprob_type& backoff  = witer->second.backoff;
+	  
+	  if (id >= vocab_map.size())
+	    vocab_map.resize(id + 1, utils::piece());
+	  if (vocab_map[id].empty())
+	    vocab_map[id] = index.vocab()[id];
+	  
+	  os << (logprob * factor_log_10) << ' ' << (logbound * factor_log_10) << '\t';
+	  std::copy(phrase.begin(), phrase.end(), std::ostream_iterator<utils::piece>(os, " "));
+	  os << vocab_map[id];
+	  
+	  if (backoff != 0.0)
+	    os << '\t' << (backoff * factor_log_10);
+	  os << '\n';
+	}
+      } else {
+	word_set_type::const_iterator witer_end = context_queue->second.first.end();
+	for (word_set_type::const_iterator witer = context_queue->second.first.begin(); witer != witer_end; ++ witer) {
+	  const id_type id = witer->first;
+	  const logprob_type& logprob  = witer->second.logprob;
+	  const logprob_type& backoff  = witer->second.backoff;
+	  
+	  if (id >= vocab_map.size())
+	    vocab_map.resize(id + 1, utils::piece());
+	  if (vocab_map[id].empty())
+	    vocab_map[id] = index.vocab()[id];
+	  
+	  os << (logprob * factor_log_10) << '\t';
+	  std::copy(phrase.begin(), phrase.end(), std::ostream_iterator<utils::piece>(os, " "));
+	  os << vocab_map[id];
+	  
+	  if (backoff != 0.0)
+	    os << '\t' << (backoff * factor_log_10);
+	  os << '\n';
+	}
       }
       
       context_logprob_type context_logprob;
