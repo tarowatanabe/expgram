@@ -713,19 +713,33 @@ namespace expgram
 	  
 	  context_logprob.first = context;
 	  context_logprob.second.clear();
-	  
-	  word_set_type& words = context_logprob.second;
-	  for (size_type pos = pos_first; pos != pos_last; ++ pos) {
-	    const logprob_type logprob = ngram.logprobs[shard](pos, order_prev + 1);
-	    if (logprob != ngram.logprob_min()) {
-	      const logprob_type logbound = (pos < ngram.logbounds[shard].size()
-					     ? ngram.logbounds[shard](pos, order_prev + 1)
-					     : logprob_type(logprob));
-	      const logprob_type backoff = (pos < ngram.backoffs[shard].size()
-					    ? ngram.backoffs[shard](pos, order_prev + 1)
-					    : logprob_type(0.0));
-	      words.push_back(std::make_pair(ngram.index[shard][pos], logprob_pair_type(logprob, logbound, backoff)));
+
+	  if (! ngram.logbounds.empty()) {
+	    word_set_type& words = context_logprob.second;
+	    for (size_type pos = pos_first; pos != pos_last; ++ pos) {
+	      const logprob_type logprob = ngram.logprobs[shard](pos, order_prev + 1);
+	      if (logprob != ngram.logprob_min()) {
+		const logprob_type logbound = (pos < ngram.logbounds[shard].size()
+					       ? ngram.logbounds[shard](pos, order_prev + 1)
+					       : logprob);
+		const logprob_type backoff = (pos < ngram.backoffs[shard].size()
+					      ? ngram.backoffs[shard](pos, order_prev + 1)
+					      : logprob_type(0.0));
+		words.push_back(std::make_pair(ngram.index[shard][pos], logprob_pair_type(logprob, logbound, backoff)));
+	      }
 	    }
+	  } else {
+	    word_set_type& words = context_logprob.second;
+	    for (size_type pos = pos_first; pos != pos_last; ++ pos) {
+	      const logprob_type logprob = ngram.logprobs[shard](pos, order_prev + 1);
+	      if (logprob != ngram.logprob_min()) {
+		const logprob_type backoff = (pos < ngram.backoffs[shard].size()
+					      ? ngram.backoffs[shard](pos, order_prev + 1)
+					      : logprob_type(0.0));
+		words.push_back(std::make_pair(ngram.index[shard][pos], logprob_pair_type(logprob, logprob, backoff)));
+	      }
+	  }
+	    
 	  }
 	  
 	  queue.push_swap(context_logprob);
@@ -820,7 +834,7 @@ namespace expgram
       
       for (size_type pos = 0; pos < index[0].offsets[1]; ++ pos) {
 	logprob_type logprob = logprobs[0](pos, 1);
-	logprob_type logbound = logbounds[0](pos, 1);
+	logprob_type logbound = (pos < logbounds[0].size() ? logbounds[0](pos, 1) : logprob);
 	
 	// escape logprob-min...
 	if (logprob == logprob_min() && pos == bos_id)
@@ -918,7 +932,7 @@ namespace expgram
 	phrase.push_back(vocab_map[*citer]);
       }
 
-      if (lower && order < index.order()) {
+      if (lower && ! logbounds.empty() && order < index.order()) {
 	word_set_type::const_iterator witer_end = context_queue->second.first.end();
 	for (word_set_type::const_iterator witer = context_queue->second.first.begin(); witer != witer_end; ++ witer) {
 	  const id_type id = witer->first;
