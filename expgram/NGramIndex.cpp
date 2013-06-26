@@ -1,5 +1,5 @@
 //
-//  Copyright(C) 2009-2012 Taro Watanabe <taro.watanabe@nict.go.jp>
+//  Copyright(C) 2009-2013 Taro Watanabe <taro.watanabe@nict.go.jp>
 //
 
 #include <iostream>
@@ -14,25 +14,6 @@
 
 namespace expgram
 {
-
-  void NGramIndex::Shard::clear_cache()
-  {
-    //
-    // minimum size is 1024 * 64
-    //
-    
-    const size_type cache_size = utils::bithack::max(size_type(utils::bithack::next_largest_power2(ids.size()) >> 12),
-						     size_type(1024 * 64));
-    
-    caches_pos.clear();
-    caches_suffix.clear();
-    
-    caches_pos.reserve(cache_size);
-    caches_suffix.reserve(cache_size);
-    
-    caches_pos.resize(cache_size);
-    caches_suffix.resize(cache_size);
-  }
 
   void NGramIndex::Shard::open(const path_type& path)
   {
