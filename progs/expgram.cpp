@@ -21,6 +21,7 @@
 #include <utils/bithack.hpp>
 
 #include <expgram/NGram.hpp>
+#include <expgram/NGramState.hpp>
 #include <expgram/Sentence.hpp>
 #include <expgram/Vocab.hpp>
 
@@ -30,70 +31,11 @@ typedef expgram::NGram    ngram_type;
 typedef expgram::Word     word_type;
 typedef expgram::Vocab    vocab_type;
 typedef expgram::Sentence sentence_type;
-
-typedef ngram_type::state_type state_type;
-
-struct NGramCache : public utils::hashmurmur3<size_t>
-{
-
-  struct Cache
-  {
-    state_type         curr_;
-    state_type         next_;
-    word_type::id_type word_;
-    float              prob_;
-    
-    Cache() : curr_(), next_(), word_(word_type::id_type(-1)), prob_(std::numeric_limits<float>::quiet_NaN()) {}
-  };
-  
-  typedef Cache cache_type;
-  typedef std::vector<cache_type, std::allocator<cache_type> > cache_set_type;
-  
-  typedef utils::hashmurmur3<size_t> hasher_type;
-  
-  NGramCache(const ngram_type& ngram) : caches_(), ngram_(ngram)
-
-  {
-    size_t index_size = 0;
-    for (size_t shard = 0; shard != ngram.index.size(); ++ shard)
-      index_size += ngram.index[shard].size();
-    
-    const size_t cache_size = utils::bithack::max(size_t(utils::bithack::next_largest_power2(index_size) >> 10),
-						  size_t(1024 * 1024));
-    
-    caches_.clear();
-    caches_.reserve(cache_size);
-    caches_.resize(cache_size);
-  }
-  
-  const std::pair<state_type, float> operator()(const state_type& state, const word_type::id_type& id) const
-  {
-    const size_t cache_pos = hasher_type()(state, id) & (caches_.size() - 1);
-
-    cache_type& cache = const_cast<cache_type&>(caches_[cache_pos]);
-    
-    if (cache.curr_ != state || cache.word_ != id || cache.prob_ == std::numeric_limits<float>::quiet_NaN()) {
-      cache.curr_ = state;
-      cache.word_ = id;
-      
-      const std::pair<state_type, float> result = ngram_.logprob(state, id);
-
-      cache.next_ = result.first;
-      cache.prob_ = result.second;
-    }
-    
-    return std::make_pair(cache.next_, cache.prob_);
-  }
-  
-  cache_set_type caches_;
-  const ngram_type& ngram_;
-};
+typedef expgram::NGramState ngram_state_type;
 
 path_type ngram_file;
 path_type input_file = "-";
 path_type output_file = "-";
-
-int order = 0;
 
 int shards = 4;
 int verbose = 0;
@@ -111,7 +53,6 @@ int main(int argc, char** argv)
     namespace standard = boost::spirit::standard;
         
     ngram_type ngram(ngram_file, shards, debug);
-    NGramCache cache(ngram);
     
     sentence_type sentence;
     
@@ -120,14 +61,27 @@ int main(int argc, char** argv)
     utils::compress_istream is(input_file);
     utils::compress_ostream os(output_file, 1024 * 1024 * (! flush_output));
     
-    order = (order <= 0 ? ngram.index.order() : order);
+    const int order = ngram.index.order();
     
     const word_type::id_type bos_id = ngram.index.vocab()[vocab_type::BOS];
     const word_type::id_type eos_id = ngram.index.vocab()[vocab_type::EOS];
     const word_type::id_type unk_id = ngram.index.vocab()[vocab_type::UNK];
     const word_type::id_type none_id = word_type::id_type(-1);
+
+    typedef std::vector<char, std::allocator<char> > buffer_type;
     
-    const state_type state_bos = ngram.index.next(state_type(), bos_id);
+    ngram_state_type ngram_state(order);
+    
+    // buffer!
+    buffer_type __buffer(ngram_state.buffer_size());
+    buffer_type __buffer_bos(ngram_state.buffer_size());
+    buffer_type __buffer_next(ngram_state.buffer_size());
+
+    void* buffer      = &(*__buffer.begin());
+    void* buffer_bos  = &(*__buffer_bos.begin());
+    void* buffer_next = &(*__buffer_next.begin());
+    
+    ngram.lookup_context(&bos_id, (&bos_id) + 1, buffer_bos);
     
     size_t num_word = 0;
     size_t num_sentence = 0;
@@ -141,36 +95,36 @@ int main(int argc, char** argv)
       
       int oov = 0;
       double logprob = 0.0;
-      state_type state = state_bos;
+      
+      ngram_state.copy(buffer_bos, buffer);
+      
       sentence_type::const_iterator siter_end = sentence.end();
       for (sentence_type::const_iterator siter = sentence.begin(); siter != siter_end; ++ siter) {
 	const word_type::id_type id = ngram.index.vocab()[*siter];
-	
-	//const std::pair<state_type, float> result = ngram.logprob(state, id);
-	const std::pair<state_type, float> result = cache(state, id);
+
+	const ngram_type::result_type result = ngram.ngram_score(buffer, id, buffer_next);
 	
 	if (verbose)
 	  if (! karma::generate(std::ostream_iterator<char>(os),
 				standard::string << '=' << karma::uint_ << ' ' << karma::int_ << ' ' << karma::double_ << '\n',
-				*siter, id, ngram.index.order(result.first), result.second))
+				*siter, id, result.length, result.prob))
 	    throw std::runtime_error("generation failed");
 
 	oov += (id == unk_id) || (id == none_id);
 	
-	state = result.first;
-	logprob += result.second;
+	logprob += result.prob;
+	std::swap(buffer, buffer_next);
       }
       
-      //const std::pair<state_type, float> result = ngram.logprob(state, eos_id);
-      const std::pair<state_type, float> result = cache(state, eos_id);
+      const ngram_type::result_type result = ngram.ngram_score(buffer, eos_id, buffer_next);
       
       if (verbose)
 	if (! karma::generate(std::ostream_iterator<char>(os),
 			      standard::string << '=' << karma::uint_ << ' ' << karma::int_ << ' ' << karma::double_ << '\n',
-			      vocab_type::EOS, eos_id, ngram.index.order(result.first), result.second))
+			      vocab_type::EOS, eos_id, result.length, result.prob))
 	  throw std::runtime_error("generation failed");
       
-      logprob += result.second;
+      logprob += result.prob;
       
       if (! karma::generate(std::ostream_iterator<char>(os),
 			    karma::double_ << ' ' << karma::int_ << '\n',
@@ -205,8 +159,6 @@ int getoptions(int argc, char** argv)
     ("ngram",  po::value<path_type>(&ngram_file)->default_value(ngram_file),   "ngram in ARPA or expgram format")
     ("input",  po::value<path_type>(&input_file)->default_value(input_file),   "input")
     ("output", po::value<path_type>(&output_file)->default_value(output_file), "output")
-    
-    ("order",       po::value<int>(&order)->default_value(order),              "ngram order")
     
     ("shard",   po::value<int>(&shards)->default_value(shards),                 "# of shards (or # of threads)")
     ("verbose", po::value<int>(&verbose)->implicit_value(1), "verbose level")

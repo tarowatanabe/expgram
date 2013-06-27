@@ -29,8 +29,6 @@ path_type input_file = "-";
 path_type output_file = "-";
 path_type temporary_dir = "";
 
-int order = 0;
-
 int shards = 4;
 bool populate = false;
 bool precompute = false;
@@ -51,8 +49,7 @@ int main(int argc, char** argv)
     typedef expgram::Word     word_type;
     typedef expgram::Vocab    vocab_type;
     typedef expgram::Sentence sentence_type;
-
-    typedef ngram_type::state_type state_type;
+    typedef expgram::NGramState ngram_state_type;
 
     typedef word_type::id_type id_type;
     typedef std::vector<id_type, std::allocator<id_type> > id_set_type;
@@ -73,14 +70,27 @@ int main(int argc, char** argv)
     
     utils::compress_istream is(input_file);
 
-    order = (order <= 0 ? ngram.index.order() : order);
+    const int order = ngram.index.order();
 
     const word_type::id_type bos_id = ngram.index.vocab()[vocab_type::BOS];
     const word_type::id_type eos_id = ngram.index.vocab()[vocab_type::EOS];
     const word_type::id_type unk_id = ngram.index.vocab()[vocab_type::UNK];
     const word_type::id_type none_id = word_type::id_type(-1);
 
-    const state_type state_bos = ngram.index.next(state_type(), bos_id);
+    typedef std::vector<char, std::allocator<char> > buffer_type;
+    
+    ngram_state_type ngram_state(order);
+    
+    // buffer!
+    buffer_type __buffer(ngram_state.buffer_size());
+    buffer_type __buffer_bos(ngram_state.buffer_size());
+    buffer_type __buffer_next(ngram_state.buffer_size());
+
+    void* buffer      = &(*__buffer.begin());
+    void* buffer_bos  = &(*__buffer_bos.begin());
+    void* buffer_next = &(*__buffer_next.begin());
+    
+    ngram.lookup_context(&bos_id, (&bos_id) + 1, buffer_bos);
     
     utils::resource start;
     
@@ -103,25 +113,25 @@ int main(int argc, char** argv)
 
 	if (ids.empty()) continue;
 
-	state_type state = state_bos;
+	ngram_state.copy(buffer_bos, buffer);
 	
 	id_set_type::const_iterator siter_end = ids.end();
 	for (id_set_type::const_iterator siter = ids.begin(); siter != siter_end; ++ siter) {
 	  const word_type::id_type& word_id = *siter;
 	  const bool is_oov = (word_id == unk_id) || (word_id == none_id);
 	  
-	  const std::pair<state_type, float> result = ngram.logprob(state, word_id);
+	  const float logprob = ngram.ngram_score(buffer, word_id, buffer_next).prob;
 	  
-	  state = result.first;
+	  std::swap(buffer, buffer_next);
 	  
 	  if (! is_oov)
-	    logprob_total += result.second;
-	  logprob_total_oov += result.second;
+	    logprob_total += logprob;
+	  logprob_total_oov += logprob;
 	  
 	  num_oov += is_oov;
 	}
 	
-	const float logprob = ngram.logprob(state, eos_id).second;
+	const float logprob = ngram.ngram_score(buffer, eos_id, buffer_next).prob;
 	
 	logprob_total     += logprob;
 	logprob_total_oov += logprob;
@@ -136,25 +146,25 @@ int main(int argc, char** argv)
 	
 	if (sentence.empty()) continue;
 	
-	state_type state = state_bos;
+	ngram_state.copy(buffer_bos, buffer);
 	
 	sentence_type::const_iterator siter_end = sentence.end();
 	for (sentence_type::const_iterator siter = sentence.begin(); siter != siter_end; ++ siter) {
 	  const word_type::id_type word_id = ngram.index.vocab()[*siter];
 	  const bool is_oov = (word_id == unk_id) || (word_id == none_id);
 	  
-	  const std::pair<state_type, float> result = ngram.logprob(state, word_id);
+	  const float logprob = ngram.ngram_score(buffer, word_id, buffer_next).prob;
 	  
-	  state = result.first;
+	  std::swap(buffer, buffer_next);
 	  
 	  if (! is_oov)
-	    logprob_total += result.second;
-	  logprob_total_oov += result.second;
+	    logprob_total += logprob;
+	  logprob_total_oov += logprob;
 	  
 	  num_oov += is_oov;
 	}
 	
-	const float logprob = ngram.logprob(state, eos_id).second;
+	const float logprob = ngram.ngram_score(buffer, eos_id, buffer_next).prob;
 	
 	logprob_total     += logprob;
 	logprob_total_oov += logprob;
@@ -202,8 +212,6 @@ int getoptions(int argc, char** argv)
     ("input",     po::value<path_type>(&input_file)->default_value(input_file),   "input")
     ("output",    po::value<path_type>(&output_file)->default_value(output_file), "output")
     ("temporary", po::value<path_type>(&temporary_dir),                           "temporary directory")    
-    
-    ("order",       po::value<int>(&order)->default_value(order),              "ngram order")
     
     ("shard",  po::value<int>(&shards)->default_value(shards),                 "# of shards (or # of threads)")
 
