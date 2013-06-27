@@ -37,6 +37,8 @@ opt_parser = OptionParser(
                     help="vocabulary"),
         make_option("--tokenizer", default="", action="store",
                     help="tokenizer applied to data"),
+        make_option("--remove-unk", default=None, action="store_true",
+                    help="remove unk from lm estimation"),
 
         make_option("--erase-temporary", default=None, action="store_true",
                     help="erase temporary allocated disk space"),
@@ -646,7 +648,7 @@ class Modify:
 class Estimate:
 
     def __init__(self, expgram=None, output="", temporary="",
-                 modify=None,
+                 modify=None, remove_unk=None,
                  max_malloc=4,
                  threads=4, mpi=None, pbs=None, debug=None):
         
@@ -671,6 +673,9 @@ class Estimate:
         
         if temporary:
             command += Option('--temporary', Quoted(temporary))
+
+        if remove_unk:
+            command += Option('--remove-unk')
         
         if mpi:
             command += Option('--prog', Quoted(expgram.expgram_counts_estimate_mpi))
@@ -887,6 +892,7 @@ if __name__ == '__main__':
                         output=options.output,
                         temporary=options.temporary_dir,
                         modify=modify,
+                        remove_unk=options.remove_unk,
                         max_malloc=options.max_malloc,
                         threads=options.threads, mpi=mpi, pbs=pbs,
                         debug=options.debug)

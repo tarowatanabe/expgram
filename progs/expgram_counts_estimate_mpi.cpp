@@ -2068,6 +2068,9 @@ int getoptions(int argc, char** argv)
     ("host",       po::value<std::string>(&host),     "host name")
     ("hostfile",   po::value<std::string>(&hostfile), "hostfile name")
     
+    
+    ("remove-unk", po::bool_switch(&remove_unk),   "remove UNK when estimating language model")
+    
     ("debug", po::value<int>(&debug)->implicit_value(1), "debug level")
     ("help", "help message");
   

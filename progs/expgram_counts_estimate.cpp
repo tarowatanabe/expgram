@@ -19,6 +19,8 @@ path_type ngram_file;
 path_type output_file;
 path_type temporary_dir = "";
 
+bool remove_unk = false;
+
 int shards = 4;
 
 int debug = 0;
@@ -43,7 +45,7 @@ int main(int argc, char** argv)
       ngram_counts.modify();
     
     expgram::NGram ngram(debug);
-    ngram_counts.estimate(ngram);
+    ngram_counts.estimate(ngram, remove_unk);
     
     ngram.write(output_file);
   }
@@ -64,6 +66,8 @@ int getoptions(int argc, char** argv)
     ("output",    po::value<path_type>(&output_file)->default_value(output_file), "output in binary format")
     ("temporary", po::value<path_type>(&temporary_dir),                           "temporary directory")
 
+    ("remove-unk", po::bool_switch(&remove_unk),   "remove UNK when estimating language model")
+    
     ("shard",  po::value<int>(&shards),            "# of shards (or # of threads)")
 
     ("debug", po::value<int>(&debug)->implicit_value(1), "debug level")
