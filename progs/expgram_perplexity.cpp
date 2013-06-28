@@ -82,15 +82,15 @@ int main(int argc, char** argv)
     ngram_state_type ngram_state(order);
     
     // buffer!
-    buffer_type __buffer(ngram_state.buffer_size());
-    buffer_type __buffer_bos(ngram_state.buffer_size());
-    buffer_type __buffer_next(ngram_state.buffer_size());
+    buffer_type buffer(ngram_state.buffer_size());
+    buffer_type buffer_bos(ngram_state.buffer_size());
+    buffer_type buffer_next(ngram_state.buffer_size());
 
-    void* buffer      = &(*__buffer.begin());
-    void* buffer_bos  = &(*__buffer_bos.begin());
-    void* buffer_next = &(*__buffer_next.begin());
+    void* state      = &(*buffer.begin());
+    void* state_bos  = &(*buffer_bos.begin());
+    void* state_next = &(*buffer_next.begin());
     
-    ngram.lookup_context(&bos_id, (&bos_id) + 1, buffer_bos);
+    ngram.lookup_context(&bos_id, (&bos_id) + 1, state_bos);
     
     utils::resource start;
     
@@ -113,16 +113,16 @@ int main(int argc, char** argv)
 
 	if (ids.empty()) continue;
 
-	ngram_state.copy(buffer_bos, buffer);
+	ngram_state.copy(state_bos, state);
 	
 	id_set_type::const_iterator siter_end = ids.end();
 	for (id_set_type::const_iterator siter = ids.begin(); siter != siter_end; ++ siter) {
 	  const word_type::id_type& word_id = *siter;
 	  const bool is_oov = (word_id == unk_id) || (word_id == none_id);
 	  
-	  const float logprob = ngram.ngram_score(buffer, word_id, buffer_next).prob;
+	  const float logprob = ngram.ngram_score(state, word_id, state_next).prob;
 	  
-	  std::swap(buffer, buffer_next);
+	  std::swap(state, state_next);
 	  
 	  if (! is_oov)
 	    logprob_total += logprob;
@@ -131,7 +131,7 @@ int main(int argc, char** argv)
 	  num_oov += is_oov;
 	}
 	
-	const float logprob = ngram.ngram_score(buffer, eos_id, buffer_next).prob;
+	const float logprob = ngram.ngram_score(state, eos_id, state_next).prob;
 	
 	logprob_total     += logprob;
 	logprob_total_oov += logprob;
@@ -146,16 +146,16 @@ int main(int argc, char** argv)
 	
 	if (sentence.empty()) continue;
 	
-	ngram_state.copy(buffer_bos, buffer);
+	ngram_state.copy(state_bos, state);
 	
 	sentence_type::const_iterator siter_end = sentence.end();
 	for (sentence_type::const_iterator siter = sentence.begin(); siter != siter_end; ++ siter) {
 	  const word_type::id_type word_id = ngram.index.vocab()[*siter];
 	  const bool is_oov = (word_id == unk_id) || (word_id == none_id);
 	  
-	  const float logprob = ngram.ngram_score(buffer, word_id, buffer_next).prob;
+	  const float logprob = ngram.ngram_score(state, word_id, state_next).prob;
 	  
-	  std::swap(buffer, buffer_next);
+	  std::swap(state, state_next);
 	  
 	  if (! is_oov)
 	    logprob_total += logprob;
@@ -164,7 +164,7 @@ int main(int argc, char** argv)
 	  num_oov += is_oov;
 	}
 	
-	const float logprob = ngram.ngram_score(buffer, eos_id, buffer_next).prob;
+	const float logprob = ngram.ngram_score(state, eos_id, state_next).prob;
 	
 	logprob_total     += logprob;
 	logprob_total_oov += logprob;

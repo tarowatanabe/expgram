@@ -17,6 +17,7 @@
 #include <utils/program_options.hpp>
 
 #include <expgram/NGram.hpp>
+#include <expgram/NGramState.hpp>
 #include <expgram/Word.hpp>
 #include <expgram/Vocab.hpp>
 #include <expgram/Sentence.hpp>
@@ -30,7 +31,7 @@ typedef expgram::Vocab    vocab_type;
 typedef expgram::Word     word_type;
 typedef expgram::Sentence sentence_type;
 
-typedef expgram::NGram::state_type state_type;
+typedef expgram::NGramState ngram_state_type;
 
 path_type ngram_file = "-";
 
@@ -56,6 +57,24 @@ int main(int argc, char** argv)
     sentence_type sentence;
 
     const int order = ngram.index.order();
+    
+    ngram_state_type ngram_state(order);
+    
+    // We need to allocate buffer for state representation!
+    // Here, buffer_size() is the # of bytes required for state representation,
+    // and we use std::vector to allocate buffer (you can use new char[ngram_state.buffer_size()])
+    typedef std::vector<char, std::allocator<char> > buffer_type;
+    
+    buffer_type buffer(ngram_state.buffer_size());
+    buffer_type buffer_bos(ngram_state.buffer_size());
+    buffer_type buffer_next(ngram_state.buffer_size());
+    
+    void* state      = &(*buffer.begin());
+    void* state_bos  = &(*buffer_bos.begin());
+    void* state_next = &(*buffer_next.begin());
+
+    // fill-in BOS state
+    ngram.lookup_context(&vocab_type::BOS, (&vocab_type::BOS) + 1, state_bos);
 
     const double log_10 = M_LN10;
     
@@ -115,94 +134,41 @@ int main(int argc, char** argv)
       
       // A state-based example...
       // Since will not score P(BOS), state should starts from BOS!
-      state_type state = ngram.index.next(state_type(), vocab_type::BOS);
-      
-      // debug message...
-      std::cerr << "bos state: shard: " <<  state.shard()
-		<< " node: " << state.node()
-		<< " is-root-shard: " << state.is_root_shard()
-		<< " is-root-node: " << state.is_root_node()
-		<< " order: " << ngram.index.order(state)
-		<< std::endl;
-      
+
+      // copy bos-state to state
+      ngram_state.copy(state_bos, state);
+            
       tokens_type::const_iterator titer_begin = tokens.begin();
       tokens_type::const_iterator titer_end = tokens.end();
       for (tokens_type::const_iterator titer = titer_begin + 1; titer != titer_end; ++ titer) {
 	
-	std::pair<state_type, float> result_logprob  = ngram.logprob(state, *titer);
+	const expgram::NGram::result_type result = ngram.ngram_score(state, *titer, state_next);
 	
 	// some debug information...
-	std::cerr << "state: shard: " <<  result_logprob.first.shard()
-		  << " node: " << result_logprob.first.node()
-		  << " is-root-shard: " << result_logprob.first.is_root_shard()
-		  << " is-root-node: " << result_logprob.first.is_root_node()
-		  << " logprob: " << result_logprob.second
-		  << " base10: " << (result_logprob.second / log_10)
-		  << " order: " << ngram.index.order(result_logprob.first)
+	std::cerr << "state: shard: " <<  result.state.shard()
+		  << " node: " << result.state.node()
+		  << " logprob: " << result.prob
+		  << " base10: " << (result.prob / log_10)
+		  << " logbound: " << result.bound
+		  << " base10: " << (result.bound / log_10)
+		  << " length: " << result.length
+		  << " completed: " << (result.complete ? "true" : "false")
 		  << std::endl;
 	
 	// next state!
-	state = result_logprob.first;
+	std::swap(state, state_next);
 	
-	// non-state version for scoring ngrams
-	// ngram access must use container that supports random-iterator concepts.
-	// If not sure, use vector!
+	// A slow, non-state version
+        tokens_type::const_iterator titer_first = std::max(titer_begin, titer + 1 - order);
+        tokens_type::const_iterator titer_last  = titer + 1;
 	
-	tokens_type::const_iterator titer_first = std::max(titer_begin, titer + 1 - order);
-	tokens_type::const_iterator titer_last  = titer + 1;
+	const double logprob = ngram.logprob(titer_first, titer_last);
 	
-	const float score_logprob  = ngram(titer_first, titer_last);
-	
-	std::cout << score_logprob << ' ';
-	std::copy(titer_first, titer_last, std::ostream_iterator<std::string>(std::cout, " "));
-	std::cout << std::endl;
-	
-	if (score_logprob != result_logprob.second)
-	  std::cerr << "logprob differ: " << score_logprob << ' ' << result_logprob.second << std::endl;
-	
-	// we compute prefix for decoding with CKY-style bottom up algorithm.
-	// The prefix is the left context which should be scored when "correct" history is available...
-	std::pair<tokens_type::const_iterator, tokens_type::const_iterator> prefix = ngram.prefix(titer_first, titer_last);
-	
-	std::cout << "prefix: ";
-	std::copy(prefix.first, prefix.second, std::ostream_iterator<std::string>(std::cout, " "));
-	std::cout << std::endl;
-	
-	// An example for upper bound estimates, which is used to compute heursitic estimates.
-	// Usually, we will score the ngram "prefix" computed by ngram.prefix(...)
-	state_type state_ngram;
-	
-	for (tokens_type::const_iterator titer = titer_first; titer != titer_last; ++ titer) {
-	  // state-based access...
-	  const bool backoffed = ngram.index.order(state_ngram) != std::distance(titer_first, titer);
-	  
-	  const std::pair<state_type, float> result_logprob  = ngram.logprob(state_ngram, *titer, backoffed, order);
-	  const std::pair<state_type, float> result_logbound = ngram.logbound(state_ngram, *titer, backoffed, order);
-	  
-	  // next state...
-	  state_ngram = result_logprob.first;
-	  
-	  // non-state-based access...
-	  const float score_logprob  = ngram.logprob(titer_first, titer + 1);
-	  const float score_logbound = ngram.logbound(titer_first, titer + 1);
-	  
-	  std::cout << result_logprob.second
-		    << ' ' << result_logbound.second
-		    << '\t';
-	  std::copy(titer_first, titer + 1, std::ostream_iterator<std::string>(std::cout, " "));
-	  std::cout << std::endl;
-	  
-	  // they should be equal!
-	  if (result_logprob.first != result_logbound.first)
-	    std::cerr << "\tstate differ:" << std::endl
-		      << "\tlogprob:  shard: " << result_logprob.first.shard() << " node: " << result_logprob.first.node() << std::endl
-		      << "\tlogbound: shard: " << result_logbound.first.shard() << " node: " << result_logbound.first.node() << std::endl;
-	  
-	  if (score_logprob != result_logprob.second)
-	    std::cerr << "\tlogprob differ: " << score_logprob << ' ' << result_logprob.second << std::endl;
-	  if (score_logbound != result_logbound.second)
-	    std::cerr << "\tlogbound differ: " << score_logbound << ' ' << result_logbound.second << std::endl;
-	}
+	std::cerr << " non-state: ";
+	std::copy(titer_first, titer_last, std::ostream_iterator<std::string>(std::cerr, " "));
+	std::cerr << "logprob: " << logprob
+		  << " base10: " << (logprob / log_10)
+		  << std::endl;
       }
     }
   }

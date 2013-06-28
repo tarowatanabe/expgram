@@ -305,8 +305,8 @@ void ngram_bound_mapper(const ngram_type& ngram, intercomm_type& reducer)
 	
 	const logprob_type logprob = ngram.logprobs[mpi_rank](pos, order_prev + 1);
 	if (logprob != ngram.logprob_min()) {
-	  context_type::const_iterator citer_end = context.end();
-	  context_type::const_iterator citer_begin = context.begin() + 1;
+	  context_type::const_iterator citer_end = context.end() - ngram.index.backward();
+	  context_type::const_iterator citer_begin = context.begin() + (!ngram.index.backward());
 	  if (citer_end - citer_begin == 1)
 	    unigrams[*citer_begin] = std::max(unigrams[*citer_begin], logprob);
 	  else {

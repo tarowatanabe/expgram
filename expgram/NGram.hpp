@@ -242,20 +242,43 @@ namespace expgram
 	
 	state = state_next;
       }
+
       
-      const size_type shard_index = utils::bithack::branch(state.is_root_shard(), size_type(0), state.shard());
+      // I think this is correct: we will preserve longest-matching context, but uses the prob/bound after backing
+      // via logprob_min()
+      
+      size_type shard_index = utils::bithack::branch(state.is_root_shard(), size_type(0), state.shard());
+      size_type shard_node = state.node();
       
       result.state    = state;
-      result.prob     = logprobs[shard_index](state.node(), order);
-      result.bound    = (! logbounds.empty() && order < index.order()
-			 ? logbounds[shard_index](state.node(), order)
-			 : result.prob);
-      result.length   = order;
-      result.complete = (order == index.order() || ! index[shard_index].has_child(state.node()));
+      result.complete = (order == index.order() || ! index[shard_index].has_child(shard_node));
+      
+      while (1) {
+	result.prob     = logprobs[shard_index](shard_node, order);
+	result.bound    = (! logbounds.empty() && shard_node < logbounds[shard_index].size()
+			   ? logbounds[shard_index](shard_node, order)
+			   : result.prob);
+	result.length   = order;
+	
+	if (result.prob != logprob_min()) break;
+	
+	if (order == 1) {
+	  // very strange, though...
+	  result.prob   = smooth;
+	  result.bound  = smooth;
+	  result.length = 0;
+	  break;
+	}
+	
+	shard_node = index[shard_index].parent(shard_node);
+	-- order;
+	if (order == 1)
+	  shard_index = 0;
+      }
       
       return result;
     }
-
+    
     template <typename Iterator>
     void lookup_context(Iterator first, Iterator last, void* buffer_out) const
     {
@@ -455,10 +478,10 @@ namespace expgram
       IgnoreIterator output;
       IgnoreIterator output_backoff;
       
-      const result_type result = lookup(ngram_state.context(buffer), ngram_state.context(buffer) + context_length,
-					extractor(*(last - 1)),
-					output,
-					output_backoff);
+      result_type result = lookup(ngram_state.context(buffer), ngram_state.context(buffer) + context_length,
+				  extractor(*(last - 1)),
+				  output,
+				  output_backoff);
       
       const logprob_type* backoff = ngram_state.backoff(buffer);
       for (const logprob_type* biter = backoff + result.length - (result.length != 0); biter != backoff + context_length; ++ biter)

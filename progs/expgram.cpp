@@ -31,6 +31,7 @@ typedef expgram::NGram    ngram_type;
 typedef expgram::Word     word_type;
 typedef expgram::Vocab    vocab_type;
 typedef expgram::Sentence sentence_type;
+
 typedef expgram::NGramState ngram_state_type;
 
 path_type ngram_file;
@@ -73,15 +74,15 @@ int main(int argc, char** argv)
     ngram_state_type ngram_state(order);
     
     // buffer!
-    buffer_type __buffer(ngram_state.buffer_size());
-    buffer_type __buffer_bos(ngram_state.buffer_size());
-    buffer_type __buffer_next(ngram_state.buffer_size());
+    buffer_type buffer(ngram_state.buffer_size());
+    buffer_type buffer_bos(ngram_state.buffer_size());
+    buffer_type buffer_next(ngram_state.buffer_size());
 
-    void* buffer      = &(*__buffer.begin());
-    void* buffer_bos  = &(*__buffer_bos.begin());
-    void* buffer_next = &(*__buffer_next.begin());
+    void* state      = &(*buffer.begin());
+    void* state_bos  = &(*buffer_bos.begin());
+    void* state_next = &(*buffer_next.begin());
     
-    ngram.lookup_context(&bos_id, (&bos_id) + 1, buffer_bos);
+    ngram.lookup_context(&bos_id, (&bos_id) + 1, state_bos);
     
     size_t num_word = 0;
     size_t num_sentence = 0;
@@ -96,13 +97,13 @@ int main(int argc, char** argv)
       int oov = 0;
       double logprob = 0.0;
       
-      ngram_state.copy(buffer_bos, buffer);
+      ngram_state.copy(state_bos, state);
       
       sentence_type::const_iterator siter_end = sentence.end();
       for (sentence_type::const_iterator siter = sentence.begin(); siter != siter_end; ++ siter) {
 	const word_type::id_type id = ngram.index.vocab()[*siter];
 
-	const ngram_type::result_type result = ngram.ngram_score(buffer, id, buffer_next);
+	const ngram_type::result_type result = ngram.ngram_score(state, id, state_next);
 	
 	if (verbose)
 	  if (! karma::generate(std::ostream_iterator<char>(os),
@@ -113,10 +114,10 @@ int main(int argc, char** argv)
 	oov += (id == unk_id) || (id == none_id);
 	
 	logprob += result.prob;
-	std::swap(buffer, buffer_next);
+	std::swap(state, state_next);
       }
       
-      const ngram_type::result_type result = ngram.ngram_score(buffer, eos_id, buffer_next);
+      const ngram_type::result_type result = ngram.ngram_score(state, eos_id, state_next);
       
       if (verbose)
 	if (! karma::generate(std::ostream_iterator<char>(os),
