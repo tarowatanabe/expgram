@@ -349,26 +349,28 @@ namespace expgram
     }
     
     template <typename Iterator>
-    void lookup_context(Iterator first, Iterator last, void* buffer_out) const
+    state_type lookup_context(Iterator first, Iterator last, void* buffer_out) const
     {
       NGramState ngram_state(index.order());
       
       word_type::id_type* output         = ngram_state.context(buffer_out);
       logprob_type*       output_backoff = ngram_state.backoff(buffer_out);
       
-      lookup_context(first, last, output, output_backoff);
+      const state_type state = lookup_context(first, last, output, output_backoff);
       
       ngram_state.length(buffer_out) = output - ngram_state.context(buffer_out);
+      
+      return state;
     }
 
     template <typename Iterator, typename Output, typename OutputBackoff>
-    void lookup_context(Iterator first, Iterator last,
-			Output& output,
-			OutputBackoff& output_backoff) const
+    state_type lookup_context(Iterator first, Iterator last,
+			      Output& output,
+			      OutputBackoff& output_backoff) const
     {
       typedef typename std::iterator_traits<Iterator>::value_type value_type;
       
-      lookup_context(first, last, output, output_backoff, value_type());
+      return lookup_context(first, last, output, output_backoff, value_type());
     }
     
     template <typename Iterator>
@@ -464,28 +466,28 @@ namespace expgram
     }
 
     template <typename Iterator, typename Output, typename OutputBackoff, typename Word_>
-    void lookup_context(Iterator first, Iterator last,
-			Output& output,
-			OutputBackoff& output_backoff,
-			Word_) const
+    state_type lookup_context(Iterator first, Iterator last,
+			      Output& output,
+			      OutputBackoff& output_backoff,
+			      Word_) const
     {
-      lookup_context_dispatch(first, last, output, output_backoff, ExtractVocab(index.vocab()));
+      return lookup_context_dispatch(first, last, output, output_backoff, ExtractVocab(index.vocab()));
     }
     
     template <typename Iterator, typename Output, typename OutputBackoff>
-    void lookup_context(Iterator first, Iterator last,
-			Output& output,
-			OutputBackoff& output_backoff,
-			word_type::id_type) const
+    state_type lookup_context(Iterator first, Iterator last,
+			      Output& output,
+			      OutputBackoff& output_backoff,
+			      word_type::id_type) const
     {
-      lookup_context_dispatch(first, last, output, output_backoff, ExtractId());
+      return lookup_context_dispatch(first, last, output, output_backoff, ExtractId());
     }
 
     template <typename Iterator, typename Output, typename OutputBackoff, typename Extract>
-    void lookup_context_dispatch(Iterator first, Iterator last,
-				 Output& output,
-				 OutputBackoff& output_backoff,
-				 Extract extractor) const
+    state_type lookup_context_dispatch(Iterator first, Iterator last,
+				       Output& output,
+				       OutputBackoff& output_backoff,
+				       Extract extractor) const
     {
       // clip context size...
       first = std::max(first, last - (index.order() - 1));
@@ -508,6 +510,8 @@ namespace expgram
 	
 	state = state_next;
       }
+      
+      return state;
     }
 
     struct IgnoreIterator
