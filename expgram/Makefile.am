@@ -10,6 +10,7 @@ libexpgraminclude_HEADERS = \
 NGram.hpp \
 NGramCounts.hpp \
 NGramIndex.hpp \
+NGramScorer.hpp \
 NGramState.hpp \
 NGramStateChart.hpp \
 Sentence.hpp \

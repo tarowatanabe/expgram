@@ -161,12 +161,32 @@ namespace expgram
       
       const size_type context_length = ngram_state.length(buffer_in);
       
-      const logprob_type* backoff = ngram_state.backoff(buffer_in);
-      for (const logprob_type* biter = backoff + result.length - (result.length != 0); biter < backoff + context_length; ++ biter)
+      const logprob_type* biter     = ngram_state.backoff(buffer_in) + result.length + (result.length == 0) - 1;
+      const logprob_type* biter_end = ngram_state.backoff(buffer_in) + context_length;
+      
+      for (/**/; biter < biter_end; ++ biter)
 	result.prob += *biter;
       
       return result;
     }
+    
+    result_type ngram_partial_score(const void* buffer_in, const state_type& state, const int order, void* buffer_out) const
+    {
+      NGramState ngram_state(index.order());
+      
+      result_type result = lookup_partial(buffer_in, state, order, buffer_out);
+      
+      const size_type context_length = ngram_state.length(buffer_in);
+      
+      const logprob_type* biter     = ngram_state.backoff(buffer_in) + result.length + (result.length == 0) - order;
+      const logprob_type* biter_end = ngram_state.backoff(buffer_in) + context_length;
+	
+      for (/**/; biter < biter_end; ++ biter)
+	result.prob += *biter;
+      
+      return result;
+    }
+
     
     template <typename Word_>
     result_type lookup(const void* buffer_in, const Word_& word, void* buffer_out)
@@ -176,7 +196,8 @@ namespace expgram
       word_type::id_type* output         = ngram_state.context(buffer_out);
       logprob_type*       output_backoff = ngram_state.backoff(buffer_out);
       
-      const result_type result = lookup(ngram_state.context(buffer_in), ngram_state.context(buffer_in) + ngram_state.length(buffer_in),
+      const result_type result = lookup(ngram_state.context(buffer_in),
+					ngram_state.context(buffer_in) + ngram_state.length(buffer_in),
 					word,
 					output,
 					output_backoff);
@@ -225,7 +246,7 @@ namespace expgram
       *output_backoff = backoffs[0](state.node(), order);
       ++ output_backoff;
       
-      // at least we have one unigram...
+      // at least we have unigram...
       
       // we will try to find out the longest matches...
       // Here, we do not check .shard(), since we already know we are working with bigram and higher...
@@ -236,6 +257,7 @@ namespace expgram
 	
 	++ order;
 	
+	// do we need to check whether it is possible to extend further...?
 	if (order < index.order()) {
 	  *output = *rfirst;
 	  ++ output;
@@ -245,39 +267,83 @@ namespace expgram
 	
 	state = state_next;
       }
+      
+      lookup_result(state, order, result);
+      
+      return result;
+    }
 
+    // lookup ngram from partial state
+    
+    result_type lookup_partial(const void* buffer_in,
+			       state_type state,
+			       int order,
+			       void* buffer_out) const
+    {
+      NGramState ngram_state(index.order());
       
-      // I think this is correct: we will preserve longest-matching context, but uses the prob/bound after backing
-      // via logprob_min()
+      word_type::id_type* output         = ngram_state.context(buffer_out);
+      logprob_type*       output_backoff = ngram_state.backoff(buffer_out);
       
-      size_type shard_index = utils::bithack::branch(state.is_root_shard(), size_type(0), state.shard());
-      size_type shard_node = state.node();
+      const result_type result = lookup_partial(ngram_state.context(buffer_in),
+						ngram_state.context(buffer_in) + ngram_state.length(buffer_in),
+						state,
+						order,
+						output,
+						output_backoff);
       
-      result.state    = state;
-      result.complete = (order == index.order() || ! index[shard_index].has_child(shard_node));
+      ngram_state.length(buffer_out) = output - ngram_state.context(buffer_out);
       
-      while (1) {
-	result.prob     = logprobs[shard_index](shard_node, order);
-	result.bound    = (! logbounds.empty() && shard_node < logbounds[shard_index].size()
-			   ? logbounds[shard_index](shard_node, order)
-			   : result.prob);
-	result.length   = order;
+      return result;
+    }
+    
+    template <typename Iterator, typename Output, typename OutputBackoff>
+    result_type lookup_partial(Iterator rfirst, Iterator rend,
+			       state_type state,
+			       int order,
+			       Output& output,
+			       OutputBackoff& output_backoff) const
+    {
+      result_type result;
+      
+      if (order <= 0)
+	throw std::runtime_error("invalid ngram state/length for partial lookup!");
+      
+      lookup_result(state, order, result);
+      
+      if (result.complete)
+	throw std::runtime_error("we assume that this is not complete!");
+      
+      // we use bound score...
+      //
+      // TODO: we need to different lobounds and logprobs....
+      //
+      const logprob_type adjust = result.bound;
+      
+      // at least we have unigram...
+      for (/**/; rfirst != rend; ++ rfirst) {
+	const state_type state_next = index.next(state, *rfirst);
 	
-	if (result.prob != logprob_min()) break;
+	if (state_next.is_root_node()) break;
 	
-	if (order == 1) {
-	  // very strange, though...
-	  result.prob   = smooth;
-	  result.bound  = smooth;
-	  result.length = 0;
-	  break;
+	++ order;
+	
+	// do we need to check whether it is possible to extend further...?
+	if (order < index.order()) {
+	  *output = *rfirst;
+	  ++ output;
+	  *output_backoff = backoffs[state_next.shard()](state_next.node(), order);
+	  ++ output_backoff;
 	}
 	
-	shard_node = index[shard_index].parent(shard_node);
-	-- order;
-	if (order == 1)
-	  shard_index = 0;
+	state = state_next;
       }
+      
+      lookup_result(state, order, result);
+      
+      // make an adjustment to the score...
+      result.prob  -= adjust;
+      result.bound -= adjust;
       
       return result;
     }
@@ -326,6 +392,39 @@ namespace expgram
     }
     
   private:
+    
+    void lookup_result(const state_type& state, int order, result_type& result) const
+    {
+      size_type shard_index = utils::bithack::branch(state.is_root_shard(), size_type(0), state.shard());
+      size_type shard_node = state.node();
+      
+      result.state    = state;
+      result.complete = (order == index.order() || ! index[shard_index].has_child(shard_node));
+      
+      while (1) {
+	result.prob     = logprobs[shard_index](shard_node, order);
+	result.bound    = (! logbounds.empty() && shard_node < logbounds[shard_index].size()
+			   ? logbounds[shard_index](shard_node, order)
+			   : result.prob);
+	result.length   = order;
+	
+	if (result.prob != logprob_min()) break;
+	
+	if (order == 1) {
+	  // very strange, though...
+	  result.prob   = smooth;
+	  result.bound  = smooth;
+	  result.length = 0;
+	  break;
+	}
+	
+	shard_node = index[shard_index].parent(shard_node);
+	-- order;
+	if (order == 1)
+	  shard_index = 0;
+      }
+    }
+
     struct ExtractVocab
     {
       const vocab_type& vocab_;

@@ -726,6 +726,16 @@ namespace expgram
 					      ? ngram.backoffs[shard](pos, order_prev + 1)
 					      : logprob_type(0.0));
 		words.push_back(std::make_pair(ngram.index[shard][pos], logprob_pair_type(logprob, logbound, backoff)));
+	      } else {
+#if 0
+		// debug messages..
+		if (shard == 0) {
+		  std::cerr << ngram.index.vocab()[ngram.index[shard][pos]];
+		  for (size_t i = context.size(); i != 0; -- i)
+		    std::cerr << ' ' << ngram.index.vocab()[context[i - 1]];
+		  std::cerr << std::endl;
+		}
+#endif
 	      }
 	    }
 	  } else {
