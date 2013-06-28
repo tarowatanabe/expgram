@@ -13,6 +13,7 @@
 #include <expgram/NGramIndex.hpp>
 #include <expgram/Stat.hpp>
 #include <expgram/NGramState.hpp>
+#include <expgram/NGramStateChart.hpp>
 
 #include <boost/array.hpp>
 

@@ -12,7 +12,7 @@
 
 #include <algorithm>
 
-#include <expgram/NGram.hpp>
+#include <expgram/Word.hpp>
 
 namespace expgram
 {
@@ -50,7 +50,7 @@ namespace expgram
     
     const word_type::id_type* context(const void* buffer) const
     {
-      return reinterpret_cast<const word_type::id_type*>((char*) buffer + sizeof(size_type));
+      return reinterpret_cast<const word_type::id_type*>((const char*) buffer + sizeof(size_type));
     }
     
     logprob_type* backoff(void* buffer) const
@@ -60,7 +60,7 @@ namespace expgram
     
     const logprob_type* backoff(const void* buffer) const
     {
-      return reinterpret_cast<const logprob_type*>((char*) buffer + sizeof(size_type) + sizeof(word_type::id_type) * (order_ - 1));
+      return reinterpret_cast<const logprob_type*>((const char*) buffer + sizeof(size_type) + sizeof(word_type::id_type) * (order_ - 1));
     }
     
     void fill(void* buffer) const

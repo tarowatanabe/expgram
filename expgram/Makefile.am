@@ -11,6 +11,7 @@ NGram.hpp \
 NGramCounts.hpp \
 NGramIndex.hpp \
 NGramState.hpp \
+NGramStateChart.hpp \
 Sentence.hpp \
 Stat.hpp \
 Vocab.hpp \
