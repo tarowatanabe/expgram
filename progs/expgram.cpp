@@ -83,11 +83,13 @@ int main(int argc, char** argv)
     void* state_next = &(*buffer_next.begin());
     
     ngram.lookup_context(&bos_id, (&bos_id) + 1, state_bos);
-    
+        
     size_t num_word = 0;
     size_t num_sentence = 0;
 
     utils::resource start;
+
+    double factor_log10 = 1.0 / M_LN10;
     
     while (is >> sentence) {
       // add BOS and EOS
@@ -107,8 +109,10 @@ int main(int argc, char** argv)
 	
 	if (verbose)
 	  if (! karma::generate(std::ostream_iterator<char>(os),
-				standard::string << '=' << karma::uint_ << ' ' << karma::int_ << ' ' << karma::double_ << '\n',
-				*siter, id, result.length, result.prob))
+				standard::string << '=' << karma::uint_ << ' ' << karma::int_
+				<< ' '
+				<< karma::double_ << '(' << karma::double_ << ')'<< '\n',
+				*siter, id, result.length, result.prob, result.prob * factor_log10))
 	    throw std::runtime_error("generation failed");
 
 	oov += (id == unk_id) || (id == none_id);
@@ -121,15 +125,17 @@ int main(int argc, char** argv)
       
       if (verbose)
 	if (! karma::generate(std::ostream_iterator<char>(os),
-			      standard::string << '=' << karma::uint_ << ' ' << karma::int_ << ' ' << karma::double_ << '\n',
-			      vocab_type::EOS, eos_id, result.length, result.prob))
+			      standard::string << '=' << karma::uint_ << ' ' << karma::int_
+			      << ' '
+			      << karma::double_ << '(' << karma::double_ << ')' << '\n',
+			      vocab_type::EOS, eos_id, result.length, result.prob, result.prob * factor_log10))
 	  throw std::runtime_error("generation failed");
       
       logprob += result.prob;
       
       if (! karma::generate(std::ostream_iterator<char>(os),
-			    karma::double_ << ' ' << karma::int_ << '\n',
-			    logprob, oov))
+			    karma::double_ << '(' << karma::double_ << ')' << ' ' << karma::int_ << '\n',
+			    logprob, logprob * factor_log10, oov))
 	throw std::runtime_error("generation failed");
 
       ++ num_sentence;

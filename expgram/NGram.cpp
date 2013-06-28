@@ -2068,7 +2068,7 @@ namespace expgram
     void index_ngram()
     {
       typedef utils::succinct_vector<std::allocator<int32_t> > position_set_type;
-      
+
       const int order_prev = ngram.index[shard].offsets.size() - 1;
       const size_type positions_size = ngram.index[shard].offsets[order_prev] - ngram.index[shard].offsets[order_prev - 1];
       
@@ -2188,7 +2188,7 @@ namespace expgram
 	context_type::const_iterator citer_end = prefix.end();
 	for (context_type::const_iterator citer = prefix.begin(); citer != citer_end; ++ citer)
 	  stream << ' '  << ngram.index.vocab()[*citer];
-	
+
 	throw std::runtime_error(stream.str());
       }
       
@@ -2203,7 +2203,7 @@ namespace expgram
 	logprobs.push_back(witer->second.first);
 	
 	if (order_prev + 1 != max_order)
-	  backoffs.push_back(witer->second.second);
+	  backoffs.push_back(witer->second.second == ngram.logprob_min() ? 0.0 : witer->second.second);
       }
     }
     
@@ -2226,6 +2226,7 @@ namespace expgram
       typedef std::vector<const id_type*, std::allocator<const id_type*> > ngram_set_type;
 
       const size_type offset = sizeof(logprob_pair_type) / sizeof(id_type);
+
       if (offset != 2 || sizeof(logprob_pair_type) % sizeof(id_type) != 0)
 	throw std::runtime_error("invalid offset??");
       
@@ -2252,11 +2253,13 @@ namespace expgram
       
       // actual sorting!
       std::sort(ngrams.begin(), ngrams.end(), sized_key_less<id_type>(order));
-      
+
       // compute prefix+words...
       
       context_type prefix;
       word_logprob_pair_set_type words;
+
+      size_type inserted = false;
       
       ngram_set_type::const_iterator niter_end = ngrams.end();
       for (ngram_set_type::const_iterator niter = ngrams.begin(); niter != niter_end; ++ niter) {
@@ -2267,6 +2270,7 @@ namespace expgram
 	if (prefix.empty() || ! std::equal(prefix.begin(), prefix.end(), context)) {
 	  if (! words.empty()) {
 	    index_ngram(prefix, words);
+	    ++ inserted;
 	    words.clear();
 	  }
 	  
@@ -2279,17 +2283,17 @@ namespace expgram
 	else {
 	  if (words.back().second.first == ngram_type::logprob_min())
 	    words.back().second.first = logprobs.first;
-	  else if (words.back().second.second == ngram_type::logprob_min())
+	  if (words.back().second.second == ngram_type::logprob_min())
 	    words.back().second.second = logprobs.second;
-	  else
-	    throw std::runtime_error("starnge indexing reduction");
 	}
       }
       
       // perform final indexing
       if (! words.empty()) {
 	index_ngram(prefix, words);
+	++ inserted;
 	words.clear();
+	
 	index_ngram();
       }
     }
@@ -2320,7 +2324,7 @@ namespace expgram
 	ngrams[order].os.push(boost::iostreams::file_sink(path.string(), std::ios_base::out | std::ios_base::trunc), 1024 * 1024);
 	ngrams[order].os.exceptions(std::ostream::eofbit | std::ostream::failbit | std::ostream::badbit);
       }
-      
+            
       const logprob_pair_type logprobs_min(ngram.logprob_min(), ngram.logprob_min());
 	
       // we will start from bigram... unigrams...
@@ -2340,20 +2344,13 @@ namespace expgram
 	// reverse context!
 	std::reverse(context.begin(), context.end());
 	  
-	// this is a kind of heuristic, and should work most of the time...
-	if (context.size() > 2) {
-	  ngrams[context.size() - 1].os.write((char*) &(*context.begin()), sizeof(context_type::value_type) * (context.size() - 1));
-	  ngrams[context.size() - 1].os.write((char*) &logprobs_min, sizeof(logprob_pair_type));
-	}
-#if 0
 	// TODO: this is spurious.... Can we eliminate this...?
 	// insert pseudo context...
-	for (size_type order = 2; order < context.size() - 1; ++ order) {
+	for (size_type order = 2; order < context.size(); ++ order) {
 	  ngrams[order].os.write((char*) &(*context.begin()), sizeof(context_type::value_type) * order);
 	  ngrams[order].os.write((char*) &logprobs_min, sizeof(logprob_pair_type));
 	}
-#endif
-	  
+	
 	// insert actual context...
 	ngrams[context.size()].os.write((char*) &(*context.begin()), sizeof(context_type::value_type) * context.size());
 	ngrams[context.size()].os.write((char*) &logprobs, sizeof(logprob_pair_type));
@@ -2428,6 +2425,9 @@ namespace expgram
     // setup structures...
     clear();
     
+    if (path != "-" && ! boost::filesystem::exists(path))
+      throw std::runtime_error("no file? " + path.string());
+
     index.reserve(shard_size);
     logprobs.reserve(shard_size);
     backoffs.reserve(shard_size);
@@ -2565,7 +2565,6 @@ namespace expgram
 
       vocab.open(path_vocab);
       
-      
       const size_type unigram_size = unigrams.size();
       
       if (debug)
@@ -2576,12 +2575,9 @@ namespace expgram
 	index[shard].offsets.push_back(0);
 	index[shard].offsets.push_back(unigram_size);
 	
-	logprobs[shard].offset = unigram_size;
-	backoffs[shard].offset = unigram_size;
+	logprobs[shard].offset = utils::bithack::branch(shard == 0, size_type(0), unigram_size);
+	backoffs[shard].offset = utils::bithack::branch(shard == 0, size_type(0), unigram_size);
       }
-      
-      logprobs[0].offset = 0;
-      backoffs[0].offset = 0;
       
       // setup smooth... is this correct?
       // do we have to estimate again...?

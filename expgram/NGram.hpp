@@ -161,7 +161,7 @@ namespace expgram
       const size_type context_length = ngram_state.length(buffer_in);
       
       const logprob_type* backoff = ngram_state.backoff(buffer_in);
-      for (const logprob_type* biter = backoff + result.length - (result.length != 0); biter != backoff + context_length; ++ biter)
+      for (const logprob_type* biter = backoff + result.length - (result.length != 0); biter < backoff + context_length; ++ biter)
 	result.prob += *biter;
       
       return result;
@@ -223,15 +223,17 @@ namespace expgram
       ++ output;
       *output_backoff = backoffs[0](state.node(), order);
       ++ output_backoff;
-      ++ order; // increment order!
       
       // at least we have one unigram...
       
       // we will try to find out the longest matches...
-      for (/**/; rfirst != rend; ++ rfirst, ++ order) {
+      // Here, we do not check .shard(), since we already know we are working with bigram and higher...
+      for (/**/; rfirst != rend; ++ rfirst) {
 	const state_type state_next = index.next(state, *rfirst);
 	
 	if (state_next.is_root_node()) break;
+	
+	++ order;
 	
 	if (order < index.order()) {
 	  *output = *rfirst;
@@ -396,10 +398,12 @@ namespace expgram
 	const state_type state_next = index.next(state, word);
 	
 	if (state_next.is_root_node()) break;
+
+	const size_type shard_index = utils::bithack::branch(state_next.is_root_shard(), size_type(0), state_next.shard());
 	
 	*output = word;
 	++ output;
-	*output_backoff = backoffs[state_next.shard()](state_next.node(), order);
+	*output_backoff = backoffs[shard_index](state_next.node(), order);
 	++ output_backoff;
 	
 	state = state_next;
@@ -446,8 +450,8 @@ namespace expgram
 	const logprob_type* blast = backoff + context_length;
 
 	// if this is a complete context or backoff, use probability, not upper bound!
-	if (biter != blast || result.complete) {
-	  for (/**/; biter != blast; ++ biter)
+	if (biter < blast || result.complete) {
+	  for (/**/; biter < blast; ++ biter)
 	    result.prob += *biter;
 	  return result.prob;
 	} else
@@ -484,7 +488,7 @@ namespace expgram
 				  output_backoff);
       
       const logprob_type* backoff = ngram_state.backoff(buffer);
-      for (const logprob_type* biter = backoff + result.length - (result.length != 0); biter != backoff + context_length; ++ biter)
+      for (const logprob_type* biter = backoff + result.length - (result.length != 0); biter < backoff + context_length; ++ biter)
 	result.prob += *biter;
       
       return result.prob;
