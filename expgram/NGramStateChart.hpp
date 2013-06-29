@@ -28,11 +28,11 @@ namespace expgram
     typedef NGramIndex::state_type state_type;
     typedef NGramState suffix_state_type;
     
-    NGramStateChart(const size_type order) : suffix_state_(order) {}
+    NGramStateChart(const size_type order) : suffix_(order) {}
     
     size_type buffer_size() const
     {
-      return offset_suffix() + suffix_state_.buffer_size();
+      return offset_suffix() + suffix_.buffer_size();
     }
 
     size_type offset_prefix() const
@@ -42,7 +42,7 @@ namespace expgram
 
     size_type offset_suffix() const
     {
-      return sizeof(size_type) * 2 + sizeof(state_type) * (suffix_state_.order_ - 1);
+      return sizeof(size_type) * 2 + sizeof(state_type) * (suffix_.order_ - 1);
     }
 
     void* suffix(void* buffer) const
@@ -57,12 +57,12 @@ namespace expgram
     
     size_type& length_suffix(void* buffer) const
     {
-      return suffix_state_.length(suffix(buffer));
+      return suffix_.length(suffix(buffer));
     }
     
     const size_type& length_suffix(const void* buffer) const
     {
-      return suffix_state_.length(suffix(buffer));
+      return suffix_.length(suffix(buffer));
     }
 
     size_type& length_prefix(void* buffer) const
@@ -97,31 +97,31 @@ namespace expgram
     
     word_type::id_type* context(void* buffer) const
     {
-      return suffix_state_.context(suffix(buffer));
+      return suffix_.context(suffix(buffer));
     }
     
     const word_type::id_type* context(const void* buffer) const
     {
-      return suffix_state_.context(suffix(buffer));
+      return suffix_.context(suffix(buffer));
     }
 
     logprob_type* backoff(void* buffer) const
     {
-      return suffix_state_.backoff(suffix(buffer));
+      return suffix_.backoff(suffix(buffer));
     }
 
     const logprob_type* backoff(const void* buffer) const
     {
-      return suffix_state_.backoff(suffix(buffer));
+      return suffix_.backoff(suffix(buffer));
     }
     
     void fill(void* buffer) const
     {
       const size_type len = length_prefix(buffer);
       
-      std::fill(reinterpret_cast<char*>(state(buffer) + len), reinterpret_cast<char*>(state(buffer) + suffix_state_.order_ - 1), 0);
+      std::fill(reinterpret_cast<char*>(state(buffer) + len), reinterpret_cast<char*>(state(buffer) + suffix_.order_ - 1), 0);
       
-      suffix_state_.fill(suffix(buffer));
+      suffix_.fill(suffix(buffer));
     }
 
     void copy(const void* buffer, void* copied)
@@ -136,10 +136,10 @@ namespace expgram
 
     void copy_suffix(const void* buffer, void* copied)
     {
-      suffix_state_.copy(suffix(buffer), suffix(copied));
+      suffix_.copy(suffix(buffer), suffix(copied));
     }
     
-    suffix_state_type suffix_state_;
+    suffix_state_type suffix_;
   };
 
 };

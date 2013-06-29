@@ -72,6 +72,15 @@ int main(int argc, char** argv)
     void* state      = &(*buffer.begin());
     void* state_bos  = &(*buffer_bos.begin());
     void* state_next = &(*buffer_next.begin());
+    
+    // for adnaved scoring... see something wild in the loop below
+    buffer_type buffer_curr(ngram_state.buffer_size());
+    buffer_type buffer_suffix(ngram_state.buffer_size());
+    buffer_type buffer_suffix_next(ngram_state.buffer_size());
+    
+    void* state_curr  = &(*buffer_curr.begin());
+    void* suffix      = &(*buffer_suffix.begin());
+    void* suffix_next = &(*buffer_suffix_next.begin());
 
     // fill-in BOS state
     ngram.lookup_context(&vocab_type::BOS, (&vocab_type::BOS) + 1, state_bos);
@@ -86,7 +95,7 @@ int main(int argc, char** argv)
       tokens.clear();
       tokens.push_back(vocab_type::BOS);
       tokens.insert(tokens.end(), tokenizer.begin(), tokenizer.end());
-      tokens.push_back(vocab_type::EOS);
+     tokens.push_back(vocab_type::EOS);
 
       //
       // Alternatively, you can try: (Remark: sentence is simply vector<word_type>)
@@ -169,6 +178,67 @@ int main(int argc, char** argv)
 	std::cerr << "logprob: " << logprob
 		  << " base10: " << (logprob / log_10)
 		  << std::endl;
+	
+	// we will do something more wild here....
+	
+	// starting from titer_last, untile titer_last + order - 1, perform scoring without correct-state.
+	// then, combine with the suffix state in the "state"
+
+	// initialize suffix state and current state
+	ngram_state.copy(state, suffix);
+	ngram_state.length(state_curr) = 0;
+	
+	tokens_type::const_iterator niter_end = std::min(titer_last + order - 1, titer_end);
+	for (tokens_type::const_iterator niter = titer_last; niter != niter_end; ++ niter) {
+	  // this is a special case, and we do not treat in this example...
+	  if (ngram_state.length(suffix) == 0) break;
+	  
+	  const expgram::NGram::result_type result = ngram.ngram_score(state_curr, *niter, state_next);
+	  
+	  // this is a complete result, so we will stop this demonstration...
+	  if (result.complete) break;
+	  
+	  const int order = (niter - titer_last) + 1;
+
+	  //
+	  // The difference of this ordering comes from the backoff in the previous ngram_score call...
+	  //
+	  std::cerr << '\t' << "ngram order: " << order << " state order: " << ngram.index.order(result.state) << std::endl;
+	  
+	  std::cerr << '\t' << "state: curr: " << ngram_state.length(state_curr)
+		    << " next: " << ngram_state.length(state_next) << std::endl;
+
+	  const expgram::NGram::result_type result_partial = ngram.ngram_partial_score(suffix,
+										       result.state,
+										       order,
+										       suffix_next);
+
+	  std::cerr << '\t' << "suffix: curr: " << ngram_state.length(suffix)
+		    << " next: " << ngram_state.length(suffix_next) << std::endl;
+	  
+	  std::cerr << '\t' << "partial ngram length: " << result_partial.length
+		    << " rescore length: " << result.length
+		    << std::endl;
+	  
+	  double logprob_partial = result.bound + result_partial.prob;
+	  	  
+	  std::cerr << '\t' << "ngram: ";
+	  std::copy(titer_last, niter + 1, std::ostream_iterator<std::string>(std::cerr, " "));
+	  std::cerr << std::endl;
+	  std::cerr << '\t' << "partial " << "logprob: " << logprob_partial
+		    << " base10: " << (logprob_partial / log_10)
+		    << " complete: " << (result_partial.complete ? "true" : "false")
+		    << std::endl;
+	  
+	  const double logprob = ngram.logprob(titer_first, niter + 1);
+	  std::cerr << '\t' << "   full " << "logprob: " << logprob
+		    << " base10: " << (logprob / log_10)
+		    << std::endl;
+
+	  // next state...
+	  std::swap(state_curr, state_next);
+	  std::swap(suffix, suffix_next);
+	}
       }
     }
   }

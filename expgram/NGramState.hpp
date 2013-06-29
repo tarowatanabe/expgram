@@ -76,6 +76,24 @@ namespace expgram
       std::copy((char*) buffer, ((char*) buffer) + buffer_size(), (char*) copied);
     }
     
+
+    void append(const void* buffer1, const void* buffer2, void* appended)
+    {
+      const size_type len1 = length(buffer1);
+      const size_type len2 = length(buffer2);
+
+      // merge context
+      std::copy(context(buffer1), context(buffer1) + len1, context(appended));
+      std::copy(context(buffer2), context(buffer2) + len2, context(appended) + len1);
+      
+      // merge backoff
+      std::copy(backoff(buffer1), backoff(buffer1) + len1, backoff(appended));
+      std::copy(backoff(buffer2), backoff(buffer2) + len2, backoff(appended) + len1);
+      
+      // merge length
+      
+      length(appended) = len1 + len2;
+    }
   };
 };
 

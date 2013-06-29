@@ -164,8 +164,10 @@ namespace expgram
       const logprob_type* biter     = ngram_state.backoff(buffer_in) + result.length + (result.length == 0) - 1;
       const logprob_type* biter_end = ngram_state.backoff(buffer_in) + context_length;
       
-      for (/**/; biter < biter_end; ++ biter)
-	result.prob += *biter;
+      for (/**/; biter < biter_end; ++ biter) {
+	result.prob  += *biter;
+	result.bound += *biter;
+      }
       
       return result;
     }
@@ -178,11 +180,13 @@ namespace expgram
       
       const size_type context_length = ngram_state.length(buffer_in);
       
-      const logprob_type* biter     = ngram_state.backoff(buffer_in) + result.length + (result.length == 0) - order;
+      const logprob_type* biter     = ngram_state.backoff(buffer_in) + utils::bithack::max(static_cast<int>(result.length + (result.length == 0) - order), 0);
       const logprob_type* biter_end = ngram_state.backoff(buffer_in) + context_length;
-	
-      for (/**/; biter < biter_end; ++ biter)
-	result.prob += *biter;
+      
+      for (/**/; biter < biter_end; ++ biter) {
+	result.prob  += *biter;
+	result.bound += *biter;
+      }
       
       return result;
     }
@@ -397,6 +401,16 @@ namespace expgram
     
     void lookup_result(const state_type& state, int order, result_type& result) const
     {
+      if (state.is_root()) {
+	result.state = state;
+	result.prob     = smooth;
+	result.bound    = smooth;
+	result.length   = 0;
+	result.complete = true;
+	
+	return;
+      }
+
       size_type shard_index = utils::bithack::branch(state.is_root_shard(), size_type(0), state.shard());
       size_type shard_node = state.node();
       
@@ -411,7 +425,7 @@ namespace expgram
 	result.length   = order;
 	
 	if (result.prob != logprob_min()) break;
-	
+
 	if (order == 1) {
 	  // very strange, though...
 	  result.prob   = smooth;

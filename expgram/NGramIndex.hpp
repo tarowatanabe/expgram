@@ -373,7 +373,24 @@ namespace expgram
     
   public:
     state_type root() const { return state_type(); }
-    
+
+    int order(const state_type& state) const
+    {
+      if (state.is_root())
+        return 0;
+      else if (state.is_root_shard())
+        return 1;
+      else {
+        const shard_type& shard = __shards[state.shard()];
+        const size_type node = state.node();
+        
+        size_type order = 2;
+        for (/**/; order < shard.offsets.size(); ++ order)
+          if (node < shard.offsets[order])
+            return order;
+        return order;
+      }
+    }    
     template <typename Iterator>
     std::pair<state_type, Iterator> next(state_type state, Iterator first, Iterator last) const
     {

@@ -29,6 +29,16 @@ namespace expgram
     typedef NGramStateChart ngram_state_type;
 
     typedef std::vector<char, std::allocator<char> > buffer_type;
+
+    NGramScore(const ngram_type& ngram)
+      : ngram_state_(ngram.index.order()), ngram_(ngram), state_(0), prob_(0.0), complete_(false)
+    {
+      buffer1_.reserve(ngram_state_.suffix_.buffer_size());
+      buffer2_.reserve(ngram_state_.suffix_.buffer_size());
+      
+      buffer1_.resize(ngram_state_.suffix_.buffer_size());
+      buffer2_.resize(ngram_state_.suffix_.buffer_size());      
+    }
     
     NGramScore(const ngram_type& ngram, void* state)
       : ngram_state_(ngram.index.order()), ngram_(ngram), state_(state), prob_(0.0), complete_(false)
@@ -36,12 +46,23 @@ namespace expgram
       ngram_state_.length_prefix(state_) = 0;
       ngram_state_.length_suffix(state_) = 0;
       ngram_state_.complete(state_) = false;
-
-      buffer1_.reserve(ngram_state_.suffix_state_.buffer_size());
-      buffer2_.reserve(ngram_state_.suffix_state_.buffer_size());
       
-      buffer1_.resize(ngram_state_.suffix_state_.buffer_size());
-      buffer2_.resize(ngram_state_.suffix_state_.buffer_size());
+      buffer1_.reserve(ngram_state_.suffix_.buffer_size());
+      buffer2_.reserve(ngram_state_.suffix_.buffer_size());
+      
+      buffer1_.resize(ngram_state_.suffix_.buffer_size());
+      buffer2_.resize(ngram_state_.suffix_.buffer_size());
+    }
+    
+    void assign(void* state)
+    {
+      state_    = state;
+      prob_     = 0.0;
+      complete_ = false;
+      
+      ngram_state_.length_prefix(state_) = 0;
+      ngram_state_.length_suffix(state_) = 0;
+      ngram_state_.complete(state_) = false;
     }
     
     void initial_bos()
@@ -49,14 +70,13 @@ namespace expgram
       const word_type::id_type bos_id = ngram_.index.vocab()[vocab_type::BOS];
       
       ngram_.lookup_context(&bos_id, (&bos_id) + 1, ngram_state_.suffix(state_));
-      
       complete_ = true;
     }
-
+    
     void initial_bos(const void* buffer)
     {
       // copy suffix state...
-      ngram_state_.suffix_state_.copy(buffer, ngram_state_.suffix(state_));
+      ngram_state_.suffix_.copy(buffer, ngram_state_.suffix(state_));
       complete_ = true;
     }
     
@@ -65,7 +85,7 @@ namespace expgram
     {
       void* state_prev = &(*buffer1.begin());
       
-      ngram_state_.suffix_state_.copy(nram_state_.suffix(state_), state_prev);
+      ngram_state_.suffix_.copy(nram_state_.suffix(state_), state_prev);
       
       const ngram_type::result_type result = ngram_.ngram_score(state_prev, word, nram_state_.suffix(state_));
       
@@ -79,8 +99,8 @@ namespace expgram
 	ngram_state_.state(state_)[ngram_state_.length_prefix(state_)] = result.state;
 	++ ngram_state_.length_prefix(state_);
 	
-	// if not incremental, complete it.
-	if (ngram_state_.length_suffix(state_) != ngram_state_.suffix_state_.length(state_prev) + 1)
+	// if not incremental, this is a complete state!
+	if (ngram_state_.length_suffix(state_) != ngram_state_.suffix_.length(state_prev) + 1)
 	  complete_ = true;
       }
     }
@@ -95,16 +115,16 @@ namespace expgram
     
     void non_terminal(const void* antecedent)
     {
-      // antecedent has no pending scoring...
+      // antecedent has no prefxi for scoring...
       if (ngram_state_.length_prefix(antecedent) == 0) {
 	
 	// if this antecedent is complete, we will copy suffix from antecedent to state_.
-	// then, all the pending backoff in current will be scored...!
+	// then, all the backoffs in the current suffix are accumulated.
 	if (ngram_state_.complete(antecedent)) {
 	  // score all the backoff
 	  const logprob_type* biter     = ngram_state_.backoff(state_);
 	  const logprob_type* biter_end = biter + ngram_state_.length_suffix(state_);
-	  for (/**/; biter != biter_end; ++ biter)
+	  for (/**/; biter < biter_end; ++ biter)
 	    prob_ += *biter;
 	  
 	  // copy suffix state
@@ -123,9 +143,12 @@ namespace expgram
 	ngram_state_.copy_suffix(antecedent, state_);
 	
 	if (complete_) {
-	  // adjust all the bound scoring
+	  // since we are a complete state, all the bound scoring in the antecedent's prefix should
+	  // be upgraded to probability scoring, and complete it.
+	  
 	  
 	} else if (ngram_state_.length_prefix(state_) == 0) {
+	  // if prefix is empty, we aill also copy from antecedent
 	  ngram_state_.copy_prefix(antecedent, state_);
 	  
 	  complete_ = ngram_state_.complete(antecedent);
@@ -136,15 +159,17 @@ namespace expgram
       }
       
       // temporary storage...
-      void* state_curr = &(*buffer1_.begin());
-      void* state_next = &(*buffer2_.begin());
-
+      void* suffix_curr = &(*buffer1_.begin());
+      void* suffix_next = &(*buffer2_.begin());
+      
       const ngram_type::state_type* states = ngram_state_.state(antecedent);
       const size_type               states_length = ngram_state_.length_prefix(antecedent);
       
-      // first, try the first state
-      {
-	const ngram_type::result_type result = ngram_.ngram_partial_score(ngram_state_.suffix(state_), states[0], 1, state_curr);
+      for (size_type order = 1; order <= states_length; ++ order) {
+	const ngram_type::result_type result = ngram_.ngram_partial_score(order == 1 ? ngram_state_.suffix(state_) : suffix_curr,
+									  states[order - 1],
+									  order,
+									  suffix_next);
 	
 	if (complete_ || result.complete) {
 	  prob_ += result.prob;
@@ -157,46 +182,18 @@ namespace expgram
 	  ++ ngram_state_.length_prefix(state_);
 	}
 	
-	if (ngram_state_.length_suffix(state_curr) != ngram_state_.length_suffix(state_)) {
-	  complete_ = true;
-	  
-	  // we have finished all the scoring... and we do not have to score for the rest of the states
-	  if (ngram_state_.length_suffix(state_curr) == 0) {
-	    ngram_state_.copy_suffix(antecedent, state_);
-	    
-	    // adjust rest-cost from antecedent.pointers + 1, antecedent.pointers + length!
-	    
-	    return;
-	  }
-	}
-      }
-
-      // second, try the second and the up...
-      for (size_type order = 2; order <= states_length; ++ order) {
-	const ngram_type::result_type result = ngram_.ngram_partial_score(state, states[order - 1], order, state_next);
-	
-	if (complete_ || result.complete) {
-	  prob_ += result.prob;
-	  
-	  complete_ = true;
-	} else {
-	  prob_ += result.bound;
-	  
-	  ngram_state.state(state_)[ngram_state_.length_prefix(state_)] = result.state;
-	  ++ ngram_state_.length_prefix(state_);
-	}
-
 	// do swap!
-	std::swap(state_curr, state_next);
+	std::swap(suffix_curr, suffix_next);
 	
-	if (ngram_state_.length_suffix(state_curr) != ngram_state_.length_suffix(state_)) {
+	// the original suffix length and the current suffix length is different... an indication of completion
+	if (ngram_state_.suffix_.length(suffix_curr) != ngram_state_.length_suffix(state_)) {
 	  complete_ = true;
 	  
 	  // we have finished all the scoring... and we do not have to score for the rest of the states
-	  if (ngram_state_.length_suffix(state_curr) == 0) {
+	  if (ngram_state_.suffix_.length(suffix_curr) == 0) {
 	    ngram_state_.copy_suffix(antecedent, state_);
 	    
-	    // adjust rest-cost from antecedent.pointers + order, antecedent.pointers + length!
+	    // adjust rest-cost from antecedent.states + order, antecedent.states + length!
 	    
 	    return;
 	  }
@@ -206,8 +203,8 @@ namespace expgram
       // antecedent is a complete state
       if (ngram_state_.complete(antecedent)) {
 	// score all the backoff..
-	const logprob_type* biter     = ngram_state_.backoff(state_curr);
-	const logprob_type* biter_end = biter + ngram_state_.length_suffix(state_curr);
+	const logprob_type* biter     = ngram_state_.backoff(suffix_curr);
+	const logprob_type* biter_end = biter + ngram_state_.length_suffix(suffix_curr);
 	for (/**/; biter < biter_end; ++ biter)
 	  prob_ += *biter;
 	
@@ -220,26 +217,23 @@ namespace expgram
 	return;
       }
       
-      // minimum suffix: thus, independent of the words to the left...
+      // minimum suffix is already computed in the antecedent, and this is already minimum wrt prefix which
+      // is already combined with the previous suffix...
       if (ngram_state_.length_suffx(antecedent) < ngram_state_.length_prefix(antecedent)) {
 	ngram_state_.copy_suffix(antecedent, state_);
 	return;
       }
       
-      // copy and merge states...
-      std::copy(ngram_state_.context(antecedent),
-		ngram_state_.context(antecedent) + ngram_state_.length_suffix(antecedent),
-		ngram_state_.context(state_));
-      std::copy(ngram_state_.suffix_state.context(state_curr),
-		ngram_state_.suffix_state.context(state_curr) + ngram_state_.suffix_state.length(state_curr),
-		ngram_state_.context(state_) + ngram_state_.length_suffix(antecedent))
+      // append states...
+      ngram_state_.suffix_.append(ngram_state_.suffix(antecedent), suffix_curr, ngram_state_.suffix(state_));
+    }
+    
+    double complete()
+    {
+      // if the prefix is already reached the ngram order - 1, then, it is also complete
+      ngram_state_.complete(state_) = complete_ || (ngram_state_.length_prefix(state_) == ngram_.index.order() - 1);
       
-      std::copy(ngram_state_.backoff(antecedent),
-		ngram_state_.backoff(antecedent) + ngram_state_.length_suffix(antecedent),
-		ngram_state_.backoff(state_));
-      std::copy(ngram_state_.suffix_state.backoff(state_curr),
-		ngram_state_.suffix_state.backoff(state_curr) + ngram_state_.suffix_state.length(state_curr),
-		ngram_state_.backoff(state_) + ngram_state_.length_suffix(antecedent))
+      return prob_;
     }
     
     ngram_state_type  ngram_state_;
