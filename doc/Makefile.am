@@ -3,6 +3,7 @@ if WITH_RST2MAN
 
 if WITH_MPI
 man_mpi = \
+expgram_backward_mpi.man \
 expgram_bound_mpi.man \
 expgram_counts_estimate_mpi.man \
 expgram_counts_extract_mpi.man \
@@ -14,6 +15,7 @@ endif WITH_MPI
 man1_MANS = \
 expgram.py.man \
 expgram.man \
+expgram_backward.man \
 expgram_bound.man \
 expgram_diff.man \
 expgram_clean.man \

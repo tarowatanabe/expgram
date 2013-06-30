@@ -52,9 +52,12 @@ You can learn ngram language model by:
 
    - This will result in an indexed counts as *<output>.modified*.
 
-5. Estimate ngram language model and output as *<output>.lm*.
+5. Estimate ngram language model and output as *<output>.estimated*.
 
-6. Quantize estimated ngram language model and output as *<output>.lm.quantize*.
+6. Transform into backward trie structure for efficient quality, and
+   output as *<output>.lm*
+
+7. Quantize estimated ngram language model and output as *<output>.lm.quantize*.
 
    -  We perofmr 8-bit quantization.
 
@@ -93,10 +96,12 @@ Options:
   --erase-temporary     erase temporary allocated disk space
   --first-step=STEP     first step (default: 1): 1 = vocabulary, 2 = counts
                         extraction, 3 = counts index, 4 = counts modification,
-                        5 = language model, 6 = quantization
-  --last-step=STEP      last step (default: 6): 1 = vocabulary, 2 = counts
+                        5 = language model, 6 = backward trie, 7 =
+                        quantization
+  --last-step=STEP      last step (default: 7): 1 = vocabulary, 2 = counts
                         extraction, 3 = counts index, 4 = counts modification,
-                        5 = language model, 6 = quantization
+                        5 = language model, 6 = backward trie, 7 =
+                        quantization
   --expgram-dir=DIRECTORY
                         expgram directory
   --mpi-dir=DIRECTORY   MPI directory
