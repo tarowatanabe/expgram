@@ -3,15 +3,25 @@
 
 AC_PREREQ(2.61)
 
-AC_INIT(expgram, 0.0.1, taro.watanabe@nict.go.jp)
+AC_INIT(expgram, 0.1.0, taro.watanabe@nict.go.jp)
 
 AC_CONFIG_AUX_DIR(config)
 AC_CONFIG_MACRO_DIR(config)
 
-AM_INIT_AUTOMAKE(expgram, 0.0.1)
+AM_INIT_AUTOMAKE(expgram, 0.1.0)
+
+# 1. Start with version information of ‘0:0:0’ for each libtool library.
+# 2. Update the version information only immediately before a public release of your software. More frequent updates are unnecessary, and only guarantee that the current interface number gets larger faster.
+# 3. If the library source code has changed at all since the last update, then increment revision (‘c:r:a’ becomes ‘c:r+1:a’).
+# 4. If any interfaces have been added, removed, or changed since the last update, increment current, and set revision to 0.
+# 5. If any interfaces have been added since the last public release, then increment age.
+# 6. If any interfaces have been removed or changed since the last public release, then set age to 0.
 
 EXPGRAM_LTVERSION=0:1:0
 AC_SUBST(EXPGRAM_LTVERSION)
+
+EXPGRAM_VERSION=0.1.0
+AC_SUBST(EXPGRAM_VERSION)
 
 AC_CONFIG_HEADER(utils/config.h)
 

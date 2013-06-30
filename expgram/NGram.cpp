@@ -1046,6 +1046,8 @@ namespace expgram
   
   struct NGramBoundMapper
   {
+    typedef expgram::Vocab vocab_type;
+
     typedef NGramBoundMapReduce map_reduce_type;
     
     typedef map_reduce_type::ngram_type        ngram_type;
@@ -1074,6 +1076,11 @@ namespace expgram
     {
       typedef std::vector<logprob_type, std::allocator<logprob_type> > logprob_set_type;
 
+      // TODO: revise this so that: we compute upper bounds for those with ngram with BOS context
+      //       and the ngram with "real" probabilities, not weight after backoff.
+      
+      const id_type bos_id = ngram.index.vocab()[vocab_type::BOS];
+      
       logprob_set_type unigrams(ngram.index[shard].offsets[1], ngram.logprob_min());
       context_type context;
       
@@ -1094,16 +1101,45 @@ namespace expgram
 	  
 	  if (pos_first == pos_last) continue;
 
+#if 1
+	  // for lower order, we will use only the ngram starting with <s>
+	  // since we are in the backward mode, check the last of trie
+	  if (ngram.index.backward() && order_prev + 1 != ngram.index.order() && ngram.index[shard][pos_context] != bos_id)
+	    continue;
+#endif
+	  
 	  context_type::iterator citer_curr = context.end() - 2;
 	  for (size_type pos_curr = pos_context; pos_curr != size_type(-1); pos_curr = ngram.index[shard].parent(pos_curr), -- citer_curr)
 	    *citer_curr = ngram.index[shard][pos_curr];
-	    
+	  
+#if 1
+	  // for lower order, we will use only the ngram starting with <s>
+	  // since we are in the forward mode, check the first of trie
+	  if (! ngram.index.backward() && order_prev + 1 != ngram.index.order() && context.front() != bos_id)
+	    continue;
+#endif
+	  
 	  for (size_type pos = pos_first; pos != pos_last; ++ pos) {
 	    context.back() = ngram.index[shard][pos];
 	    
 	    const logprob_type logprob = ngram.logprobs[shard](pos, order_prev + 1);
 	    if (logprob != ngram.logprob_min()) {
-	      // this should be correct!
+#if 1
+	      context_type::const_iterator citer_end   = context.end() - ngram.index.backward();
+	      context_type::const_iterator citer_begin = context.begin() + (!ngram.index.backward());
+	      
+	      for (context_type::const_iterator citer = citer_begin; citer != citer_end; ++ citer) {
+		if (citer_end - citer == 1)
+		  unigrams[*citer] = std::max(unigrams[*citer], logprob);
+		else {
+		  const size_type shard_index = ngram.index.shard_index(citer, citer_end);
+		  
+		  queues[shard_index]->push(std::make_pair(context_type(citer, citer_end), logprob));
+		}
+	      }
+#endif
+
+#if 0
 	      context_type::const_iterator citer_end   = context.end() - ngram.index.backward();
 	      context_type::const_iterator citer_begin = context.begin() + (!ngram.index.backward());
 	      if (citer_end - citer_begin == 1)
@@ -1113,6 +1149,7 @@ namespace expgram
 		
 		queues[shard_index]->push(std::make_pair(context_type(citer_begin, citer_end), logprob));
 	      }
+#endif
 	    }
 	  }
 	}
