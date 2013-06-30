@@ -45,8 +45,8 @@ namespace expgram
     NGramScore(const ngram_type& ngram, void* state)
       : ngram_state_(ngram.index.order()), ngram_(ngram), state_(state), prob_(0.0), complete_(false)
     {
-      ngram_state_.length_prefix(state_) = 0;
-      ngram_state_.length_suffix(state_) = 0;
+      ngram_state_.size_prefix(state_) = 0;
+      ngram_state_.size_suffix(state_) = 0;
       ngram_state_.complete(state_) = false;
       
       buffer1_.reserve(ngram_state_.suffix_.buffer_size());
@@ -62,8 +62,8 @@ namespace expgram
       prob_     = 0.0;
       complete_ = false;
       
-      ngram_state_.length_prefix(state_) = 0;
-      ngram_state_.length_suffix(state_) = 0;
+      ngram_state_.size_prefix(state_) = 0;
+      ngram_state_.size_suffix(state_) = 0;
       ngram_state_.complete(state_) = false;
     }
     
@@ -98,11 +98,11 @@ namespace expgram
       } else {
 	prob_ += result.bound;
 	
-	ngram_state_.state(state_)[ngram_state_.length_prefix(state_)] = result.state;
-	++ ngram_state_.length_prefix(state_);
+	ngram_state_.state(state_)[ngram_state_.size_prefix(state_)] = result.state;
+	++ ngram_state_.size_prefix(state_);
 	
 	// if not incremental, this is a complete state!
-	if (ngram_state_.length_suffix(state_) != ngram_state_.suffix_.length(state_prev) + 1)
+	if (ngram_state_.size_suffix(state_) != ngram_state_.suffix_.size(state_prev) + 1)
 	  complete_ = true;
       }
     }
@@ -118,14 +118,14 @@ namespace expgram
     void non_terminal(const void* antecedent)
     {
       // antecedent has no prefxi for scoring...
-      if (ngram_state_.length_prefix(antecedent) == 0) {
+      if (ngram_state_.size_prefix(antecedent) == 0) {
 	
 	// if this antecedent is complete, we will copy suffix from antecedent to state_.
 	// then, all the backoffs in the current suffix are accumulated.
 	if (ngram_state_.complete(antecedent)) {
 	  // score all the backoff
 	  const logprob_type* biter     = ngram_state_.backoff(state_);
-	  const logprob_type* biter_end = biter + ngram_state_.length_suffix(state_);
+	  const logprob_type* biter_end = biter + ngram_state_.size_suffix(state_);
 	  for (/**/; biter < biter_end; ++ biter)
 	    prob_ += *biter;
 	  
@@ -140,7 +140,7 @@ namespace expgram
       }
       
       // we have no context as a suffix
-      if (ngram_state_.length_suffix(state_) == 0) {
+      if (ngram_state_.size_suffix(state_) == 0) {
 	// copy suffix state from antecedent
 	ngram_state_.copy_suffix(antecedent, state_);
 	
@@ -149,9 +149,9 @@ namespace expgram
 	  // be upgraded to probability scoring, and complete it.
 	  
 	  prob_ += ngram_.ngram_score_update(ngram_state_.state(antecedent),
-					     ngram_state_.state(antecedent) + ngram_state_.length_prefix(antecedent),
+					     ngram_state_.state(antecedent) + ngram_state_.size_prefix(antecedent),
 					     1);
-	} else if (ngram_state_.length_prefix(state_) == 0) {
+	} else if (ngram_state_.size_prefix(state_) == 0) {
 	  // if prefix is empty, we aill also copy from antecedent
 	  ngram_state_.copy_prefix(antecedent, state_);
 	  
@@ -167,7 +167,7 @@ namespace expgram
       void* suffix_next = &(*buffer2_.begin());
       
       const ngram_type::state_type* states = ngram_state_.state(antecedent);
-      const size_type               states_length = ngram_state_.length_prefix(antecedent);
+      const size_type               states_length = ngram_state_.size_prefix(antecedent);
       
       for (size_type order = 1; order <= states_length; ++ order) {
 	const ngram_type::result_type result = ngram_.ngram_partial_score(order == 1 ? ngram_state_.suffix(state_) : suffix_curr,
@@ -182,19 +182,19 @@ namespace expgram
 	} else {
 	  prob_ += result.bound;
 	  
-	  ngram_state.state(state_)[ngram_state_.length_prefix(state_)] = result.state;
-	  ++ ngram_state_.length_prefix(state_);
+	  ngram_state.state(state_)[ngram_state_.size_prefix(state_)] = result.state;
+	  ++ ngram_state_.size_prefix(state_);
 	}
 	
 	// do swap!
 	std::swap(suffix_curr, suffix_next);
 	
 	// the original suffix length and the current suffix length is different... an indication of completion
-	if (ngram_state_.suffix_.length(suffix_curr) != ngram_state_.length_suffix(state_)) {
+	if (ngram_state_.suffix_.size(suffix_curr) != ngram_state_.size_suffix(state_)) {
 	  complete_ = true;
 	  
 	  // we have finished all the scoring... and we do not have to score for the rest of the states
-	  if (ngram_state_.suffix_.length(suffix_curr) == 0) {
+	  if (ngram_state_.suffix_.size(suffix_curr) == 0) {
 	    ngram_state_.copy_suffix(antecedent, state_);
 	    
 	    //
@@ -202,7 +202,7 @@ namespace expgram
 	    //
 	    
 	    prob_ += ngram_.ngram_score_update(ngram_state_.state(antecedent) + order,
-					       ngram_state_.state(antecedent) + ngram_state_.length_prefix(antecedent),
+					       ngram_state_.state(antecedent) + ngram_state_.size_prefix(antecedent),
 					       order + 1);
 	    
 	    return;
@@ -214,7 +214,7 @@ namespace expgram
       if (ngram_state_.complete(antecedent)) {
 	// score all the backoff..
 	const logprob_type* biter     = ngram_state_.backoff(suffix_curr);
-	const logprob_type* biter_end = biter + ngram_state_.length_suffix(suffix_curr);
+	const logprob_type* biter_end = biter + ngram_state_.size_suffix(suffix_curr);
 	for (/**/; biter < biter_end; ++ biter)
 	  prob_ += *biter;
 	
@@ -229,7 +229,7 @@ namespace expgram
       
       // minimum suffix is already computed in the antecedent, and this is already minimum wrt prefix which
       // is already combined with the previous suffix...
-      if (ngram_state_.length_suffix(antecedent) < ngram_state_.length_prefix(antecedent)) {
+      if (ngram_state_.size_suffix(antecedent) < ngram_state_.size_prefix(antecedent)) {
 	ngram_state_.copy_suffix(antecedent, state_);
 	return;
       }
@@ -241,7 +241,7 @@ namespace expgram
     double complete()
     {
       // if the prefix is already reached the ngram order - 1, then, it is also complete
-      ngram_state_.complete(state_) = complete_ || (ngram_state_.length_prefix(state_) == ngram_.index.order() - 1);
+      ngram_state_.complete(state_) = complete_ || (ngram_state_.size_prefix(state_) == ngram_.index.order() - 1);
 
       // fill the state
       ngram_state_.fill(state_);

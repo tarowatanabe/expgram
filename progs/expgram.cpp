@@ -120,7 +120,7 @@ int main(int argc, char** argv)
 				<< karma::int_
 				<< ' '
 				<< karma::double_ << '(' << karma::double_ << ')'<< '\n',
-				*siter, id, result.length, result.complete, result.state.shard(), result.state.node(), ngram_state.length(state), result.prob, result.prob * factor_log10))
+				*siter, id, result.length, result.complete, result.state.shard(), result.state.node(), ngram_state.size(state), result.prob, result.prob * factor_log10))
 	    throw std::runtime_error("generation failed");
 	}
 
@@ -145,7 +145,7 @@ int main(int argc, char** argv)
 			      << karma::int_
 			      << ' '
 			      << karma::double_ << '(' << karma::double_ << ')' << '\n',
-			      vocab_type::EOS, eos_id, result.length, result.complete, result.state.shard(), result.state.node(), ngram_state.length(state), result.prob, result.prob * factor_log10))
+			      vocab_type::EOS, eos_id, result.length, result.complete, result.state.shard(), result.state.node(), ngram_state.size(state), result.prob, result.prob * factor_log10))
 	  throw std::runtime_error("generation failed");
       
       logprob += result.prob;

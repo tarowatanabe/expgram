@@ -186,14 +186,14 @@ int main(int argc, char** argv)
 
 	// initialize suffix state and current state
 	ngram_state.copy(state, suffix);
-	ngram_state.length(state_curr) = 0;
+	ngram_state.size(state_curr) = 0;
 	
 	tokens_type::const_iterator niter_end = std::min(titer_last + order - 1, titer_end);
 	for (tokens_type::const_iterator niter = titer_last; niter != niter_end; ++ niter) {
 	  // this is a special case, and we do not treat in this example...
 	  // actually, when the suffix context is empty, the scoring is always complete, given that the suffix 
 	  // always contains the full-context.
-	  if (ngram_state.length(suffix) == 0) break;
+	  if (ngram_state.size(suffix) == 0) break;
 	  
 	  const expgram::NGram::result_type result = ngram.ngram_score(state_curr, *niter, state_next);
 
@@ -206,16 +206,16 @@ int main(int argc, char** argv)
 	  //
 	  std::cerr << '\t' << "ngram order: " << order << " state order: " << ngram.index.order(result.state) << std::endl;
 	  
-	  std::cerr << '\t' << "state: curr: " << ngram_state.length(state_curr)
-		    << " next: " << ngram_state.length(state_next) << std::endl;
+	  std::cerr << '\t' << "state: curr: " << ngram_state.size(state_curr)
+		    << " next: " << ngram_state.size(state_next) << std::endl;
 
 	  const expgram::NGram::result_type result_partial = ngram.ngram_partial_score(suffix,
 										       result.state,
 										       order,
 										       suffix_next);
 	  
-	  std::cerr << '\t' << "suffix: curr: " << ngram_state.length(suffix)
-		    << " next: " << ngram_state.length(suffix_next) << std::endl;
+	  std::cerr << '\t' << "suffix: curr: " << ngram_state.size(suffix)
+		    << " next: " << ngram_state.size(suffix_next) << std::endl;
 	  
 	  std::cerr << '\t' << "partial ngram length: " << result_partial.length
 		    << " rescore length: " << result.length
