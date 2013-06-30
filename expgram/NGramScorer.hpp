@@ -148,7 +148,9 @@ namespace expgram
 	  // since we are a complete state, all the bound scoring in the antecedent's prefix should
 	  // be upgraded to probability scoring, and complete it.
 	  
-	  
+	  prob_ += ngram_.ngram_score_update(ngram_state_.state(antecedent),
+					     ngram_state_.state(antecedent) + ngram_state_.length_prefix(antecedent),
+					     1);
 	} else if (ngram_state_.length_prefix(state_) == 0) {
 	  // if prefix is empty, we aill also copy from antecedent
 	  ngram_state_.copy_prefix(antecedent, state_);
@@ -195,7 +197,13 @@ namespace expgram
 	  if (ngram_state_.suffix_.length(suffix_curr) == 0) {
 	    ngram_state_.copy_suffix(antecedent, state_);
 	    
-	    // adjust rest-cost from antecedent.states + order, antecedent.states + length!
+	    //
+	    // adjust the rest-cost from antecedent.states + order, antecedent.states + length by upgrading to probabilityes!
+	    //
+	    
+	    prob_ += ngram_.ngram_score_update(ngram_state_.state(antecedent) + order,
+					       ngram_state_.state(antecedent) + ngram_state_.length_prefix(antecedent),
+					       order + 1);
 	    
 	    return;
 	  }
@@ -234,6 +242,9 @@ namespace expgram
     {
       // if the prefix is already reached the ngram order - 1, then, it is also complete
       ngram_state_.complete(state_) = complete_ || (ngram_state_.length_prefix(state_) == ngram_.index.order() - 1);
+
+      // fill the state
+      ngram_state_.fill(state_);
       
       return prob_;
     }

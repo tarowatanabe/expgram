@@ -189,6 +189,27 @@ namespace expgram
       return result;
     }
 
+    template <typename Iterator>
+    double ngram_score_update(Iterator first, Iterator last, int order) const
+    {
+      double adjust = 0.0;
+
+      for (/**/; first != last; ++ first, ++ order) {
+	if (first->is_root_node()) continue;
+	
+	const size_type shard_index = utils::bithack::branch(first->is_root_shard(), size_type(0), first->shard());
+	const size_type shard_node = first->node();
+
+	const logprob_type logprob = logprobs[shard_index](shard_node, order);
+	
+	adjust += logprob;
+	adjust -= (! logbounds.empty() && shard_node < logbounds[shard_index].size()
+		   ? logbounds[shard_index](shard_node, order)
+		   : logprob);
+      }
+      
+      return adjust;
+    }
     
     template <typename Word_>
     result_type lookup(const void* buffer_in, const Word_& word, void* buffer_out)
