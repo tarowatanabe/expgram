@@ -153,7 +153,7 @@ namespace expgram
     
   public:
     template <typename Word_>
-    result_type ngram_score(const void* buffer_in, const Word_& word, void* buffer_out)
+    result_type ngram_score(const void* buffer_in, const Word_& word, void* buffer_out) const
     {
       NGramState ngram_state(index.order());
       
@@ -212,7 +212,7 @@ namespace expgram
     }
     
     template <typename Word_>
-    result_type lookup(const void* buffer_in, const Word_& word, void* buffer_out)
+    result_type lookup(const void* buffer_in, const Word_& word, void* buffer_out) const
     {
       NGramState ngram_state(index.order());
 

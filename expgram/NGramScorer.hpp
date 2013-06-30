@@ -32,7 +32,7 @@ namespace expgram
 
     typedef std::vector<char, std::allocator<char> > buffer_type;
 
-    NGramScore(const ngram_type& ngram)
+    NGramScorer(const ngram_type& ngram)
       : ngram_state_(ngram.index.order()), ngram_(ngram), state_(0), prob_(0.0), complete_(false)
     {
       buffer1_.reserve(ngram_state_.suffix_.buffer_size());
@@ -42,7 +42,7 @@ namespace expgram
       buffer2_.resize(ngram_state_.suffix_.buffer_size());      
     }
     
-    NGramScore(const ngram_type& ngram, void* state)
+    NGramScorer(const ngram_type& ngram, void* state)
       : ngram_state_(ngram.index.order()), ngram_(ngram), state_(state), prob_(0.0), complete_(false)
     {
       ngram_state_.size_prefix(state_) = 0;
@@ -85,11 +85,11 @@ namespace expgram
     template <typename Word_>
     void terminal(const Word_& word)
     {
-      void* state_prev = &(*buffer1.begin());
+      void* state_prev = &(*buffer1_.begin());
       
-      ngram_state_.suffix_.copy(nram_state_.suffix(state_), state_prev);
+      ngram_state_.suffix_.copy(ngram_state_.suffix(state_), state_prev);
       
-      const ngram_type::result_type result = ngram_.ngram_score(state_prev, word, nram_state_.suffix(state_));
+      const ngram_type::result_type result = ngram_.ngram_score(state_prev, word, ngram_state_.suffix(state_));
       
       if (complete_ || result.complete) {
 	prob_ += result.prob;
