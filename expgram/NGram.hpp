@@ -253,17 +253,10 @@ namespace expgram
       // we will try to find out the longest matches...
       // Here, we do not check .shard(), since we already know we are working with bigram and higher...
       for (/**/; rfirst != rend; ++ rfirst) {
-	const size_type shard_index = utils::bithack::branch(state.is_root_shard(), size_type(0), state.shard());
-	const size_type shard_node = state.node();
-	
-	result.complete = (order == index.order() || ! index[shard_index].has_child(shard_node));
-	
-	if (result.complete) break;
-	
 	const state_type state_next = index.next(state, *rfirst);
 	
 	if (state_next.is_root_node()) {
-	  //result.complete = true;
+	  result.complete = true;
 	  break;
 	}
 	
@@ -279,8 +272,12 @@ namespace expgram
 	
 	state = state_next;
       }
-
-      result.complete |= (order == index.order());
+      
+      const size_type shard_index = utils::bithack::branch(state.is_root_shard(), size_type(0), state.shard());
+      const size_type shard_node = state.node();
+      
+      if (! result.complete)
+	result.complete = (order == index.order() || ! index[shard_index].has_child(shard_node));
       
       lookup_result(state, order, result);
       
@@ -336,17 +333,10 @@ namespace expgram
       
       // at least we have unigram...
       for (/**/; rfirst != rend; ++ rfirst) {
-	const size_type shard_index = utils::bithack::branch(state.is_root_shard(), size_type(0), state.shard());
-	const size_type shard_node = state.node();
-	
-	result.complete = (order == index.order() || ! index[shard_index].has_child(shard_node));
-	
-	if (result.complete) break;
-	
 	const state_type state_next = index.next(state, *rfirst);
 	
 	if (state_next.is_root_node()) {
-	  //result.complete = true;
+	  result.complete = true;
 	  break;
 	}
 	
@@ -363,7 +353,11 @@ namespace expgram
 	state = state_next;
       }
       
-      result.complete |= (order == index.order());
+      const size_type shard_index = utils::bithack::branch(state.is_root_shard(), size_type(0), state.shard());
+      const size_type shard_node = state.node();
+      
+      if (! result.complete)
+	result.complete = (order == index.order() || ! index[shard_index].has_child(shard_node));
       
       lookup_result(state, order, result);
       
