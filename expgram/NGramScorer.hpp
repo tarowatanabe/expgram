@@ -3,6 +3,8 @@
 //  Copyright(C) 2013 Taro Watanabe <taro.watanabe@nict.go.jp>
 //
 
+// ngram scorer inspired by kenlm's left.hh
+
 #ifndef __EXPGRAM__NGRAM_SCORER__HPP__
 #define __EXPGRAM__NGRAM_SCORER__HPP__ 1
 
