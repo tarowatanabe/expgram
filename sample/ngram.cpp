@@ -191,12 +191,13 @@ int main(int argc, char** argv)
 	tokens_type::const_iterator niter_end = std::min(titer_last + order - 1, titer_end);
 	for (tokens_type::const_iterator niter = titer_last; niter != niter_end; ++ niter) {
 	  // this is a special case, and we do not treat in this example...
+	  // actually, when the suffix context is empty, the scoring is always complete, given that the suffix 
+	  // always contains the full-context.
 	  if (ngram_state.length(suffix) == 0) break;
 	  
 	  const expgram::NGram::result_type result = ngram.ngram_score(state_curr, *niter, state_next);
-	  
-	  // this is a complete result, so we will stop this demonstration...
-	  if (result.complete) break;
+
+	  if (result.complete) continue;
 	  
 	  const int order = (niter - titer_last) + 1;
 
@@ -212,7 +213,7 @@ int main(int argc, char** argv)
 										       result.state,
 										       order,
 										       suffix_next);
-
+	  
 	  std::cerr << '\t' << "suffix: curr: " << ngram_state.length(suffix)
 		    << " next: " << ngram_state.length(suffix_next) << std::endl;
 	  
@@ -221,7 +222,7 @@ int main(int argc, char** argv)
 		    << std::endl;
 	  
 	  double logprob_partial = result.bound + result_partial.prob;
-	  	  
+	  
 	  std::cerr << '\t' << "ngram: ";
 	  std::copy(titer_last, niter + 1, std::ostream_iterator<std::string>(std::cerr, " "));
 	  std::cerr << std::endl;

@@ -107,13 +107,22 @@ int main(int argc, char** argv)
 
 	const ngram_type::result_type result = ngram.ngram_score(state, id, state_next);
 	
-	if (verbose)
+	if (verbose) {
 	  if (! karma::generate(std::ostream_iterator<char>(os),
 				standard::string << '=' << karma::uint_ << ' ' << karma::int_
 				<< ' '
+				<< karma::bool_
+				<< ' '
+				<< karma::int_
+				<< '-'
+				<< karma::int_
+				<< ' '
+				<< karma::int_
+				<< ' '
 				<< karma::double_ << '(' << karma::double_ << ')'<< '\n',
-				*siter, id, result.length, result.prob, result.prob * factor_log10))
+				*siter, id, result.length, result.complete, result.state.shard(), result.state.node(), ngram_state.length(state), result.prob, result.prob * factor_log10))
 	    throw std::runtime_error("generation failed");
+	}
 
 	oov += (id == unk_id) || (id == none_id);
 	
@@ -127,8 +136,16 @@ int main(int argc, char** argv)
 	if (! karma::generate(std::ostream_iterator<char>(os),
 			      standard::string << '=' << karma::uint_ << ' ' << karma::int_
 			      << ' '
+			      << karma::bool_
+			      << ' '
+			      << karma::int_
+			      << '-'
+			      << karma::int_
+			      << ' '
+			      << karma::int_
+			      << ' '
 			      << karma::double_ << '(' << karma::double_ << ')' << '\n',
-			      vocab_type::EOS, eos_id, result.length, result.prob, result.prob * factor_log10))
+			      vocab_type::EOS, eos_id, result.length, result.complete, result.state.shard(), result.state.node(), ngram_state.length(state), result.prob, result.prob * factor_log10))
 	  throw std::runtime_error("generation failed");
       
       logprob += result.prob;

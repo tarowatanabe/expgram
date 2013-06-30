@@ -219,7 +219,7 @@ namespace expgram
       
       // minimum suffix is already computed in the antecedent, and this is already minimum wrt prefix which
       // is already combined with the previous suffix...
-      if (ngram_state_.length_suffx(antecedent) < ngram_state_.length_prefix(antecedent)) {
+      if (ngram_state_.length_suffix(antecedent) < ngram_state_.length_prefix(antecedent)) {
 	ngram_state_.copy_suffix(antecedent, state_);
 	return;
       }

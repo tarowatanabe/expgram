@@ -166,7 +166,6 @@ namespace expgram
       
       for (/**/; biter < biter_end; ++ biter) {
 	result.prob  += *biter;
-	result.bound += *biter;
       }
       
       return result;
@@ -185,7 +184,6 @@ namespace expgram
       
       for (/**/; biter < biter_end; ++ biter) {
 	result.prob  += *biter;
-	result.bound += *biter;
       }
       
       return result;
@@ -255,9 +253,19 @@ namespace expgram
       // we will try to find out the longest matches...
       // Here, we do not check .shard(), since we already know we are working with bigram and higher...
       for (/**/; rfirst != rend; ++ rfirst) {
+	const size_type shard_index = utils::bithack::branch(state.is_root_shard(), size_type(0), state.shard());
+	const size_type shard_node = state.node();
+	
+	result.complete = (order == index.order() || ! index[shard_index].has_child(shard_node));
+	
+	if (result.complete) break;
+	
 	const state_type state_next = index.next(state, *rfirst);
 	
-	if (state_next.is_root_node()) break;
+	if (state_next.is_root_node()) {
+	  //result.complete = true;
+	  break;
+	}
 	
 	++ order;
 	
@@ -271,6 +279,8 @@ namespace expgram
 	
 	state = state_next;
       }
+
+      result.complete |= (order == index.order());
       
       lookup_result(state, order, result);
       
@@ -314,10 +324,10 @@ namespace expgram
 	throw std::runtime_error("invalid ngram state/length for partial lookup!");
       
       lookup_result(state, order, result);
-      
+
       if (result.complete)
-	throw std::runtime_error("we assume that this is not complete!");
-      
+	throw std::runtime_error("we assume non-completed context");
+            
       // we use bound score...
       //
       // TODO: we need to different lobounds and logprobs....
@@ -326,9 +336,19 @@ namespace expgram
       
       // at least we have unigram...
       for (/**/; rfirst != rend; ++ rfirst) {
+	const size_type shard_index = utils::bithack::branch(state.is_root_shard(), size_type(0), state.shard());
+	const size_type shard_node = state.node();
+	
+	result.complete = (order == index.order() || ! index[shard_index].has_child(shard_node));
+	
+	if (result.complete) break;
+	
 	const state_type state_next = index.next(state, *rfirst);
 	
-	if (state_next.is_root_node()) break;
+	if (state_next.is_root_node()) {
+	  //result.complete = true;
+	  break;
+	}
 	
 	++ order;
 	
@@ -342,6 +362,8 @@ namespace expgram
 	
 	state = state_next;
       }
+      
+      result.complete |= (order == index.order());
       
       lookup_result(state, order, result);
       
@@ -406,17 +428,15 @@ namespace expgram
 	result.prob     = smooth;
 	result.bound    = smooth;
 	result.length   = 0;
-	result.complete = true;
 	
 	return;
       }
-
+      
       size_type shard_index = utils::bithack::branch(state.is_root_shard(), size_type(0), state.shard());
       size_type shard_node = state.node();
       
-      result.state    = state;
-      result.complete = (order == index.order() || ! index[shard_index].has_child(shard_node));
-      
+      result.state = state;
+            
       while (1) {
 	result.prob     = logprobs[shard_index](shard_node, order);
 	result.bound    = (! logbounds.empty() && shard_node < logbounds[shard_index].size()
