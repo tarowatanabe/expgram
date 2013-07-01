@@ -24,7 +24,7 @@ namespace expgram
     typedef Word               word_type;
     typedef float              logprob_type;
     
-    NGramState(const size_type order) : order_(order) {}
+    NGramState(const size_type order=1) : order_(order) {}
     
     size_type order_;
     
