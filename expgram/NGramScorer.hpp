@@ -98,10 +98,15 @@ namespace expgram
       complete_ = true;
     }
     
-    void initial_bos(const void* buffer)
+    void initial_bos(const void* buffer, const bool suffix=false)
     {
       // copy suffix state...
-      ngram_state_.suffix_.copy(ngram_state_.suffix(buffer), ngram_state_.suffix(state_));
+      
+      if (suffix)
+	ngram_state_.suffix_.copy(buffer, ngram_state_.suffix(state_));
+      else
+	ngram_state_.suffix_.copy(ngram_state_.suffix(buffer), ngram_state_.suffix(state_));
+	  
       complete_ = true;
     }
     
