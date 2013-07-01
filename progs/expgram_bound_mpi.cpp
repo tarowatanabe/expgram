@@ -30,6 +30,7 @@
 
 
 typedef expgram::NGram ngram_type;
+typedef expgram::Vocab vocab_type;
 
 typedef ngram_type::size_type       size_type;
 typedef ngram_type::difference_type difference_type;
@@ -270,6 +271,8 @@ void ngram_bound_mapper(const ngram_type& ngram, intercomm_type& reducer)
     stream[rank]->push(boost::iostreams::zlib_compressor());
     stream[rank]->push(*device[rank]);
   }
+
+  const id_type bos_id = ngram.index.vocab()[vocab_type::BOS];
   
   logprob_set_type unigrams(ngram.index[mpi_rank].offsets[1], ngram.logprob_min());
   context_type     context;
@@ -296,15 +299,74 @@ void ngram_bound_mapper(const ngram_type& ngram, intercomm_type& reducer)
       
       if (pos_first == pos_last) continue;
       
+#if 1
+      // for lower order, we will use only the ngram starting with <s>
+      // since we are in the backward mode, check the last of trie
+      if (ngram.index.backward() && order_prev + 1 != ngram.index.order() && ngram.index[mpi_rank][pos_context] != bos_id)
+	continue;
+#endif
+      
       context_type::iterator citer_curr = context.end() - 2;
       for (size_type pos_curr = pos_context; pos_curr != size_type(-1); pos_curr = ngram.index[mpi_rank].parent(pos_curr), -- citer_curr)
 	*citer_curr = ngram.index[mpi_rank][pos_curr];
+      
+#if 1
+      // for lower order, we will use only the ngram starting with <s>
+      // since we are in the forward mode, check the first of trie
+      if (! ngram.index.backward() && order_prev + 1 != ngram.index.order() && context.front() != bos_id)
+	continue;
+#endif
       
       for (size_type pos = pos_first; pos != pos_last; ++ pos) {
 	context.back() = ngram.index[mpi_rank][pos];
 	
 	const logprob_type logprob = ngram.logprobs[mpi_rank](pos, order_prev + 1);
 	if (logprob != ngram.logprob_min()) {
+#if 1
+	  if (ngram.index.backward()) {
+	    context_type::const_iterator citer_end   = context.end() - 1;
+	    context_type::const_iterator citer_begin = context.begin();
+	    
+	    // citer_begin to citer
+	    for (context_type::const_iterator citer = citer_end; citer != citer_begin; -- citer) {
+	      if (citer - citer_begin == 1)
+		unigrams[*citer_begin] = std::max(unigrams[*citer_begin], logprob);
+	      else {
+		const size_type shard = ngram.index.shard_index(citer_begin, citer);
+
+		std::ostream_iterator<char> iter(*stream[shard]);
+		
+		if (! karma::generate(iter, +(id_generator << ' '), boost::make_iterator_range(citer_begin, citer)))
+		  throw std::runtime_error("failed generation");
+		
+		//std::copy(citer_begin, citer_end, std::ostream_iterator<id_type>(*stream[shard], " "));
+		utils::encode_base64(logprob, std::ostream_iterator<char>(*stream[shard]));
+		*stream[shard] << '\n';
+	      }
+	    }
+	  } else {
+	    context_type::const_iterator citer_end   = context.end();
+	    context_type::const_iterator citer_begin = context.begin() + 1;
+		
+	    for (context_type::const_iterator citer = citer_begin; citer != citer_end; ++ citer) {
+	      if (citer_end - citer == 1)
+		unigrams[*citer] = std::max(unigrams[*citer], logprob);
+	      else {
+		const size_type shard = ngram.index.shard_index(citer, citer_end);
+		
+		std::ostream_iterator<char> iter(*stream[shard]);
+		
+		if (! karma::generate(iter, +(id_generator << ' '), boost::make_iterator_range(citer, citer_end)))
+		  throw std::runtime_error("failed generation");
+		
+		//std::copy(citer_begin, citer_end, std::ostream_iterator<id_type>(*stream[shard], " "));
+		utils::encode_base64(logprob, std::ostream_iterator<char>(*stream[shard]));
+		*stream[shard] << '\n';
+	      }
+	    }
+	  }
+#endif
+#if 0
 	  context_type::const_iterator citer_end = context.end() - ngram.index.backward();
 	  context_type::const_iterator citer_begin = context.begin() + (!ngram.index.backward());
 	  if (citer_end - citer_begin == 1)
@@ -321,6 +383,7 @@ void ngram_bound_mapper(const ngram_type& ngram, intercomm_type& reducer)
 	    utils::encode_base64(logprob, std::ostream_iterator<char>(*stream[shard]));
 	    *stream[shard] << '\n';
 	  }
+#endif
 	}
       }
       

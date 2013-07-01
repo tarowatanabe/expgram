@@ -1125,16 +1125,32 @@ namespace expgram
 	    const logprob_type logprob = ngram.logprobs[shard](pos, order_prev + 1);
 	    if (logprob != ngram.logprob_min()) {
 #if 1
-	      context_type::const_iterator citer_end   = context.end() - ngram.index.backward();
-	      context_type::const_iterator citer_begin = context.begin() + (!ngram.index.backward());
-	      
-	      for (context_type::const_iterator citer = citer_begin; citer != citer_end; ++ citer) {
-		if (citer_end - citer == 1)
-		  unigrams[*citer] = std::max(unigrams[*citer], logprob);
-		else {
-		  const size_type shard_index = ngram.index.shard_index(citer, citer_end);
-		  
-		  queues[shard_index]->push(std::make_pair(context_type(citer, citer_end), logprob));
+	      if (ngram.index.backward()) {
+		context_type::const_iterator citer_end   = context.end() - 1;
+		context_type::const_iterator citer_begin = context.begin();
+		
+		// citer_begin to citer
+		for (context_type::const_iterator citer = citer_end; citer != citer_begin; -- citer) {
+		  if (citer - citer_begin == 1)
+		    unigrams[*citer_begin] = std::max(unigrams[*citer_begin], logprob);
+		  else {
+		    const size_type shard_index = ngram.index.shard_index(citer_begin, citer);
+		    
+		    queues[shard_index]->push(std::make_pair(context_type(citer_begin, citer), logprob));
+		  }
+		}
+	      } else {
+		context_type::const_iterator citer_end   = context.end();
+		context_type::const_iterator citer_begin = context.begin() + 1;
+		
+		for (context_type::const_iterator citer = citer_begin; citer != citer_end; ++ citer) {
+		  if (citer_end - citer == 1)
+		    unigrams[*citer] = std::max(unigrams[*citer], logprob);
+		  else {
+		    const size_type shard_index = ngram.index.shard_index(citer, citer_end);
+		    
+		    queues[shard_index]->push(std::make_pair(context_type(citer, citer_end), logprob));
+		  }
 		}
 	      }
 #endif
