@@ -298,14 +298,7 @@ void ngram_bound_mapper(const ngram_type& ngram, intercomm_type& reducer)
       pos_last_prev = pos_last;
       
       if (pos_first == pos_last) continue;
-      
-#if 1
-      // for lower order, we will use only the ngram starting with <s>
-      // since we are in the backward mode, check the last of trie
-      if (ngram.index.backward() && order_prev + 1 != ngram.index.order() && ngram.index[mpi_rank][pos_context] != bos_id)
-	continue;
-#endif
-      
+            
       context_type::iterator citer_curr = context.end() - 2;
       for (size_type pos_curr = pos_context; pos_curr != size_type(-1); pos_curr = ngram.index[mpi_rank].parent(pos_curr), -- citer_curr)
 	*citer_curr = ngram.index[mpi_rank][pos_curr];
@@ -320,6 +313,13 @@ void ngram_bound_mapper(const ngram_type& ngram, intercomm_type& reducer)
       for (size_type pos = pos_first; pos != pos_last; ++ pos) {
 	context.back() = ngram.index[mpi_rank][pos];
 	
+#if 1
+	// for lower order, we will use only the ngram starting with <s>
+	// since we are in the backward mode, check the last of trie
+	if (ngram.index.backward() && order_prev + 1 != ngram.index.order() && context.back() != bos_id)
+	  continue;
+#endif
+
 	const logprob_type logprob = ngram.logprobs[mpi_rank](pos, order_prev + 1);
 	if (logprob != ngram.logprob_min()) {
 #if 1
