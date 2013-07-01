@@ -593,10 +593,10 @@ namespace expgram
       IgnoreIterator output;
       IgnoreIterator output_backoff;
       
-      const result_type result = lookup(ngram_state.context(buffer), ngram_state.context(buffer) + context_length,
-					extractor(*(last - 1)),
-					output,
-					output_backoff);
+      result_type result = lookup(ngram_state.context(buffer), ngram_state.context(buffer) + context_length,
+				  extractor(*(last - 1)),
+				  output,
+				  output_backoff);
       {
 	const logprob_type* backoff = ngram_state.backoff(buffer);
 	const logprob_type* biter = backoff + result.length - (result.length != 0);
