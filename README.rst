@@ -3,17 +3,16 @@ expgram: EXPonential-order n-GRAM toolkit
 =========================================
 
 This is an ngram package with efficient handling of large data in
-mind, based on a succinct storage [1]_.
-The target is to index Google's ngrams into 10GB.
-Among ngram compression mentioned in [1]_, we do not implement
-block-wise compression (or gzip every 8k-byte) for efficiency reason. 
-Also, this toolkit implements large scale ngram language model
-estimation proposed by Goolge [2]_.
+mind, based on a succinct storage [1]_. Among ngram compression
+methods mentioned in [1]_, we do not implement block-wise compression
+(or gzip every 8k-byte) for computational efficiency reason.  Also,
+this toolkit implements a MapReduce based large scale ngram language
+model estimation method proposed by Goolge [2]_.
 In order to support better rest cost estimation, particulary used in
 SMT systems, this toolkit also implements better bound scores
 by correctly estimating lower-order ngram language models [3]_.
-We also supports transducer-like interface motivated by [4]_ for a
-faster lm score computation.
+We also supports transducer-like interface motivated by [4]_ and an
+efficient prefix/suffix ngram context computation [3]_.
 Note this toolkit is primarily developed to handle large ngram count
 data, thus it is not called like xxxlm.
 
