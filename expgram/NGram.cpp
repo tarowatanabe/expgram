@@ -705,7 +705,8 @@ namespace expgram
 	  const size_type pos_last = ngram.index[shard].children_last(pos_context);
 	  pos_last_prev = pos_last;
 	  
-	  if (pos_first == pos_last) continue;
+	  if (pos_first == pos_last)
+	    continue;
 	  
 	  context_type::iterator citer_curr = context.end() - 1;
 	  for (size_type pos_curr = pos_context; pos_curr != size_type(-1); pos_curr = ngram.index[shard].parent(pos_curr), -- citer_curr)
