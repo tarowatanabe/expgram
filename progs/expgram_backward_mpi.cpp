@@ -758,6 +758,12 @@ struct Task
 	  words.back().second.backoff = logprobs.backoff;
       }
     }
+    
+    // clear unused data...
+    mapped.clear();
+    
+    ngrams.clear();
+    ngram_set_type(ngrams).swap(ngrams);
 
     // perform final indexing
     if (! words.empty()) {
