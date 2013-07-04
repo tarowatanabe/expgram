@@ -1474,7 +1474,6 @@ namespace expgram
     typedef std::vector<word_logprob_set_type, std::allocator<word_logprob_set_type> > word_logprob_map_type;
     
     typedef utils::packed_vector<id_type, std::allocator<id_type> >  id_vector_type;
-    //typedef std::vector<logprob_type, std::allocator<logprob_type> > logprob_vector_type;
     typedef std::vector<size_type, std::allocator<size_type> >       size_vector_type;
 
     NGramBackwardReducer(ngram_type&   _ngram,
@@ -1499,9 +1498,6 @@ namespace expgram
     
     // local
     id_vector_type      ids;
-    //logprob_vector_type logprobs;
-    //logprob_vector_type logbounds;
-    //logprob_vector_type backoffs;
     size_vector_type    positions_first;
     size_vector_type    positions_last;
     
@@ -1550,12 +1546,11 @@ namespace expgram
       boost::iostreams::filtering_ostream os_id;
       os_id.push(utils::packed_sink<id_type, std::allocator<id_type> >(path_id));
       
-      if (ngram.index[shard].ids.is_open()) {
+      if (ngram.index[shard].ids.is_open())
 	for (size_type pos = 0; pos < ngram.index[shard].ids.size(); ++ pos) {
 	  const id_type id = ngram.index[shard].ids[pos];
 	  os_id.write((char*) &id, sizeof(id_type));
 	}
-      }
       
       ids.build();
 
@@ -1563,20 +1558,13 @@ namespace expgram
 	const size_type pos_first = positions_first[i];
 	const size_type pos_last  = positions_last[i];
 	
-	if (pos_last > pos_first) {
-	  //dump(shard_data.os_logprob, logprobs.begin() + pos_first, logprobs.begin() + pos_last);
-	  
-	  //if (order_prev + 1 != max_order) {
-	  //  dump(shard_data.os_logbound, logbounds.begin() + pos_first, logbounds.begin() + pos_last);
-	  //  dump(shard_data.os_backoff,  backoffs.begin() + pos_first,  backoffs.begin() + pos_last);
-	  //}
-	  
+	if (pos_last > pos_first)
 	  for (size_type pos = pos_first; pos != pos_last; ++ pos) {
 	    const id_type id = ids[pos];
 	    os_id.write((char*) &id, sizeof(id_type));
 	    positions.set(positions.size(), true);
 	  }
-	}
+	
 	positions.set(positions.size(), false);
       }
       
@@ -1621,9 +1609,6 @@ namespace expgram
 
       // remove temporary index
       ids.clear();
-      //logprobs.clear();
-      //logbounds.clear();
-      //backoffs.clear();
       positions_first.clear();
       positions_last.clear();
     }
@@ -1658,21 +1643,13 @@ namespace expgram
       positions_first[pos] = ids.size();
       positions_last[pos] = ids.size() + words.size();
       
-      // this is not necessary
-      //std::sort(words.begin(), words.end(), less_first<word_logprob_set_type>());
-      
       word_logprob_map_type::const_iterator witer_end = words.end();
       for (word_logprob_map_type::const_iterator witer = words.begin(); witer != witer_end; ++ witer) {
 	ids.push_back(witer->first);
 	
-	//logprobs.push_back(witer->second.prob);
-	
 	shard_data.os_logprob.write((char*) &(witer->second.prob), sizeof(logprob_type));
 	
 	if (order_prev + 1 != max_order) {
-	  //logbounds.push_back(witer->second.bound);
-	  //backoffs.push_back(witer->second.backoff != ngram_type::logprob_min() ? witer->second.backoff : logprob_type(0.0));
-	  
 	  static const logprob_type logprob_zero(0.0);
 	  
 	  shard_data.os_logbound.write((char*) &(witer->second.bound), sizeof(logprob_type));
@@ -2171,12 +2148,11 @@ namespace expgram
       boost::iostreams::filtering_ostream os_id;
       os_id.push(utils::packed_sink<id_type, std::allocator<id_type> >(path_id));
       
-      if (ngram.index[shard].ids.is_open()) {
+      if (ngram.index[shard].ids.is_open())
 	for (size_type pos = 0; pos < ngram.index[shard].ids.size(); ++ pos) {
 	  const id_type id = ngram.index[shard].ids[pos];
 	  os_id.write((char*) &id, sizeof(id_type));
 	}
-      }
       
       ids.build();
 
@@ -2184,18 +2160,13 @@ namespace expgram
 	const size_type pos_first = positions_first[i];
 	const size_type pos_last  = positions_last[i];
 	
-	if (pos_last > pos_first) {
-	  //dump(shard_data.os_logprob, logprobs.begin() + pos_first, logprobs.begin() + pos_last);
-	  
-	  //if (order_prev + 1 != max_order)
-	  //  dump(shard_data.os_backoff, backoffs.begin() + pos_first, backoffs.begin() + pos_last);
-	  
+	if (pos_last > pos_first)
 	  for (size_type pos = pos_first; pos != pos_last; ++ pos) {
 	    const id_type id = ids[pos];
 	    os_id.write((char*) &id, sizeof(id_type));
 	    positions.set(positions.size(), true);
 	  }
-	}
+	
 	positions.set(positions.size(), false);
       }
       
@@ -2240,8 +2211,6 @@ namespace expgram
 
       // remove temporary index
       ids.clear();
-      //logprobs.clear();
-      //backoffs.clear();
       positions_first.clear();
       positions_last.clear();
     }
@@ -2278,20 +2247,13 @@ namespace expgram
       positions_first[pos] = ids.size();
       positions_last[pos] = ids.size() + words.size();
       
-      // no need for sort...
-      //std::sort(words.begin(), words.end(), less_first<word_logprob_pair_type>());
-      
       word_logprob_pair_set_type::const_iterator witer_end = words.end();
       for (word_logprob_pair_set_type::const_iterator witer = words.begin(); witer != witer_end; ++ witer) {
 	ids.push_back(witer->first);
 	
-	//logprobs.push_back(witer->second.first);
-	
 	shard_data.os_logprob.write((char*) &(witer->second.first), sizeof(logprob_type));
 	
 	if (order_prev + 1 != max_order) {
-	  //backoffs.push_back(witer->second.second == ngram.logprob_min() ? 0.0 : witer->second.second);
-	  
 	  static const logprob_type logprob_zero(0.0);
 	  
 	  shard_data.os_backoff.write(witer->second.second != ngram_type::logprob_min()
