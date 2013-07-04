@@ -101,6 +101,35 @@ namespace expgram
     rep["offset"] = utils::lexical_cast<std::string>(offset);
   }
   
+  void NGram::Extension::open(const path_type& path)
+  {
+    typedef utils::repository repository_type;
+    
+    clear();
+    
+    repository_type rep(path, repository_type::read);
+    
+    repository_type::const_iterator oiter = rep.find("offset");
+    if (oiter == rep.end())
+      throw std::runtime_error("no offset?");
+    offset = utils::lexical_cast<size_type>(oiter->second);
+    
+    extension.open(rep.path("extension"));
+  }
+  
+  void NGram::Extension::write(const path_type& file) const
+  {
+    typedef utils::repository repository_type;
+    
+    if (path() == file) return;
+    
+    repository_type rep(file, repository_type::write);
+    
+    extension.write(rep.path("extension"));
+    
+    rep["offset"] = utils::lexical_cast<std::string>(offset);
+  }
+  
   template <typename Path, typename Shards>
   inline
   void open_shards(const Path& path, Shards& shards, int shard)
@@ -265,6 +294,8 @@ namespace expgram
 	write_shards_prepare(rep.path("backoff"), backoffs);
       if (! logbounds.empty())
 	write_shards_prepare(rep.path("logbound"), logbounds);
+      if (! extensions.empty())
+	write_shards_prepare(rep.path("extension"), extensions);
       
       rep["smooth"] = utils::lexical_cast<std::string>(smooth);
     }
@@ -290,6 +321,8 @@ namespace expgram
       write_shards(rep.path("backoff"), backoffs, shard);
     if (! logbounds.empty())
       write_shards(rep.path("logbound"), logbounds, shard);
+    if (! extensions.empty())
+      write_shards(rep.path("extension"), extensions, shard);
   }
   
   // write in binary format
@@ -308,6 +341,8 @@ namespace expgram
       write_shards(rep.path("backoff"), backoffs);
     if (! logbounds.empty())
       write_shards(rep.path("logbound"), logbounds);
+    if (! extensions.empty())
+      write_shards(rep.path("extension"), extensions);
     
     rep["smooth"] = utils::lexical_cast<std::string>(smooth);
   }
@@ -321,7 +356,6 @@ namespace expgram
     else
       open_arpa(path, shard_size);
   }
-  
   
   void NGram::open_shard(const path_type& path, int shard)
   {
@@ -341,6 +375,8 @@ namespace expgram
       open_shards(rep.path("backoff"), backoffs, shard);
     if (boost::filesystem::exists(rep.path("logbound")))
       open_shards(rep.path("logbound"), logbounds, shard);
+    if (boost::filesystem::exists(rep.path("extension")))
+      open_shards(rep.path("extension"), extensions, shard);
     
     repository_type::const_iterator siter = rep.find("smooth");
     if (siter == rep.end())
@@ -369,6 +405,8 @@ namespace expgram
       open_shards(rep.path("backoff"), backoffs);
     if (boost::filesystem::exists(rep.path("logbound")))
       open_shards(rep.path("logbound"), logbounds);
+    if (boost::filesystem::exists(rep.path("extension")))
+      open_shards(rep.path("extension"), extensions);
     
     repository_type::const_iterator siter = rep.find("smooth");
     if (siter == rep.end())
@@ -1993,6 +2031,13 @@ namespace expgram
 		  << std::endl;
     
     ngram.swap(*this);
+  }
+
+  // TODO
+  void NGram::extension()
+  {
+    
+    
   }
 
   static const std::string& __BOS = static_cast<const std::string&>(Vocab::BOS);

@@ -113,8 +113,58 @@ namespace expgram
       size_type            offset;
     };
     
+    // shard data
     typedef ShardData  shard_data_type;
     typedef std::vector<shard_data_type, std::allocator<shard_data_type> > shard_data_set_type;
+    
+    // extensions
+    struct Extension
+    {
+      typedef utils::succinct_vector_mapped<std::allocator<int32_t> > extension_type;
+      
+      Extension() : extension(), offset(0) {}
+      
+      bool operator()(size_type pos) const
+      {
+	return (pos - offset < extension.size() ? extension[pos - offset] : false);
+      }
+      
+      void close() { clear(); }
+      void clear()
+      {
+	extension.clear();
+	offset = 0;
+      }
+
+      void open(const path_type& path);
+      void write(const path_type& path) const;
+      path_type path() const { return extension.path().parent_path(); }
+      
+      void populate()
+      {
+	extension.populate();
+      }
+
+      friend
+      bool operator==(const Extension& x, const Extension& y)
+      {
+	return x.extension == y.extension && x.offset == y.offset;
+      }
+      
+      friend
+      bool operator!=(const Extension& x, const Extension& y)
+      {
+	return !(x == y);
+      }
+      
+      extension_type extension;
+      size_type      offset;
+    };
+    
+    typedef Extension extension_type;
+    typedef std::vector<extension_type, std::allocator<extension_type> > extension_set_type;
+
+    // index
     typedef NGramIndex shard_index_type;
     
     // ngram index state... actuall, this is merely a shard + position
@@ -679,6 +729,7 @@ namespace expgram
       logprobs.clear();
       backoffs.clear();
       logbounds.clear();
+      extensions.clear();
       smooth = utils::mathop::log(1e-7);
     }
 
@@ -689,6 +740,7 @@ namespace expgram
       populate(logprobs.begin(), logprobs.end());
       populate(backoffs.begin(), backoffs.end());
       populate(logbounds.begin(), logbounds.end());
+      populate(extensions.begin(), extensions.end());
     }
 
     template <typename Iterator>
@@ -701,6 +753,7 @@ namespace expgram
     void quantize();
     void bounds();
     void backward();
+    void extension();
     
     bool is_open() const { return index.is_open(); }
     bool has_bounds() const { return ! logbounds.empty(); }
@@ -714,7 +767,12 @@ namespace expgram
     friend
     bool operator==(const NGram& x, const NGram& y)
     {
-      return x.index == y.index && x.logprobs == y.logprobs && x.backoffs == y.backoffs && x.logbounds == y.logbounds && x.smooth == y.smooth;
+      return (x.index == y.index
+	      && x.logprobs == y.logprobs
+	      && x.backoffs == y.backoffs
+	      && x.logbounds == y.logbounds
+	      && x.extensions == y.extensions
+	      && x.smooth == y.smooth);
     }
 
     friend
@@ -756,6 +814,8 @@ namespace expgram
     shard_data_set_type logprobs;
     shard_data_set_type backoffs;
     shard_data_set_type logbounds;
+    
+    extension_set_type  extensions;
     
     logprob_type   smooth;
     int debug;
