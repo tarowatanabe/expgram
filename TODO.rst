@@ -5,28 +5,7 @@
 
 * Implement mini-expgram, which supports only loading.
 
-* Implement lower-order ngram dumping to support lower order rest cost
-  estimation for kenlm.
+* Support for ngram-suffix traversal in the backward ngram. Use
+  an additional bit to indicate the end of context?
 
-* Re-implement ngram language model code:
-  We will re-implement by the back-inserted trie...
-  srilm-indexing: on memory reading + re-sorting...
-
-  Still, we do not have to modify ngram-counts, but lm should be re-worked.
-
-  1. Keep traverse interface, which is specific to ngram-counts.
-  2. Use of prefix/suffix interface, which is specific to ngram-lm, backsorted structure.
-  3. Unlike Google implementation, we will shard the ngram-lm:
-
-      - using the last two words of the history for 3-gram and up
-      - using the two words for bigram
-      - zero-shard for the unigram
-
-  Re-indexing implementation:
-
-    - Each ngram is dumped with length word-id^{length} float-for-backoff float-for-prob 
-      by default, float-for-backoff float-for-prob are min-value
-    - Sort and merge (taking max of float-for-backoff and flaot-for-prob)
-    - Re-index according to the sorted information...
-
-    
+* Reduce memory consumption, especially when backward computation.

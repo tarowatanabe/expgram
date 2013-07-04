@@ -483,7 +483,7 @@ struct Task
   typedef std::vector<word_logprob_set_type, std::allocator<word_logprob_set_type> > word_logprob_map_type;
   
   typedef utils::packed_vector<id_type, std::allocator<id_type> >  id_vector_type;
-  typedef std::vector<logprob_type, std::allocator<logprob_type> > logprob_vector_type;
+  //typedef std::vector<logprob_type, std::allocator<logprob_type> > logprob_vector_type;
   typedef std::vector<size_type, std::allocator<size_type> >       size_vector_type;
   
   Task(ngram_type&      _ngram,
@@ -505,9 +505,9 @@ struct Task
 
   // local
   id_vector_type      ids;
-  logprob_vector_type logprobs;
-  logprob_vector_type logbounds;
-  logprob_vector_type backoffs;
+  //logprob_vector_type logprobs;
+  //logprob_vector_type logbounds;
+  //logprob_vector_type backoffs;
   size_vector_type    positions_first;
   size_vector_type    positions_last;
   
@@ -571,12 +571,12 @@ struct Task
       const size_type pos_last  = positions_last[i];
 	
       if (pos_last > pos_first) {
-	dump(shard_data.os_logprob, logprobs.begin() + pos_first, logprobs.begin() + pos_last);
+	//dump(shard_data.os_logprob, logprobs.begin() + pos_first, logprobs.begin() + pos_last);
 	  
-	if (order_prev + 1 != max_order) {
-	  dump(shard_data.os_logbound, logbounds.begin() + pos_first, logbounds.begin() + pos_last);
-	  dump(shard_data.os_backoff,  backoffs.begin() + pos_first,  backoffs.begin() + pos_last);
-	}
+	//if (order_prev + 1 != max_order) {
+	//  dump(shard_data.os_logbound, logbounds.begin() + pos_first, logbounds.begin() + pos_last);
+	//  dump(shard_data.os_backoff,  backoffs.begin() + pos_first,  backoffs.begin() + pos_last);
+	// }
 	  
 	for (size_type pos = pos_first; pos != pos_last; ++ pos) {
 	  const id_type id = ids[pos];
@@ -595,10 +595,10 @@ struct Task
       boost::thread::yield();
     while (! boost::filesystem::exists(path_position))
       boost::thread::yield();
-      
+    
     utils::tempfile::permission(path_id);
     utils::tempfile::permission(path_position);
-      
+    
     // close and remove old index...
     if (ngram.index[shard].ids.is_open()) {
       const path_type path = ngram.index[shard].ids.path();
@@ -628,13 +628,13 @@ struct Task
 
     // remove temporary index
     ids.clear();
-    logprobs.clear();
-    logbounds.clear();
-    backoffs.clear();
+    //logprobs.clear();
+    //logbounds.clear();
+    //backoffs.clear();
     positions_first.clear();
     positions_last.clear();
   }
-
+  
   void index_ngram(const context_type& prefix, word_logprob_map_type& words)
   {
     const int order_prev = ngram.index[shard].offsets.size() - 1;
@@ -649,6 +649,8 @@ struct Task
       positions_last.resize(positions_size, size_type(0));
     }
 
+    // we still need to perform "search" since lower-order ngram may have no extension..
+    
     std::pair<context_type::const_iterator, size_type> result = ngram.index.traverse(shard, prefix.begin(), prefix.end());
     if (result.first != prefix.end() || result.second == size_type(-1)) {
       std::ostringstream stream;
@@ -660,22 +662,34 @@ struct Task
 	
       throw std::runtime_error(stream.str());
     }
-      
+    
     const size_type pos = result.second - ngram.index[shard].offsets[order_prev - 1];
     positions_first[pos] = ids.size();
     positions_last[pos] = ids.size() + words.size();
-      
-    std::sort(words.begin(), words.end(), less_first<word_logprob_set_type>());
+    
+    // this is not necessary!
+    //std::sort(words.begin(), words.end(), less_first<word_logprob_set_type>());
       
     word_logprob_map_type::const_iterator witer_end = words.end();
     for (word_logprob_map_type::const_iterator witer = words.begin(); witer != witer_end; ++ witer) {
       ids.push_back(witer->first);
-	
-      logprobs.push_back(witer->second.prob);
-	
+
+      
+      //logprobs.push_back(witer->second.prob);
+      
+      shard_data.os_logprob.write((char*) &(witer->second.prob), sizeof(logprob_type));
+      
       if (order_prev + 1 != max_order) {
-	logbounds.push_back(witer->second.bound);
-	backoffs.push_back(witer->second.backoff != ngram_type::logprob_min() ? witer->second.backoff : logprob_type(0.0));
+	//logbounds.push_back(witer->second.bound);
+	//backoffs.push_back(witer->second.backoff != ngram_type::logprob_min() ? witer->second.backoff : logprob_type(0.0));
+	
+	static const logprob_type logprob_zero(0.0);
+	
+	shard_data.os_logbound.write((char*) &(witer->second.bound), sizeof(logprob_type));
+	shard_data.os_backoff.write(witer->second.backoff != ngram_type::logprob_min()
+				    ? (char*) &(witer->second.backoff)
+				    : (char*) &logprob_zero,
+				    sizeof(logprob_type));
       }
     }
   }  
@@ -736,13 +750,13 @@ struct Task
       const id_type* context = *niter;
       const id_type word = *(context + order - 1);
       const logprob_set_type& logprobs = *reinterpret_cast<const logprob_set_type*>(context + order);
-	
+      
       if (prefix.empty() || ! std::equal(prefix.begin(), prefix.end(), context)) {
 	if (! words.empty()) {
 	  index_ngram(prefix, words);
 	  words.clear();
 	}
-	  
+	
 	prefix.clear();
 	prefix.insert(prefix.end(), context, context + order - 1);
       }
