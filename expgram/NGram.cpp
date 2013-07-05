@@ -1501,27 +1501,6 @@ namespace expgram
     size_vector_type    positions_first;
     size_vector_type    positions_last;
     
-    template <typename Tp>
-    struct less_first
-    {
-      bool operator()(const Tp& x, const Tp& y) const
-      {
-	return x.first < y.first;
-      }
-    };
-    
-    template <typename Iterator>
-    void dump(std::ostream& os, Iterator first, Iterator last)
-    {
-      typedef typename std::iterator_traits<Iterator>::value_type value_type;
-      
-      while (first != last) {
-	Iterator next = std::min(first + 1024 * 1024, last);
-	os.write((char*) &(*first), (next - first) * sizeof(value_type));
-	first = next;
-      }
-    }
-    
     void index_ngram()
     {
       typedef utils::succinct_vector<std::allocator<int32_t> > position_set_type;
@@ -2101,28 +2080,6 @@ namespace expgram
 	shard(_shard),
 	max_order(_max_order),
 	debug(_debug) {}
-    
-    template <typename Tp>
-    struct less_first
-    {
-      bool operator()(const Tp& x, const Tp& y) const
-      {
-	return x.first < y.first;
-      }
-    };
-    
-    
-    template <typename Iterator>
-    void dump(std::ostream& os, Iterator first, Iterator last)
-    {
-      typedef typename std::iterator_traits<Iterator>::value_type value_type;
-      
-      while (first != last) {
-	Iterator next = std::min(first + 1024 * 1024, last);
-	os.write((char*) &(*first), (next - first) * sizeof(value_type));
-	first = next;
-      }
-    }
     
     void index_ngram()
     {
