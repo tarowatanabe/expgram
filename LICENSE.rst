@@ -24,8 +24,9 @@ For the rest:
 Bundled Libraries
 -----------------
 
-expgram comes with other libraries which are licensed under different
-copyrights. For details, see the licenses, briefly listed here.
+The expgram toolkit comes with other libraries which are licensed
+under different copyrights. For details, see the licenses, briefly
+listed here.
 
 Murmurhash2
 ```````````

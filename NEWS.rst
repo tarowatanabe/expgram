@@ -1,4 +1,10 @@
 2013-x-x
+        * INCOMPATIBLE: We employ backward sorted ngram language
+	  model, which is basically identical to KenLM, but with more
+	  succinct storage.
+        * INCOMPATIBLE: The state reprensentation is exactly the same
+	  as KenLM, but differ in that we do not have suffix checking
+	  via backoff parameter.
 	* INCOMPATIBLE: Use of murmur3 for hash functions for strings/sentence etc., but we preserve the old
 	  murmur hash function for indexed, binary files.
 	* Support bzip2 compressed ngram counts (which was found in LDC's web data in European languages)
