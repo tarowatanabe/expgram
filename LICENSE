@@ -1,11 +1,6 @@
 License
-=======
 
-The expgram toolkit is released under the LGPL. The libraries and
-codes bundled in this toolkit may have their own licenses. For
-details, see the section, Bundled Libraries.
-
-For the rest:
+The expgram toolkit is released under the LGPL.
 
   The expgram toolkit is free software: you can redistribute it and/or modify
   it under the terms of the GNU Lesser General Public License as published
@@ -20,23 +15,19 @@ For the rest:
   You should have received a copy of the GNU Lesser General Public License
   along with Avenue code.  If not, see <http://www.gnu.org/licenses/>.
 
-
 Bundled Libraries
------------------
 
 The expgram toolkit comes with other libraries which are licensed
 under different copyrights. For details, see the licenses, briefly
 listed here.
 
 Murmurhash2
-```````````
 
 smhasher <http://code.google.com/p/smhasher/>
 
 All code is released to the public domain. For business purposes, Murmurhash is under the MIT license. 
 
 Murmurhash3
-```````````
 
 smhasher <http://code.google.com/p/smhasher/>
 
@@ -45,17 +36,12 @@ domain. The author hereby disclaims copyright to this source code.
 
 MIT license
 
-xxhash
-``````
-
 xxhash <http://code.google.com/p/xxhash/>
 
    xxHash - Fast Hash algorithm
    Header File
    Copyright (C) 2012, Yann Collet.
    BSD 2-Clause License (http://www.opensource.org/licenses/bsd-license.php)
-
-::
 
    Redistribution and use in source and binary forms, with or without
    modification, are permitted provided that the following conditions are
@@ -83,12 +69,7 @@ xxhash <http://code.google.com/p/xxhash/>
         You can contact the author at :
         - xxHash source repository : http://code.google.com/p/xxhash/
 
-boost.m4
-````````
-
 boost.m4 <https://github.com/tsuna/boost.m4>
-
-::
 
  The code of boost.m4 is released under GPLv3+ with the following additional
  clause:
