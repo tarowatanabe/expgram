@@ -30,10 +30,14 @@ copyrights. For details, see the licenses, briefly listed here.
 Murmurhash2
 ```````````
 
+http://code.google.com/p/smhasher/
+
 All code is released to the public domain. For business purposes, Murmurhash is under the MIT license. 
 
 Murmurhash3
 ```````````
+
+http://code.google.com/p/smhasher/
 
 MurmurHash3 was written by Austin Appleby, and is placed in the public
 domain. The author hereby disclaims copyright to this source code.
@@ -42,6 +46,8 @@ MIT license
 
 xxhash
 ``````
+
+http://code.google.com/p/xxhash/
 
    xxHash - Fast Hash algorithm
    Header File
@@ -78,6 +84,8 @@ xxhash
 
 boost.m4
 ````````
+
+https://github.com/tsuna/boost.m4
 
 ::
 
