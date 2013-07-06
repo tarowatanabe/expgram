@@ -270,17 +270,12 @@ namespace expgram
         }
       }
 
-      size_type interpolation_pivot(size_type offset, size_type range, size_type width) const
-      {
-	return (offset * width) / (range + 1);
-      }
-
-      size_type lower_bound(size_type first, size_type last, const id_type& id) const
+      std::pair<size_type, id_type> lower_bound(size_type first, size_type last, const id_type& id) const
       {
 	const size_type offset = offsets[1];
 
 	if (last <= offset)
-	  return utils::bithack::min(size_type(id), last); // unigram!
+	  return std::make_pair(utils::bithack::min(size_type(id), last), id); // unigram!
 	else {
 	  // otherwise...
 	  size_type length = last - first;
@@ -288,19 +283,28 @@ namespace expgram
 	  last  -= offset;
 	  
 	  if (length <= 32) {
-	    for (/**/; first != last && ids[first] < id; ++ first) {}
-	    return first + offset;
+	    id_type first_id = 0;
+	    for (/**/; first != last; ++ first) {
+	      first_id = ids[first];
+	      if (!(first_id < id)) break;
+	    }
+	    return std::make_pair(first + offset, first_id);
 	  } else {
+	    id_type middle_id = 0;
+	    size_t  middle_pos = 0;
 	    while (length) {
 	      const size_t half  = length >> 1;
 	      const size_t middle = first + half;
+	    
+	      middle_id = ids[middle];
+	      middle_pos = middle;
 	      
-	      const bool is_less = ids[middle] < id;
+	      const bool is_less = middle_id < id;
 	      
 	      first  = utils::bithack::branch(is_less, middle + 1, first);
 	      length = utils::bithack::branch(is_less, length - half - 1, half);
 	    }
-	    return first + offset;
+	    return std::make_pair(first + offset, middle_pos != first && first != last ? ids[first] : middle_id);
 	  }
 	}
       }
@@ -328,8 +332,11 @@ namespace expgram
 	
 	if (pos_first == pos_last) return size_type(-1);
 	
-	const size_type child = lower_bound(pos_first, pos_last, id);
-	return utils::bithack::branch(child != pos_last && !(id < operator[](child)), child, size_type(-1));
+	const std::pair<size_type, id_type> child = lower_bound(pos_first, pos_last, id);
+	
+	return utils::bithack::branch(child.first != pos_last && !(id < child.second),
+				      child.first,
+				      size_type(-1));
       }
       
       template <typename Iterator, typename _Word>
