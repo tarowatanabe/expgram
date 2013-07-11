@@ -122,9 +122,11 @@ namespace expgram
 	  uint64_t hi;
 	  
 	  value_type() : lo(uint64_t(-1)), hi(uint64_t(-1)) {}
+	  value_type(const uint64_t& __lo, const uint64_t& __hi) : lo(__lo), hi(__hi) {}
 	} __attribute__ (( __aligned__( 16 ) ));
 	
 	cache_type() : value()  {}
+	cache_type(const uint64_t& lo, const uint64_t& hi) : value(lo, hi) {}
 	
 	bool compare_and_swap(const cache_type& value_old, const cache_type& value_new)
 	{
@@ -274,7 +276,7 @@ namespace expgram
 	  cache_type& cache = const_cast<cache_type&>(caches[cache_pos]);
 	  
 	  // fetch...
-	  cache_type cache_fetch = cache;
+	  const cache_type cache_fetch = cache;
 	  
 	  utils::atomicop::memory_barrier();
 	  
@@ -288,10 +290,8 @@ namespace expgram
 	  
 	  const size_type ret = __find(pos, id);
 	  
-	  cache_type cache_next;
-	  
-	  cache_next.value.lo = (pos & 0xffffffffffffll) | (size_type(id & 0xffff0000) << 32);
-	  cache_next.value.hi = (ret & 0xffffffffffffll) | (size_type(id & 0x0000ffff) << 48);
+	  const cache_type cache_next((pos & 0xffffffffffffll) | (size_type(id & 0xffff0000) << 32),
+				      (ret & 0xffffffffffffll) | (size_type(id & 0x0000ffff) << 48));
 	  
 	  cache.compare_and_swap(cache_fetch, cache_next);
 	  
