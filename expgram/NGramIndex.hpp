@@ -29,6 +29,7 @@
 #include <utils/hashmurmur.hpp>
 #include <utils/hashmurmur3.hpp>
 #include <utils/bithack.hpp>
+#include <utils/atomicop.hpp>
 
 namespace expgram
 {
