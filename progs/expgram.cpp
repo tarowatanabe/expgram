@@ -39,6 +39,7 @@ path_type input_file = "-";
 path_type output_file = "-";
 
 int shards = 4;
+bool populate = false;
 int verbose = 0;
 int debug = 0;
 
@@ -54,6 +55,9 @@ int main(int argc, char** argv)
     namespace standard = boost::spirit::standard;
         
     ngram_type ngram(ngram_file, shards, debug);
+
+    if (populate)
+      ngram.populate();
     
     sentence_type sentence;
     
@@ -184,7 +188,8 @@ int getoptions(int argc, char** argv)
     ("input",  po::value<path_type>(&input_file)->default_value(input_file),   "input")
     ("output", po::value<path_type>(&output_file)->default_value(output_file), "output")
     
-    ("shard",   po::value<int>(&shards)->default_value(shards),                 "# of shards (or # of threads)")
+    ("shard",    po::value<int>(&shards)->default_value(shards), "# of shards (or # of threads)")
+    ("populate", po::bool_switch(&populate),                     "perform memory pululation")
     ("verbose", po::value<int>(&verbose)->implicit_value(1), "verbose level")
     ("debug",   po::value<int>(&debug)->implicit_value(1),   "debug level")
     ("help", "help message");

@@ -214,7 +214,7 @@ int getoptions(int argc, char** argv)
     ("temporary", po::value<path_type>(&temporary_dir),                           "temporary directory")    
     
     ("shard",  po::value<int>(&shards)->default_value(shards),                 "# of shards (or # of threads)")
-
+    
     ("populate",   po::bool_switch(&populate),   "perform memory population")
     ("precompute", po::bool_switch(&precompute), "assume precomputed word-id input")
     
