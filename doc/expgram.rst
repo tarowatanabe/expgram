@@ -29,9 +29,9 @@ OPTIONS
 
   **--output** `arg (="-")` output log probabilities
 
-  **--order** `arg (=0)` ngram order
-
   **--shard** `arg (=4)` # of shards (or # of threads)
+
+  **--populate** perform memory pululation
 
   **--verbose** `[=arg(=1)]` verbose level
 

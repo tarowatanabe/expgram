@@ -31,9 +31,11 @@ OPTIONS
 
   **--temporary** `arg`        temporary directory
 
-  **--order** `arg (=0)`       ngram order
-
   **--shard** `arg (=4)`       # of shards (or # of threads)
+
+  **--populate** perform memory population
+
+  **--precompute** assume precomputed word-id input
 
   **--debug** `[=arg(=1)]`     debug level
 
