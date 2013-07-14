@@ -277,10 +277,9 @@ namespace expgram
 	  cache_type& cache = const_cast<cache_type&>(caches[cache_pos]);
 	  
 	  // fetch...
-	  cache_type cache_fetch;
-	  do {
-	    cache_fetch = cache;
-	  } while (! cache.compare_and_swap(cache_fetch, cache_fetch));
+	  const cache_type cache_fetch = cache;
+	  
+	  utils::atomicop::memory_barrier();
 	  
 	  // store positions in 48 bits
 	  const size_type cache_pos_prev = cache_fetch.value.lo & 0xffffffffffffll;
