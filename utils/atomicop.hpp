@@ -104,35 +104,6 @@ namespace utils
       }
     };
 
-#if defined(HAVE___INT128_T)
-    template <>
-    struct __struct_add_and_fetch<16>
-    {
-      template <typename Tp>
-      static inline
-      Tp result(volatile Tp* ptr, Tp addend)
-      {
-	return (Tp) __result((volatile __int128_t*) ptr, (__int128_t) addend);
-      }
-
-      static inline
-      int64_t __result(volatile __int128_t* ptr, __int128_t addend)
-      {
-#if defined(__GNUC__)
-	return __sync_add_and_fetch(ptr, addend);
-#else	//fallback, slow
-#pragma message("slow fetch_and_add_128")
-	__int128_t res;
-	{
-	  res = *ptr;
-	  *(ptr) += addend;
-	}
-	return res + addend;
-#endif
-      }
-    };
-#endif
-
     template <typename Tp>
     inline
     Tp add_and_fetch(volatile Tp* ptr, Tp addend)
@@ -212,35 +183,6 @@ namespace utils
 #endif
       }
     };
-
-#if defined(HAVE___INT128_T)
-    template <>
-    struct __struct_fetch_and_add<16>
-    {
-      template <typename Tp>
-      static inline
-      Tp result(volatile Tp* ptr, Tp addend)
-      {
-	return (Tp) __result((volatile __int128_t*) ptr, (__int128_t) addend);
-      }
-
-      static inline
-      __int128_t __result(volatile __int128_t* ptr, __int128_t addend)
-      {
-#if defined(__GNUC__)
-	return __sync_fetch_and_add(ptr, addend);
-#else	//fallback, slow
-#pragma message("slow fetch_and_add_128")
-	__int128_t res;
-	{
-	  res = *ptr;
-	  *(ptr) += addend;
-	}
-	return res;
-#endif
-      }
-    };
-#endif
 
     template <typename Tp>
     inline
@@ -326,37 +268,6 @@ namespace utils
       }
     };
 
-#if defined(HAVE___INT128_T)
-    template <>
-    struct __struct_compare_and_swap<16>
-    {
-      template <typename Tp>
-      static inline
-      bool result(volatile Tp* ptr, Tp comparand, Tp replacement)
-      {
-	return __result((volatile __int128_t*) ptr, (__int128_t) comparand, (__int128_t) replacement);
-      }
-      
-      static inline
-      bool __result(volatile __int128_t* ptr, __int128_t comparand, __int128_t replacement)
-      {
-#if defined(__GNUC__)
-	return __sync_bool_compare_and_swap(ptr, comparand, replacement);
-#else
-#pragma message("slow compare_and_swap_128")
-	bool res = false;
-	{
-	  if(*ptr == comparand) {
-	    *ptr = replacement;
-	    res = true;
-	  }
-	}
-	return res;
-#endif
-      }
-    };    
-#endif
-
     template <typename Tp>
     inline
     bool compare_and_swap(volatile Tp* ptr, Tp comparand, Tp replacement)
@@ -395,19 +306,6 @@ namespace utils
       static inline
       int64_t result(volatile Tp* ptr) { return (int64_t) ptr; }
     };
-
-#if defined(HAVE___INT128_T)
-    template <>
-    struct __struct_ptr_cast<16> {
-      template <typename Tp>
-      static inline
-      volatile __int128_t* result(volatile Tp** ptr) { return (volatile __int128_t*) ptr; }
-      
-      template <typename Tp>
-      static inline
-      __int128_t result(volatile Tp* ptr) { return (__int128_t) ptr; }
-    };
-#endif
 
     template <typename Tp>
     inline
