@@ -303,7 +303,7 @@ namespace expgram
 	  
 	  const size_type ret = __find(pos, id);
 	  
-	  cache_ret.value = (cache_type::value_type(pos) & 0xffffffffffffll
+	  cache_ret.value = (cache_type::value_type(pos & 0xffffffffffffll)
 			     | (cache_type::value_type(ret & 0xffffffffffffll) << 48)
 			     | (cache_type::value_type(id) << 96));
 	  
