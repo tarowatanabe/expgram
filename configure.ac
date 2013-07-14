@@ -385,6 +385,38 @@ AC_TYPE_PID_T
 AC_C_VOLATILE
 AC_CHECK_TYPES([ptrdiff_t])
 
+# check if the compiler supports __int128_t (gcc)
+AC_CACHE_CHECK(for __int128_t, gst_cv_int128_t,
+    AC_TRY_COMPILE([ ], [
+      __int128_t u = 0;
+
+      return 0;
+    ], [
+      gst_cv_int128_t=yes
+    ], [
+      gst_cv_int128_t=no
+    ])
+)
+if test x$gst_cv_int128_t = xyes; then
+  AC_DEFINE(HAVE___INT128_T, 1, [Have __int128_t type])
+fi
+
+# check if the compiler supports __uint128_t (gcc)
+AC_CACHE_CHECK(for __uint128_t, gst_cv_uint128_t,
+    AC_TRY_COMPILE([ ], [
+      __uint128_t u = 0;
+
+      return 0;
+    ], [
+      gst_cv_uint128_t=yes
+    ], [
+      gst_cv_uint128_t=no
+    ])
+)
+if test x$gst_cv_uint128_t = xyes; then
+  AC_DEFINE(HAVE___UINT128_T, 1, [Have __uint128_t type])
+fi
+
 # Checks for library functions.
 AC_FUNC_CLOSEDIR_VOID
 AC_FUNC_LSTAT

@@ -115,6 +115,16 @@ namespace expgram
       typedef std::vector<size_type, std::allocator<size_type> >               off_set_type;
       
     public:
+#if defined(HAVE___UINT128_T)
+      struct cache_type
+      {
+	typedef __uint128_t value_type;
+	
+	cache_type() : value(__uint128_t(-1)) {}
+	
+	value_type value;
+      };      
+#else
       struct cache_type
       {
 	struct value_type
@@ -147,6 +157,7 @@ namespace expgram
 	
 	value_type value;
       };
+#endif
       
       typedef utils::array_power2<cache_type, 1024 * 32, std::allocator<cache_type> > cache_set_type;
       
@@ -273,6 +284,33 @@ namespace expgram
 	else if (pos == size_type(-1))
 	  return utils::bithack::branch(id < offsets[1], size_type(id), size_type(-1));
 	else {
+#if defined(HAVE___INT128_T)
+	  const size_type cache_pos = hasher_type::operator()(id, pos) & (caches.size() - 1);
+	  cache_type& cache = const_cast<cache_type&>(caches[cache_pos]);
+	  
+	  cache_type cache_fetch;
+	  cache_type cache_ret;
+	  
+	  cache_fetch.value = utils::atomicop::fetch_and_add(cache.value, __uint128_t(0));
+	  
+	  // store positions in 48 bits
+	  const size_type cache_pos_prev = (cache_fetch.value      ) & 0xffffffffffffll;
+	  const size_type cache_pos_next = (cache_fetch.value >> 48) & 0xffffffffffffll;
+	  const id_type   cache_id       = (cache_fetch.value >> 96);
+	  
+	  if (cache_id == id && cache_pos_prev == pos)
+	    return utils::bithack::branch(cache_pos_next == 0xffffffffffffll, size_type(-1), cache_pos_next);
+	  
+	  const size_type ret = __find(pos, id);
+	  
+	  cache_ret.value = (cache_type::value_type(pos) & 0xffffffffffffll
+			     | (cache_type::value_type(ret & 0xffffffffffffll) << 48)
+			     | (cache_type::value_type(id) << 96));
+	  
+	  utils::atomicop::compare_and_swap(cache.value, cache_fetch.value, cache_ret.value);
+	  
+	  return ret;
+#else 
 	  const size_type cache_pos = hasher_type::operator()(id, pos) & (caches.size() - 1);
 	  cache_type& cache = const_cast<cache_type&>(caches[cache_pos]);
 	  
@@ -297,6 +335,7 @@ namespace expgram
 	  cache.compare_and_swap(cache_fetch, cache_next);
 	  
 	  return ret;
+#endif
 	}
       }
 
