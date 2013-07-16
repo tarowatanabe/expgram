@@ -38,7 +38,6 @@ compact_map.hpp \
 compact_set.hpp \
 compress_stream.hpp \
 config.hpp \
-config.h \
 filesystem.hpp \
 getline.hpp \
 group_aligned_code.hpp \
@@ -91,6 +90,9 @@ vector2_aligned.hpp \
 vector3_aligned.hpp \
 vertical_coded_device.hpp \
 vertical_coded_vector.hpp
+
+nodist_libutilsinclude_HEADERS = \
+config.h
 
 noinst_PROGRAMS = \
 bithack_main \
