@@ -23,6 +23,9 @@ noinst_SCRIPTS = \
 
 noinst_DATA = .gitignore
 
+EXTRA_DIST = \
+	$(noinst_SCRIPTS)
+
 .gitignore: Makefile.am
 	cat $(top_builddir)/.gitignore > .gitignore
 	for bin in $(PROGRAMS); do \

@@ -33,6 +33,32 @@ expgram_stat.man \
 expgram_vocab.man \
 $(man_mpi)
 
+EXTRA_DIST = \
+expgram.py.rst \
+expgram.rst \
+expgram_backward.rst \
+expgram_backward_mpi.rst \
+expgram_bound.rst \
+expgram_bound_mpi.rst \
+expgram_clean.rst \
+expgram_counts_diff.rst \
+expgram_counts_dump.rst \
+expgram_counts_estimate.rst \
+expgram_counts_estimate_mpi.rst \
+expgram_counts_extract.rst \
+expgram_counts_extract_mpi.rst \
+expgram_counts_modify.rst \
+expgram_counts_modify_mpi.rst \
+expgram_counts_stat.rst \
+expgram_diff.rst \
+expgram_dump.rst \
+expgram_index.rst \
+expgram_perplexity.rst \
+expgram_quantize.rst \
+expgram_quantize_mpi.rst \
+expgram_stat.rst \
+expgram_vocab.rst \
+expgram_vocab_mpi.rst
 
 .rst.man: $*.rst
 	$(RST2MAN) < $*.rst > $*.man
