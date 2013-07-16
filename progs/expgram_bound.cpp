@@ -36,6 +36,8 @@ int main(int argc, char** argv)
       throw std::runtime_error("no output file?");
     
     expgram::NGram ngram(ngram_file, shards, debug);
+
+    ngram.logbounds.clear();
     
     ngram.bounds();
     
