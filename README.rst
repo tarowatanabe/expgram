@@ -16,6 +16,11 @@ efficient prefix/suffix ngram context computation [3]_.
 Note this toolkit is primarily developed to handle large ngram count
 data, thus it is not called like xxxlm.
 
+The expgram toolkit is developed at Multilingual Translation
+Laboratory, Universal Communication Institute, National Institute of
+Information and Communications Technology (NICT).
+
+
 Quick Start
 -----------
 
