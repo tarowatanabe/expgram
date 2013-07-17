@@ -33,6 +33,11 @@ expgram_stat.man \
 expgram_vocab.man \
 $(man_mpi)
 
+.rst.man: $*.rst
+	$(RST2MAN) < $*.rst > $*.man
+
+endif WITH_RST2MAN
+
 EXTRA_DIST = \
 expgram.py.rst \
 expgram.rst \
@@ -59,8 +64,3 @@ expgram_quantize_mpi.rst \
 expgram_stat.rst \
 expgram_vocab.rst \
 expgram_vocab_mpi.rst
-
-.rst.man: $*.rst
-	$(RST2MAN) < $*.rst > $*.man
-
-endif WITH_RST2MAN
