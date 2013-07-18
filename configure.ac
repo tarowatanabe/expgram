@@ -432,7 +432,7 @@ AC_CHECK_FUNCS([dup2 gethostname gettimeofday select sqrt])
 AC_CHECK_FUNCS([posix_memalign memalign])
 
 AC_CONFIG_FILES([Makefile
- 		 doc/Makefile
+ 		 man/Makefile
                  expgram/Makefile
 		 progs/Makefile
 		 sample/Makefile

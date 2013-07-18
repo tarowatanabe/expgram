@@ -1,6 +1,6 @@
 ACLOCAL_AMFLAGS = -I config
 
-SUBDIRS = utils succinct_db expgram progs sample scripts doc
+SUBDIRS = utils succinct_db expgram progs sample scripts man
 
 AUTOMAKE_OPTIONS = foreign
 
