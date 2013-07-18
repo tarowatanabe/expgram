@@ -2,7 +2,7 @@
 expgram: EXPonential-order n-GRAM toolkit
 =========================================
 
-This is an ngram package with efficient handling of large data in
+This is an ngram toolkit with efficient handling of large data in
 mind, based on a succinct storage [1]_. Among ngram compression
 methods mentioned in [1]_, we do not implement block-wise compression
 (or gzip every 8k-byte) for computational efficiency reason.  Also,
@@ -20,27 +20,26 @@ The expgram toolkit is developed at Multilingual Translation
 Laboratory, Universal Communication Institute, National Institute of
 Information and Communications Technology (NICT).
 
-
 Quick Start
 -----------
 
 Compile
 ```````
 Get the source code from `expgram <...>`_ by git and simply follow GNU
-the standard pipiline. For details, see BUILD.rst.
+the standard pipiline. For details, see `BUILD.rst`.
 
 ::
 
-   ./autogen.sh
-   ./configure --prefix <prefix where you want to install. detault = /usr/local>
+   ./autogen.sh (required when you get the code by git clone)
+   ./configure
    make
    make install (optional)
 
 Run
 ```
 
-Basically, you have only to use expgram.py (found at
-`<builddir>/scripts` or `<install prefix>/bin`) which encapsulate all
+Basically, you have only to use **expgram.py** (found at
+`<build dir>/scripts` or `<install prefix>/bin`) which encapsulate all
 the routimes to estimate LM. For instance, you can run:
 
 ::
