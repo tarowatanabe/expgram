@@ -1,21 +1,16 @@
 Building expgram
 ================
 
-Souce Codes
------------
-
-Get the source code from `expgram <...>`_.
-
+Get the source code from `github.com <http://github.com/tarowatanabe/expgram>`_:
 ::
 
-  git clone ...
+  git clone https://github.com/tarowatanabe/expgram.git
 
-Or, grab the latest tar archive from...
+Or, grab the latest tar archive from `expgram <...>`_.
 
 
 Compile
 -------
-
 ::
 
    ./autogen.sh (required when you get the code by git clone)

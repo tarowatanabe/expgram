@@ -25,8 +25,9 @@ Quick Start
 
 Compile
 ```````
-Get the source code from `expgram <...>`_ by git and simply follow GNU
-the standard pipiline. For details, see `BUILD.rst`.
+Get the source code from `expgram <...>`_, or from `github.com
+<http://github.com/tarowatanabe/expgram>`_, and simply
+follow the GNU standard pipiline. For details, see `BUILD.rst`.
 
 ::
 
