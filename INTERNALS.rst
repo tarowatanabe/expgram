@@ -1,5 +1,6 @@
+=========
 Internals
----------
+=========
 
 Brief descriptions of binaries:
 

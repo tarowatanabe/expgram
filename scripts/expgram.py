@@ -49,7 +49,7 @@ opt_parser = OptionParser(
                     " 2 = counts extraction,"
                     " 3 = counts index,"
                     " 4 = counts modification,"
-                    " 5 = language model,"
+                    " 5 = estimated language model,"
                     " 6 = backward trie,"
                     " 7 = quantization"),
         make_option("--last-step",  default=7, action="store", type="int", metavar='STEP',
@@ -58,7 +58,7 @@ opt_parser = OptionParser(
                     " 2 = counts extraction,"
                     " 3 = counts index,"
                     " 4 = counts modification,"
-                    " 5 = language model,"
+                    " 5 = estimated language model,"
                     " 6 = backward trie,"
                     " 7 = quantization"),
         

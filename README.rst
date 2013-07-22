@@ -45,43 +45,47 @@ the routimes to estimate LM. For instance, you can run:
 
 ::
 
-  ./expgram.py
-	   --expgram-dir <installed expgram>
-       	   --corpus <corpus> or --corpus-list <list of corpus> or --counts-list <list of counts>
-	   --output <prefix of lm name>
-	   --order  <order of ngram lm>
+  expgram.py \
+	   --expgram-dir <installed expgram> \
+       	   --corpus <corpus> or --corpus-list <list of corpus> or --counts-list <list of counts> \
+	   --output <prefix of lm name> \
+	   --order  <order of ngram lm> \
 	   --temporary-dir <temporary disk space>
 
 Here, we assume a corpus, newline delimited set of sentences,
 indicated by `--corpus <corpus>` or a list of corpus, newline
 delimited set of corpora specified by `--corpus-list <list of corpus>`
 or `--counts-list <list of counts>` a list of count data.
-This will dump 4 data:
+This will dump 6 data:
 
 ::
 
-     <prefix>.counts		indexed counts
+     <prefix>.counts		extracted ngram counts
+     <prefix>.index		indexed ngram counts
      <prefix>.modified		indexed counts with modified counts for modified-KN smoothing
-     <prefix>.lm		estiamted LM
+     <prefix>.estimated		temporarily estiamted LM
+     <prefix>.lm		LM with more efficient indexing
      <prefix>.lm.quantize	8-bit quantized LM
 
 or, if you already have count data organized into a Google format, simply run
 
 ::
 
-  ./expgram.py
-	   --expgram-dir <installed expgram>
-	   --counts <counts in Google format>
-	   --output <prefix of lm name>
-	   --order  <order of ngram lm>
+  expgram.py \
+	   --expgram-dir <installed expgram> \
+	   --counts <counts in Google format> \
+	   --output <prefix of lm name> \
+	   --order  <order of ngram lm> \
 	   --temporary-dir <temporary disk space>
 
-This will dump 3 models:
+This will dump 5 models:
 
 ::
 
+     <prefix>.index		indexed ngram counts
      <prefix>.modified		indexed counts with modified counts for modified-KN smoothing
-     <prefix>.lm		estiamted LM
+     <prefix>.estimated		temporarily estiamted LM
+     <prefix>.lm		LM with more efficient indexing
      <prefix>.lm.quantize	8-bit quantized LM
 
 The language model probabilities are stored by the natural logarithm
@@ -89,7 +93,7 @@ The language model probabilities are stored by the natural logarithm
 see the LM, use:
 
 ::
-   ./expgram_dump --ngram <prefix>.lm (or <prefix>.lm.quantize)
+   {<build dir>/progs,<install prefix>/bin}/expgram_dump --ngram <prefix>.lm (or <prefix>.lm.quantize)
 
 which write LM in ARPA format, using the common logarithm with base 10.
 
