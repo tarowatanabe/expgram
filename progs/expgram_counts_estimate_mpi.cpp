@@ -164,14 +164,55 @@ int main(int argc, char** argv)
       throw std::runtime_error("ngram counts is nod modified...");
     
     shard_data_type shard_data(ngram_counts.index[mpi_rank].size(), ngram_counts.index[mpi_rank].position_size());
-        
+    
+    utils::resource start_discounts;
+
     estimate_discounts(ngram_counts, shard_data, remove_unk);
+    
+    utils::resource end_discounts;
+
+    if (debug && mpi_rank == 0)
+      std::cerr << "estimate discounts"
+		<< " cpu time:  " << end_discounts.cpu_time() - start_discounts.cpu_time() 
+		<< " user time: " << end_discounts.user_time() - start_discounts.user_time()
+		<< std::endl;
+
+    utils::resource start_unigram;
     
     estimate_unigram(ngram_counts, shard_data, remove_unk);
     
+    utils::resource end_unigram;
+    
+    if (debug && mpi_rank == 0)
+      std::cerr << "estimate unigram"
+		<< " cpu time:  " << end_unigram.cpu_time() - start_unigram.cpu_time() 
+		<< " user time: " << end_unigram.user_time() - start_unigram.user_time()
+		<< std::endl;
+
+    utils::resource start_bigram;
+    
     estimate_bigram(ngram_counts, shard_data, remove_unk);
     
+    utils::resource end_bigram;
+
+    if (debug && mpi_rank == 0)
+      std::cerr << "estimate bigram"
+		<< " cpu time:  " << end_bigram.cpu_time() - start_bigram.cpu_time() 
+		<< " user time: " << end_bigram.user_time() - start_bigram.user_time()
+		<< std::endl;
+
+    utils::resource start_ngram;
+    
     estimate_ngram(ngram_counts, shard_data, remove_unk);
+
+    utils::resource end_ngram;
+
+    if (debug && mpi_rank == 0)
+      std::cerr << "estimate ngram"
+		<< " cpu time:  " << end_ngram.cpu_time() - start_ngram.cpu_time() 
+		<< " user time: " << end_ngram.user_time() - start_ngram.user_time()
+		<< std::endl;
+    
     
     // final dump...
     ngram_type ngram;

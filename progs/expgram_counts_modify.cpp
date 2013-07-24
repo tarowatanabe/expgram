@@ -37,8 +37,18 @@ int main(int argc, char** argv)
       throw std::runtime_error("no output file?");
     
     expgram::NGramCounts ngram(ngram_file, shards, debug);
+
+    utils::resource start;
     
     ngram.modify();
+
+    utils::resource end;
+    
+    if (debug)
+      std::cerr << "modify counts"
+		<< " cpu time:  " << end.cpu_time() - start.cpu_time() 
+		<< " user time: " << end.user_time() - start.user_time()
+		<< std::endl;
     
     ngram.write(output_file);
   }

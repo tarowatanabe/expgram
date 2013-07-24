@@ -36,8 +36,19 @@ int main(int argc, char** argv)
 
     if (output_file.empty())
       throw std::runtime_error(std::string("no output?"));
+
+    utils::resource start;
     
     expgram::NGramCounts ngram(ngram_file, shards, debug);
+    
+    utils::resource end;
+    
+    if (debug)
+      std::cerr << "index counts"
+		<< " cpu time:  " << end.cpu_time() - start.cpu_time() 
+		<< " user time: " << end.user_time() - start.user_time()
+		<< std::endl;
+    
     ngram.write(output_file);
   }
   catch (std::exception& err) {

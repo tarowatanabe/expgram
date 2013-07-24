@@ -26,7 +26,6 @@
 #include <utils/mpi_device.hpp>
 #include <utils/mpi_device_bcast.hpp>
 
-
 typedef expgram::NGramCounts ngram_type;
 
 typedef ngram_type::size_type       size_type;
@@ -84,7 +83,17 @@ int main(int argc, char** argv)
       ngram.types.reserve(mpi_size);
       ngram.types.resize(mpi_size);
       
+      utils::resource start;
+      
       ngram_modify_reducer(ngram, comm_parent);
+      
+      utils::resource end;
+      
+      if (debug && mpi_rank == 0)
+	std::cerr << "modify counts reducer"
+		  << " cpu time:  " << end.cpu_time() - start.cpu_time() 
+		  << " user time: " << end.user_time() - start.user_time()
+		  << std::endl;
       
       if (mpi_rank == 0)
 	ngram.write_prepare(output_file);
@@ -140,8 +149,18 @@ int main(int argc, char** argv)
       
       if (static_cast<int>(ngram.index.size()) != mpi_size)
 	throw std::runtime_error("MPI universe size do not match with ngram shard size");
+
+      utils::resource start;
       
       ngram_modify_mapper(ngram, comm_child);
+      
+      utils::resource end;
+      
+      if (debug && mpi_rank == 0)
+	std::cerr << "modify counts mapper"
+		  << " cpu time:  " << end.cpu_time() - start.cpu_time() 
+		  << " user time: " << end.user_time() - start.user_time()
+		  << std::endl;
 
       synchronize_mapper(comm_child);
     }

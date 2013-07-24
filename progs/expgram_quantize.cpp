@@ -36,9 +36,19 @@ int main(int argc, char** argv)
       throw std::runtime_error("no output file?");
     
     expgram::NGram ngram(ngram_file, shards, debug);
+
+    utils::resource start;
     
     ngram.quantize();
     
+    utils::resource end;
+    
+    if (debug)
+      std::cerr << "quantize language model"
+		<< " cpu time:  " << end.cpu_time() - start.cpu_time() 
+		<< " user time: " << end.user_time() - start.user_time()
+		<< std::endl;
+
     ngram.write(output_file);
   }
   catch (std::exception& err) {

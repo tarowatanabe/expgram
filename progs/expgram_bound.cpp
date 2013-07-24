@@ -38,8 +38,18 @@ int main(int argc, char** argv)
     expgram::NGram ngram(ngram_file, shards, debug);
 
     ngram.logbounds.clear();
+
+    utils::resource start;
     
     ngram.bounds();
+
+    utils::resource end;
+    
+    if (debug)
+      std::cerr << "upper bound"
+		<< " cpu time:  " << end.cpu_time() - start.cpu_time() 
+		<< " user time: " << end.user_time() - start.user_time()
+		<< std::endl;
     
     ngram.write(output_file);
   }

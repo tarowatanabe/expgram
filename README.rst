@@ -25,9 +25,10 @@ Quick Start
 
 Compile
 ```````
-Get the source code from `expgram <...>`_, or from `github.com
-<http://github.com/tarowatanabe/expgram>`_, and simply
-follow the GNU standard pipiline. For details, see `BUILD.rst`.
+Get the source code from `expgram <http://www2.nict.go.jp/univ-com/multi_trans/expgram>`_,
+or from `github.com <http://github.com/tarowatanabe/expgram>`_, and
+simply follow the GNU standard pipiline. For details, see `BUILD.rst`.
+
 
 ::
 
@@ -62,7 +63,7 @@ This will dump 6 data:
 
      <prefix>.counts		extracted ngram counts
      <prefix>.index		indexed ngram counts
-     <prefix>.modified		indexed counts with modified counts for modified-KN smoothing
+     <prefix>.modified		indexed modified counts for modified-KN smoothing
      <prefix>.estimated		temporarily estiamted LM
      <prefix>.lm		LM with more efficient indexing
      <prefix>.lm.quantize	8-bit quantized LM
@@ -83,17 +84,18 @@ This will dump 5 models:
 ::
 
      <prefix>.index		indexed ngram counts
-     <prefix>.modified		indexed counts with modified counts for modified-KN smoothing
+     <prefix>.modified		indexed modified counts for modified-KN smoothing
      <prefix>.estimated		temporarily estiamted LM
      <prefix>.lm		LM with more efficient indexing
      <prefix>.lm.quantize	8-bit quantized LM
 
 The language model probabilities are stored by the natural logarithm
 (with e as a base), not by the logarithm with base 10. If you want to
-see the LM, use:
+see the LM, use (found at `<build dir>/progs` or `<install prefix>/bin`):
 
 ::
-   {<build dir>/progs,<install prefix>/bin}/expgram_dump --ngram <prefix>.lm (or <prefix>.lm.quantize)
+
+   expgram_dump --ngram <prefix>.lm (or <prefix>.lm.quantize)
 
 which write LM in ARPA format, using the common logarithm with base 10.
 

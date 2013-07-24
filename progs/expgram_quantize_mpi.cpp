@@ -69,7 +69,17 @@ int main(int argc, char** argv)
     if (static_cast<int>(ngram.index.size()) != mpi_size)
       throw std::runtime_error("MPI universe size do not match with ngram shard size");
     
+    utils::resource start;
+
     ngram_quantize(ngram);
+
+    utils::resource end;
+    
+    if (debug && mpi_rank == 0)
+      std::cerr << "quantize language model"
+		<< " cpu time:  " << end.cpu_time() - start.cpu_time() 
+		<< " user time: " << end.user_time() - start.user_time()
+		<< std::endl;
     
     if (mpi_rank == 0)
       ngram.write_prepare(output_file);

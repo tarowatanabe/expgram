@@ -44,7 +44,9 @@ You can learn ngram language model by:
     format.
   - If an option **--vocab** is specified with the file pointing to
     a list of words, then, extraction is restricted to those found in
-    the list.
+    the list. OOVs are mapped to *<unk>*.
+    Or, if **--cutoff** or **--kbest** is specified, then, the
+    computed vocabulary is used.
 
 3. Index ngram counts, and output as *<output>.index*.
 

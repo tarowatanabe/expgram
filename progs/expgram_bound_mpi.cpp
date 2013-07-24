@@ -88,7 +88,17 @@ int main(int argc, char** argv)
       ngram.logbounds.reserve(ngram.index.size());
       ngram.logbounds.resize(ngram.index.size());
       
+      utils::resource start;
+      
       ngram_bound_reducer(ngram, comm_parent);
+
+      utils::resource end;
+      
+      if (debug && mpi_rank == 0)
+	std::cerr << "upper bound reducer"
+		  << " cpu time:  " << end.cpu_time() - start.cpu_time() 
+		  << " user time: " << end.user_time() - start.user_time()
+		  << std::endl;
       
       if (mpi_rank == 0)
 	ngram.write_prepare(output_file);
@@ -146,9 +156,19 @@ int main(int argc, char** argv)
 	throw std::runtime_error("MPI universe size do not match with ngram shard size");
       
       ngram.logbounds.clear();
+
+      utils::resource start;
       
       ngram_bound_mapper(ngram, comm_child);
       
+      utils::resource end;
+      
+      if (debug && mpi_rank == 0)
+	std::cerr << "upper bound mapper"
+		  << " cpu time:  " << end.cpu_time() - start.cpu_time() 
+		  << " user time: " << end.user_time() - start.user_time()
+		  << std::endl;
+
       synchronize_mapper(comm_child);
     }
     

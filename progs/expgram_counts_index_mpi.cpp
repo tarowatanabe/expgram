@@ -133,12 +133,22 @@ int main(int argc, char** argv)
 	
 	ngram.index.vocab().open(rep.path("vocab"));
       }
+
+      utils::resource start;
       
       // perform mapping!
       if (mpi_rank == 0)
 	index_ngram_mapper_root(comm_parent, ngram_file, ngram);
       else
 	index_ngram_mapper_others(comm_parent, ngram);
+
+      utils::resource end;
+      
+      if (debug && mpi_rank == 0)
+	std::cerr << "index counts mapper"
+		  << " cpu time:  " << end.cpu_time() - start.cpu_time() 
+		  << " user time: " << end.user_time() - start.user_time()
+		  << std::endl;
       
     } else {
       std::vector<const char*, std::allocator<const char*> > args;
@@ -171,7 +181,17 @@ int main(int argc, char** argv)
       boost::iostreams::filtering_ostream os_count;
       os_count.push(utils::packed_sink<count_type, std::allocator<count_type> >(path_count));
       
+      utils::resource start;
+      
       index_unigram(ngram_file, output_file, ngram, os_count);
+
+      utils::resource end;
+      
+      if (debug && mpi_rank == 0)
+	std::cerr << "index unigram"
+		  << " cpu time:  " << end.cpu_time() - start.cpu_time() 
+		  << " user time: " << end.user_time() - start.user_time()
+		  << std::endl;
       
       {
 	std::vector<int, std::allocator<int> > error_codes(mpi_size, MPI_SUCCESS);
@@ -197,8 +217,18 @@ int main(int argc, char** argv)
 	  const int unigram_size = ngram.index[0].offsets[1];
 	  comm_child.comm.Send(&unigram_size, 1, MPI::INT, 0, size_tag);
 	}
+
+	utils::resource start;
 	
 	index_ngram_reducer(comm_child, ngram, os_count);
+	
+	utils::resource end;
+	
+	if (debug && mpi_rank == 0)
+	  std::cerr << "index counts reducer"
+		    << " cpu time:  " << end.cpu_time() - start.cpu_time() 
+		    << " user time: " << end.user_time() - start.user_time()
+		    << std::endl;
       }
       
       // perform indexing and open

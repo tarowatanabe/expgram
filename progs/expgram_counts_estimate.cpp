@@ -45,7 +45,18 @@ int main(int argc, char** argv)
       ngram_counts.modify();
     
     expgram::NGram ngram(debug);
+    
+    utils::resource start;
+
     ngram_counts.estimate(ngram, remove_unk);
+    
+    utils::resource end;
+      
+    if (debug)
+      std::cerr << "estimate language model"
+		<< " cpu time:  " << end.cpu_time() - start.cpu_time() 
+		<< " user time: " << end.user_time() - start.user_time()
+		<< std::endl;
     
     ngram.write(output_file);
   }

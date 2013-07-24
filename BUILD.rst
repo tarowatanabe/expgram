@@ -1,12 +1,12 @@
 Building expgram
 ================
 
-Get the source code from `github.com <http://github.com/tarowatanabe/expgram>`_:
+Get the cutting-edge source code from `github.com <http://github.com/tarowatanabe/expgram>`_:
 ::
 
   git clone https://github.com/tarowatanabe/expgram.git
 
-Or, grab the latest tar archive from `expgram <...>`_.
+Or, grab the stable tar archive from `expgram <http://www2.nict.go.jp/univ-com/multi_trans/expgram>`_.
 
 
 Compile

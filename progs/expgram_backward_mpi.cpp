@@ -111,7 +111,18 @@ int main(int argc, char** argv)
       ngram_backward_prepare(ngram, backward, shard);
       
       // reduce backward data structure
+
+      utils::resource start;
+      
       ngram_backward_reducer(backward, shard, comm_parent);
+      
+      utils::resource end;
+      
+      if (debug && mpi_rank == 0)
+	std::cerr << "backward language model reducer"
+		  << " cpu time:  " << end.cpu_time() - start.cpu_time() 
+		  << " user time: " << end.user_time() - start.user_time()
+		  << std::endl;
       
       if (mpi_rank == 0)
 	backward.write_prepare(output_file);
@@ -174,8 +185,18 @@ int main(int argc, char** argv)
       
       if (ngram.index.backward())
 	throw std::runtime_error("this is already a backward structure");
+
+      utils::resource start;
       
       ngram_backward_mapper(ngram, comm_child);
+
+      utils::resource end;
+      
+      if (debug && mpi_rank == 0)
+	std::cerr << "backward language model mapper"
+		  << " cpu time:  " << end.cpu_time() - start.cpu_time() 
+		  << " user time: " << end.user_time() - start.user_time()
+		  << std::endl;
       
       synchronize_mapper(comm_child);
     }
