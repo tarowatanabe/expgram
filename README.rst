@@ -102,58 +102,27 @@ which write LM in ARPA format, using the common logarithm with base 10.
 References
 ----------
 
-.. [1]
-.. code:: latex
+.. [1]	 Taro Watanabe, Hajime Tsukada, and Hideki Isozaki. A succinct
+	 n-gram language model. In Proceedings of the ACL-IJCNLP 2009
+	 Conference Short Papers, pages 341-344, Suntec, Singapore,
+	 August 2009. Association for Computational Linguistics.
 
- @InProceedings{watanabe-tsukada-isozaki:2009:Short,
-   author    = {Watanabe, Taro  and  Tsukada, Hajime  and  Isozaki, Hideki},
-   title     = {A Succinct N-gram Language Model},
-   booktitle = {Proceedings of the ACL-IJCNLP 2009 Conference Short Papers},
-   month     = {August},
-   year      = {2009},
-   address   = {Suntec, Singapore},
-   publisher = {Association for Computational Linguistics},
-   pages     = {341--344},
-   url       = {http://www.aclweb.org/anthology/P/P09/P09-2086}
- }
+.. [2]	 Thorsten Brants, Ashok C. Popat, Peng Xu, Franz J. Och, and
+	 Jeffrey Dean. Large language models in machine
+	 translation. In Proceedings of the 2007 Joint Conference on
+	 Empirical Methods in Natural Language Processing and
+	 Computational Natural Language Learning (EMNLP-CoNLL), pages
+	 858-867, Prague, Czech Republic, June 2007. Association for
+	 Computational Linguistics.
 
-.. [2]
-.. code:: latex
+.. [3]	 Kenneth Heafield, Philipp Koehn, and Alon Lavie. Language
+	 model rest costs and space-efficient storage. In Proceedings
+	 of the 2012 Joint Conference on Empirical Methods in Natural
+	 Language Processing and Computational Natural Language
+	 Learning, pages 1169-1178, Jeju Island, Korea,
+	 July 2012. Association for Computational Linguistics.
 
- @InProceedings{brants-EtAl:2007:EMNLP-CoNLL2007,
-   author    = {Brants, Thorsten  and  Popat, Ashok C.  and  Xu, Peng  and  Och, Franz J.  and  Dean, Jeffrey},
-   title     = {Large Language Models in Machine Translation},
-   booktitle = {Proceedings of the 2007 Joint Conference on Empirical Methods in Natural Language Processing and Computational Natural Language Learning (EMNLP-CoNLL)},
-   month     = {June},
-   year      = {2007},
-   address   = {Prague, Czech Republic},
-   publisher = {Association for Computational Linguistics},
-   pages     = {858--867},
-   url       = {http://www.aclweb.org/anthology/D/D07/D07-1090}
- }
+.. [4]	 Jeffrey Sorensen and Cyril Allauzen. Unary data structures
+	 for language models. In Interspeech 2011, pages
+	 1425-1428, 2011.
 
-.. [3]
-.. code:: latex
-
- @InProceedings{heafield-koehn-lavie:2012:EMNLP-CoNLL,
-   author    = {Heafield, Kenneth  and  Koehn, Philipp  and  Lavie, Alon},
-   title     = {Language Model Rest Costs and Space-Efficient Storage},
-   booktitle = {Proceedings of the 2012 Joint Conference on Empirical Methods in Natural Language Processing and Computational Natural Language Learning},
-   month     = {July},
-   year      = {2012},
-   address   = {Jeju Island, Korea},
-   publisher = {Association for Computational Linguistics},
-   pages     = {1169--1178},
-   url       = {http://www.aclweb.org/anthology/D12-1107}
- }
-
-.. [4]
-.. code:: latex
-
- @inproceedings{37218,
-   title = {Unary Data Structures for Language Models},
-   author  = {Jeffrey Sorensen and Cyril Allauzen},
-   year  = 2011,
-   booktitle = {Interspeech 2011},
-   pages = {1425-1428}
- }
