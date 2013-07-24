@@ -29,8 +29,7 @@ Get the source code from `expgram <http://www2.nict.go.jp/univ-com/multi_trans/e
 or from `github.com <http://github.com/tarowatanabe/expgram>`_, and
 simply follow the GNU standard pipiline. For details, see `BUILD.rst`.
 
-
-::
+.. code:: bash
 
    ./autogen.sh (required when you get the code by git clone)
    ./configure
@@ -40,15 +39,17 @@ simply follow the GNU standard pipiline. For details, see `BUILD.rst`.
 Run
 ```
 
-Basically, you have only to use **expgram.py** (found at
+Basically, you have only to use `expgram.py` (found at
 `<build dir>/scripts` or `<install prefix>/bin`) which encapsulate all
 the routimes to estimate LM. For instance, you can run:
 
-::
+.. code:: bash
 
   expgram.py \
 	   --expgram-dir <installed expgram> \
-       	   --corpus <corpus> or --corpus-list <list of corpus> or --counts-list <list of counts> \
+       	   --corpus <corpus>
+	      or --corpus-list <list of corpus>
+	      or --counts-list <list of counts> \
 	   --output <prefix of lm name> \
 	   --order  <order of ngram lm> \
 	   --temporary-dir <temporary disk space>
@@ -70,7 +71,7 @@ This will dump 6 data:
 
 or, if you already have count data organized into a Google format, simply run
 
-::
+.. code:: bash
 
   expgram.py \
 	   --expgram-dir <installed expgram> \
@@ -93,7 +94,7 @@ The language model probabilities are stored by the natural logarithm
 (with e as a base), not by the logarithm with base 10. If you want to
 see the LM, use (found at `<build dir>/progs` or `<install prefix>/bin`):
 
-::
+.. code:: bash
 
    expgram_dump --ngram <prefix>.lm (or <prefix>.lm.quantize)
 
