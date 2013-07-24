@@ -2,7 +2,8 @@ Building expgram
 ================
 
 Get the cutting-edge source code from `github.com <http://github.com/tarowatanabe/expgram>`_:
-::
+
+.. code:: bash
 
   git clone https://github.com/tarowatanabe/expgram.git
 
@@ -11,7 +12,8 @@ Or, grab the stable tar archive from `expgram <http://www2.nict.go.jp/univ-com/m
 
 Compile
 -------
-::
+
+.. code:: bash
 
    ./autogen.sh (required when you get the code by git clone)
    ./configure
