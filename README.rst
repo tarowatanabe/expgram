@@ -20,9 +20,13 @@ data:
 Note this toolkit is primarily developed to handle large ngram count
 data, thus it is not called like xxxlm.
 
-The expgram toolkit is developed at Multilingual Translation
-Laboratory, Universal Communication Institute, National Institute of
-Information and Communications Technology (`NICT <http://www.nict.go.jp/en/index.html>`_).
+The expgram toolkit is mainly developed by
+`Taro Watanabe <http://www2.nict.go.jp/univ-com/multi_trans/member/t_watana>`_
+at Multilingual Translation Laboratory, Universal Communication
+Institute, National Institute of Information and Communications
+Technology (`NICT <http://www.nict.go.jp/en/index.html>`_).
+If you have any questions about expgram, you can send them to
+``taro.watanabe at nict dot go dot jp``.
 
 Quick Start
 -----------

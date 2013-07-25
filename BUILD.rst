@@ -59,3 +59,8 @@ Optionally, following libraries are recommended:
 
   They are configured by ``--with-{jemalloc,tcmalloc}`` and should be
   enabled using ``--enable-{jemalloc,tcmalloc}``
+
+- docutils (http://docutils.sourceforge.net)
+
+  Manpages are written in reStructuredText format, and if you want
+  manpages, you need to install docutils.
