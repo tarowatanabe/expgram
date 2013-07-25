@@ -1,19 +1,19 @@
-=========================
-expgram_counts_modify_mpi
-=========================
+====================
+expgram_counts_index
+====================
 
----------------------------------------------------------------
-modify ngram counts to prepare for KN discounting (MPI version)
----------------------------------------------------------------
+---------------------------------------
+index ngram counts into a binary format
+---------------------------------------
 
 :Author: Taro Watanabe <taro.watanabe@nict.go.jp>
-:Date:   2013-2-8
+:Date:   2013-7-25
 :Manual section: 1
 
 SYNOPSIS
 --------
 
-**expgram_counts_modify_mpi** [*options*]
+**expgram_counts_index** [*options*]
 
 DESCRIPTION
 -----------
@@ -23,17 +23,13 @@ DESCRIPTION
 OPTIONS
 -------
 
-  **--ngram** `arg (="")`      ngram counts in expgram format
+  **--ngram** `arg (="")`      ngram counts in Google format
 
   **--output** `arg (="")`     output in binary format
 
-  **--temporary** `arg`       temporary directory
+  **--temporary** `arg`        temporary directory
 
-  **--prog** `arg`            this binary
-
-  **--host** `arg`             host name
-
-  **--hostfile** `arg`         hostfile name
+  **--shard** `arg (=4)`       # of shards (or # of threads)
 
   **--debug** `[=arg(=1)]`     debug level
 
@@ -53,6 +49,7 @@ TMPDIR_SPEC
 
 EXAMPLES
 --------
+
 
 
 SEE ALSO

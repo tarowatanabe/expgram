@@ -27,6 +27,8 @@ OPTIONS
 
   **--output** `arg (="-")`    output
 
+  **--temporary** `arg`        temporary directory
+
   **--shard** `arg (=4)`       # of shards (or # of threads)
 
   **--debug** `[=arg(=1)]`     debug level
@@ -37,8 +39,14 @@ OPTIONS
 ENVIRONMENT
 -----------
 
+TMPDIR
+  Temporary directory.
+
 TMPDIR_SPEC
-  temporary directory
+  An alternative temporary directory. If **TMPDIR_SPEC** is specified,
+  this is preferred over **TMPDIR**. In addition, if
+  **--temporary** is specified, program option is preferred over
+  environment variables.
 
 EXAMPLES
 --------

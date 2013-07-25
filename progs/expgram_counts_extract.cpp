@@ -437,7 +437,7 @@ int getoptions(int argc, char** argv)
     
     ("filter", po::value<path_type>(&filter_file), "filtering script")
     
-    ("order",      po::value<int>(&max_order),     "ngram order")
+    ("order",      po::value<int>(&max_order)->default_value(max_order),     "ngram order")
     ("map-line",   po::bool_switch(&map_line),     "map by lines, not by files")
     ("threads",    po::value<int>(&threads),       "# of threads")
     ("max-malloc", po::value<double>(&max_malloc), "maximum malloc in GB")

@@ -37,6 +37,7 @@ typedef expgram::NGramState ngram_state_type;
 path_type ngram_file;
 path_type input_file = "-";
 path_type output_file = "-";
+path_type temporary_dir = "";
 
 int shards = 4;
 bool populate = false;
@@ -50,6 +51,9 @@ int main(int argc, char** argv)
   try {
     if (getoptions(argc, argv) != 0) 
       return 1;
+
+    if (! temporary_dir.empty())
+      ::setenv("TMPDIR_SPEC", temporary_dir.string().data(), 1);
 
     namespace karma = boost::spirit::karma;
     namespace standard = boost::spirit::standard;
@@ -184,9 +188,10 @@ int getoptions(int argc, char** argv)
   
   po::options_description desc("options");
   desc.add_options()
-    ("ngram",  po::value<path_type>(&ngram_file)->default_value(ngram_file),   "ngram in ARPA or expgram format")
-    ("input",  po::value<path_type>(&input_file)->default_value(input_file),   "input")
-    ("output", po::value<path_type>(&output_file)->default_value(output_file), "output")
+    ("ngram",     po::value<path_type>(&ngram_file)->default_value(ngram_file),   "ngram in ARPA or expgram format")
+    ("input",     po::value<path_type>(&input_file)->default_value(input_file),   "input")
+    ("output",    po::value<path_type>(&output_file)->default_value(output_file), "output")
+    ("temporary", po::value<path_type>(&temporary_dir),                           "temporary directory")    
     
     ("shard",    po::value<int>(&shards)->default_value(shards), "# of shards (or # of threads)")
     ("populate", po::bool_switch(&populate),                     "perform memory pululation")

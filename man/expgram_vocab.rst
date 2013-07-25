@@ -7,7 +7,7 @@ compute vocabulary from corpus
 ------------------------------
 
 :Author: Taro Watanabe <taro.watanabe@nict.go.jp>
-:Date:   2013-2-8
+:Date:   2013-7-25
 :Manual section: 1
 
 SYNOPSIS
@@ -18,7 +18,9 @@ SYNOPSIS
 DESCRIPTION
 -----------
 
-
+`expgram_vocab` enumerates all the words in corpura, and/or
+ngram counts in either ARPA format or Google format. The output is a
+list of words with frequency.
 
 OPTIONS
 -------
@@ -44,16 +46,20 @@ OPTIONS
   **--help** help message
 
 
-ENVIRONMENT
------------
-
-TMPDIR_SPEC
-  temporary directory
-
 EXAMPLES
 --------
 
+::
+   
+   expgram_vocab \
+       --corpus      <corpus> \
+       --corpus-list <list of corpus> \
+       --counts      <counts> \
+       --counts-list <list of counts> \
+       --output <output>
 
 
 SEE ALSO
 --------
+
+`expgram.py(1)`, `expgram_vocab(1)`

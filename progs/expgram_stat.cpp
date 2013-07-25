@@ -1,5 +1,5 @@
 //
-//  Copyright(C) 2009-2012 Taro Watanabe <taro.watanabe@nict.go.jp>
+//  Copyright(C) 2009-2013 Taro Watanabe <taro.watanabe@nict.go.jp>
 //
 
 #include <iostream>
@@ -51,6 +51,7 @@ std::ostream& dump(std::ostream& os, const std::string& name, const Stat& stat)
 
 path_type ngram_file = "-";
 path_type output_file = "-";
+path_type temporary_dir = "";
 
 int shards = 4;
 
@@ -63,6 +64,9 @@ int main(int argc, char** argv)
   try {
     if (getoptions(argc, argv) != 0) 
       return 1;
+
+    if (! temporary_dir.empty())
+      ::setenv("TMPDIR_SPEC", temporary_dir.string().data(), 1);
     
     expgram::NGram ngram(ngram_file, shards, debug);
     
@@ -93,6 +97,7 @@ int getoptions(int argc, char** argv)
   desc.add_options()
     ("ngram",  po::value<path_type>(&ngram_file)->default_value(ngram_file),   "ngram in ARPA or expgram format")
     ("output", po::value<path_type>(&output_file)->default_value(output_file), "output")
+    ("temporary", po::value<path_type>(&temporary_dir),                        "temporary directory")
     
     ("shard",  po::value<int>(&shards)->default_value(shards),                 "# of shards (or # of threads)")
     

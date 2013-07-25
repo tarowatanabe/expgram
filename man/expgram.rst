@@ -29,6 +29,8 @@ OPTIONS
 
   **--output** `arg (="-")` output log probabilities
 
+  **--temporary** `arg`        temporary directory
+
   **--shard** `arg (=4)` # of shards (or # of threads)
 
   **--populate** perform memory pululation
@@ -43,11 +45,13 @@ ENVIRONMENT
 -----------
 
 TMPDIR
-  temporary directory
+  Temporary directory.
 
 TMPDIR_SPEC
-  temporary directory
-
+  An alternative temporary directory. If **TMPDIR_SPEC** is specified,
+  this is preferred over **TMPDIR**. In addition, if
+  **--temporary** is specified, program option is preferred over
+  environment variables.
 
 EXAMPLES
 --------

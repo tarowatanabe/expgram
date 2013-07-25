@@ -7,6 +7,7 @@ expgram_backward_mpi.man \
 expgram_bound_mpi.man \
 expgram_counts_estimate_mpi.man \
 expgram_counts_extract_mpi.man \
+expgram_counts_index_mpi.man \
 expgram_counts_modify_mpi.man \
 expgram_quantize_mpi.man \
 expgram_vocab_mpi.man
@@ -21,6 +22,7 @@ expgram_diff.man \
 expgram_clean.man \
 expgram_counts_diff.man \
 expgram_counts_dump.man \
+expgram_counts_index.man \
 expgram_counts_estimate.man \
 expgram_counts_extract.man \
 expgram_counts_modify.man \
@@ -52,6 +54,8 @@ expgram_counts_estimate.rst \
 expgram_counts_estimate_mpi.rst \
 expgram_counts_extract.rst \
 expgram_counts_extract_mpi.rst \
+expgram_counts_index.rst \
+expgram_counts_index_mpi.rst \
 expgram_counts_modify.rst \
 expgram_counts_modify_mpi.rst \
 expgram_counts_stat.rst \

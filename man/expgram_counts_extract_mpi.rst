@@ -7,7 +7,7 @@ extract ngram counts from corpus (MPI version)
 ----------------------------------------------
 
 :Author: Taro Watanabe <taro.watanabe@nict.go.jp>
-:Date:   2013-2-8
+:Date:   2013-7-25
 :Manual section: 1
 
 SYNOPSIS
@@ -18,6 +18,9 @@ SYNOPSIS
 DESCRIPTION
 -----------
 
+`expgram_counts_extract_mpi` extracts ngram counts in corpura, and/or
+merge ngram counts in either ARPA format or Google format.
+The extracted or merged counts are write in a Google format.
 
 
 OPTIONS
@@ -39,7 +42,11 @@ OPTIONS
 
   **--prog** `arg`            this binary
 
-  **--order** `arg`           ngram order
+  **--host** `arg`             host name
+
+  **--hostfile** `arg`         hostfile name
+
+  **--order** `arg (=5)`       ngram order
 
   **--map-line** map by lines, not by files
 
@@ -53,7 +60,17 @@ OPTIONS
 EXAMPLES
 --------
 
+::
+   
+   mpirun --np 8 expgram_counts_extract_mpi \
+       --corpus      <corpus> \
+       --corpus-list <list of corpus> \
+       --counts      <counts> \
+       --counts-list <list of counts> \
+       --output <output>
 
 
 SEE ALSO
 --------
+
+`expgram.py(1)`, `expgram_counts_extract(1)`

@@ -36,9 +36,14 @@ OPTIONS
 ENVIRONMENT
 -----------
 
-TMPDIR_SPEC
-  temporary directory
+TMPDIR
+  Temporary directory.
 
+TMPDIR_SPEC
+  An alternative temporary directory. If **TMPDIR_SPEC** is specified,
+  this is preferred over **TMPDIR**. In addition, if
+  **--temporary** is specified, program option is preferred over
+  environment variables.
 
 EXAMPLES
 --------

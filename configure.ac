@@ -38,6 +38,9 @@ AC_SYS_LARGEFILE
 AC_PATH_PROG(RST2MAN, rst2man.py, no)
 AM_CONDITIONAL(WITH_RST2MAN, test "$RST2MAN" != no)
 
+AC_PATH_PROG(RST2HTML, rst2html.py, no)
+AM_CONDITIONAL(WITH_RST2HTML, test "$RST2HTML" != no)
+
 # Checks for libraries.
 
 AC_ARG_WITH(jemalloc,
@@ -432,6 +435,7 @@ AC_CHECK_FUNCS([dup2 gethostname gettimeofday select sqrt])
 AC_CHECK_FUNCS([posix_memalign memalign])
 
 AC_CONFIG_FILES([Makefile
+ 		 doc/Makefile
  		 man/Makefile
                  expgram/Makefile
 		 progs/Makefile

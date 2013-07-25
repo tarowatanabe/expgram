@@ -31,6 +31,10 @@ OPTIONS
 
   **--prog** `arg`             this binary
 
+  **--host** `arg`             host name
+
+  **--hostfile** `arg`         hostfile name
+
   **--debug** `[=arg(=1)]`     debug level
 
   **--help** help message
@@ -39,8 +43,14 @@ OPTIONS
 ENVIRONMENT
 -----------
 
+TMPDIR
+  Temporary directory.
+
 TMPDIR_SPEC
-  temporary directory
+  An alternative temporary directory. If **TMPDIR_SPEC** is specified,
+  this is preferred over **TMPDIR**. In addition, if
+  **--temporary** is specified, program option is preferred over
+  environment variables.
 
 
 EXAMPLES
