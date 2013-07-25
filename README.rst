@@ -67,8 +67,8 @@ This will dump 6 data:
      <prefix>.counts		extracted ngram counts
      <prefix>.index		indexed ngram counts
      <prefix>.modified		indexed modified counts for modified-KN smoothing
-     <prefix>.estimated		temporarily estiamted LM
-     <prefix>.lm		LM with more efficient indexing
+     <prefix>.estimated		temporarily estiamted LM (don't use this!)
+     <prefix>.lm		LM with efficient indexing
      <prefix>.lm.quantize	8-bit quantized LM
 
 or, if you already have count data organized into a Google format, simply run
@@ -87,10 +87,9 @@ This will dump 5 models:
 
      <prefix>.index		indexed ngram counts
      <prefix>.modified		indexed modified counts for modified-KN smoothing
-     <prefix>.estimated		temporarily estiamted LM
-     <prefix>.lm		LM with more efficient indexing
+     <prefix>.estimated		temporarily estiamted LM (don't use this!)
+     <prefix>.lm		LM with efficient indexing
      <prefix>.lm.quantize	8-bit quantized LM
-
 
 To see the indexed counts, use (found at ``<build dir>/progs`` or ``<install prefix>/bin``):
 
