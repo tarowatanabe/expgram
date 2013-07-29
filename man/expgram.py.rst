@@ -118,7 +118,7 @@ Options:
                         expgram directory
   --mpi-dir=DIRECTORY   MPI directory
   --temporary-dir=DIRECTORY
-                        expgram directory
+                        temporary directory (see **TMPDIR_SPEC**)
   --max-malloc=MALLOC   maximum memory in GB (default: 8)
   --mpi=MPI             # of processes for MPI-based parallel processing.
                         Identical to --np for mpirun
@@ -144,6 +144,17 @@ TMPDIR_SPEC
   this is preferred over **TMPDIR**. In addition, if
   **--temporary-dir** is specified, program option is preferred over
   environment variables.
+  
+  The temporary directory specified either by **TMPDIR_SPEC** or by
+  **--temporary-dir** has a special treatment in that the keyword
+  %host is replaced by the host of running machine. For instance, you
+  can set:
+
+    /temporary/%host/tmp
+
+  and your running machine is run005, then, the temporary directory
+  will be /temporary/run005/tmp.
+
 
 EXAMPLES
 --------

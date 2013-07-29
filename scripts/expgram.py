@@ -70,7 +70,7 @@ opt_parser = OptionParser(
                     metavar="DIRECTORY", help="MPI directory"),
         # temporary dir
         make_option("--temporary-dir", default="", action="store", type="string",
-                    metavar="DIRECTORY", help="expgram directory"),
+                    metavar="DIRECTORY", help="temporary directory"),
         ## max-malloc
         make_option("--max-malloc", default=8, action="store", type="float",
                     metavar="MALLOC", help="maximum memory in GB (default: %default)"),
