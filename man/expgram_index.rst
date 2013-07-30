@@ -7,7 +7,7 @@ index ARPA language model for expgram
 -------------------------------------
 
 :Author: Taro Watanabe <taro.watanabe@nict.go.jp>
-:Date:   2013-7-25
+:Date:   2013-7-29
 :Manual section: 1
 
 SYNOPSIS
@@ -18,7 +18,9 @@ SYNOPSIS
 DESCRIPTION
 -----------
 
-
+`expgram_index` read an ngram language model in ARPA
+format, and output the model in expgram's binary format for efficient
+query.
 
 OPTIONS
 -------
@@ -49,10 +51,25 @@ TMPDIR_SPEC
   **--temporary** is specified, program option is preferred over
   environment variables.
 
+  The temporary directory specified either by **TMPDIR_SPEC** or by
+  **--temporary** has a special treatment in that the keyword
+  %host is replaced by the host of running machine. For instance, you
+  can set:
+
+    /temporary/%host/tmp
+
+  and your running machine is run005, then, the temporary directory
+  will be /temporary/run005/tmp.
+
 EXAMPLES
 --------
 
-
+::
+   expgram_index \
+     --ngram <ngram language model in ARPA or in expgram> \
+     --input <ngram language model in expgram format>
 
 SEE ALSO
 --------
+
+`expgram(1)`, `expgram_perplexity(1)`

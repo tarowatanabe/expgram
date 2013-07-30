@@ -62,7 +62,8 @@ EXAMPLES
        --corpus-list <list of corpus> \
        --counts      <counts> \
        --counts-list <list of counts> \
-       --output <output>
+       --output <output> \
+       --threads 8
 
 SEE ALSO
 --------

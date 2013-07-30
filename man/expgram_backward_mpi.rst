@@ -7,7 +7,7 @@ transform ngram language model in backward format
 -------------------------------------------------
 
 :Author: Taro Watanabe <taro.watanabe@nict.go.jp>
-:Date:   2013-6-30
+:Date:   2013-7-29
 :Manual section: 1
 
 SYNOPSIS
@@ -18,7 +18,12 @@ SYNOPSIS
 DESCRIPTION
 -----------
 
-
+The ngram langauge model estimated by `expgram_counts_estimate_mpi(1)`
+(not by `expgram_counts_estimate(1)`) is temporary in that the ngram
+counts are sorted in forward order, which is inefficient for ngram
+query.
+`expgram_backward_mpi` re-sort in backward order, like kenlm, for
+efficient query.
 
 OPTIONS
 -------
@@ -53,13 +58,27 @@ TMPDIR_SPEC
   **--temporary** is specified, program option is preferred over
   environment variables.
 
+  The temporary directory specified either by **TMPDIR_SPEC** or by
+  **--temporary** has a special treatment in that the keyword
+  %host is replaced by the host of running machine. For instance, you
+  can set:
+
+    /temporary/%host/tmp
+
+  and your running machine is run005, then, the temporary directory
+  will be /temporary/run005/tmp.
+
 EXAMPLES
 --------
 
+::
+   
+  mpirun --np 8 expgram_backward_mpi \
+    --ngram <ngram language omdel> \
+    --output <backward order ngram language model>
 
 
 SEE ALSO
 --------
 
-
-
+`expgram_counts_estimate_mpi(1)`, `expgram_backward.rst`

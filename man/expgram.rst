@@ -7,7 +7,7 @@ query ngram language model
 --------------------------
 
 :Author: Taro Watanabe <taro.watanabe@nict.go.jp>
-:Date:   2013-2-12
+:Date:   2013-7-29
 :Manual section: 1
 
 SYNOPSIS
@@ -18,7 +18,10 @@ SYNOPSIS
 DESCRIPTION
 -----------
 
-
+Compute (log-) probabilities of each sentence in a corpus
+(**--input**) using the ngram language model (**--ngram*)*. If you
+specify **--verbose** option, then, we will also print (log-)
+probabilities computed for each word with details information.
 
 OPTIONS
 -------
@@ -66,7 +69,12 @@ TMPDIR_SPEC
 EXAMPLES
 --------
 
-
+::
+   expgram \
+     --ngram <ngram language model> \
+     --input <corpus to compute probabilityes>
 
 SEE ALSO
 --------
+
+`expgram_perplexity(1)`

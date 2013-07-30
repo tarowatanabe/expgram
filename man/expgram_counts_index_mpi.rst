@@ -7,7 +7,7 @@ index ngram counts into a binary format (MPI version)
 -----------------------------------------------------
 
 :Author: Taro Watanabe <taro.watanabe@nict.go.jp>
-:Date:   2013-7-25
+:Date:   2013-7-29
 :Manual section: 1
 
 SYNOPSIS
@@ -18,7 +18,10 @@ SYNOPSIS
 DESCRIPTION
 -----------
 
-
+`expgram_counts_index_mpi` perform indexing of ngram counts in Google
+format (**--ngram**) and output an indexed ngram counts (**--output**).
+The shard option(**--shard**) specifies the number of shard for
+parallel indexing.
 
 OPTIONS
 -------
@@ -52,11 +55,26 @@ TMPDIR_SPEC
   **--temporary** is specified, program option is preferred over
   environment variables.
 
+  The temporary directory specified either by **TMPDIR_SPEC** or by
+  **--temporary** has a special treatment in that the keyword
+  %host is replaced by the host of running machine. For instance, you
+  can set:
+
+    /temporary/%host/tmp
+
+  and your running machine is run005, then, the temporary directory
+  will be /temporary/run005/tmp.
+
 EXAMPLES
 --------
 
+::
 
+   mpirun --np 8 expgram_counts_index_mpi \
+     --ngram <ngram counts in Google format> \
+     --output <index ngram counts>
 
 SEE ALSO
 --------
 
+`expgram_counts_index(1)`

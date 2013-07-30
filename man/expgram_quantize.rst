@@ -7,7 +7,7 @@ quantize ngram language model
 -----------------------------
 
 :Author: Taro Watanabe <taro.watanabe@nict.go.jp>
-:Date:   2013-2-8
+:Date:   2013-7-29
 :Manual section: 1
 
 SYNOPSIS
@@ -18,7 +18,9 @@ SYNOPSIS
 DESCRIPTION
 -----------
 
-
+Perform 8-bit quantization. The ngram language model specified via
+**--ngram** option can be either the ngram in ARPA format or in the
+expgram's binary format.
 
 OPTIONS
 -------
@@ -47,6 +49,16 @@ TMPDIR_SPEC
   this is preferred over **TMPDIR**. In addition, if
   **--temporary** is specified, program option is preferred over
   environment variables.
+
+  The temporary directory specified either by **TMPDIR_SPEC** or by
+  **--temporary** has a special treatment in that the keyword
+  %host is replaced by the host of running machine. For instance, you
+  can set:
+
+    /temporary/%host/tmp
+
+  and your running machine is run005, then, the temporary directory
+  will be /temporary/run005/tmp.
 
 EXAMPLES
 --------

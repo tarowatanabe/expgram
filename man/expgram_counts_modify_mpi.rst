@@ -7,7 +7,7 @@ modify ngram counts to prepare for KN discounting (MPI version)
 ---------------------------------------------------------------
 
 :Author: Taro Watanabe <taro.watanabe@nict.go.jp>
-:Date:   2013-2-8
+:Date:   2013-7-29
 :Manual section: 1
 
 SYNOPSIS
@@ -18,7 +18,10 @@ SYNOPSIS
 DESCRIPTION
 -----------
 
-
+`expgram_counts_modify_mpi` computes the type counts in the ngram counts
+in order to prepare for Kneser-Ney smoothing. The ngram counts
+specified by **--ngram** must be the ngram counts indexed either by
+`expgram_counts_index(1)` or `expgram_counts_index_mpi(1)`.
 
 OPTIONS
 -------
@@ -51,9 +54,26 @@ TMPDIR_SPEC
   **--temporary** is specified, program option is preferred over
   environment variables.
 
+  The temporary directory specified either by **TMPDIR_SPEC** or by
+  **--temporary** has a special treatment in that the keyword
+  %host is replaced by the host of running machine. For instance, you
+  can set:
+
+    /temporary/%host/tmp
+
+  and your running machine is run005, then, the temporary directory
+  will be /temporary/run005/tmp.
+
 EXAMPLES
 --------
 
+::
+   
+  mpirun --np 8 expgram_counts_modify_mpi \
+    --ngram <indexed ngram counts> \
+    --output <indexed ngram with modified counts>
 
 SEE ALSO
 --------
+
+`expgram_counts_index(1)`, `expgram_counts_index_mpi(1)`, `expgram_counts_modify(1)`
