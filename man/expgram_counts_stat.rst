@@ -59,6 +59,7 @@ TMPDIR_SPEC
   and your running machine is run005, then, the temporary directory
   will be /temporary/run005/tmp.
 
-
 SEE ALSO
 --------
+
+`expgram_stat(1)`
