@@ -84,7 +84,7 @@ opt_parser = OptionParser(
                     help="host list file to run job. Identical to --hostfile for mpirun", metavar="FILE"),
         
         make_option("--threads", default=2, action="store", type="int",
-                    help="# of thrads for thread-based parallel processing"),
+                    help="# of threads for thread-based parallel processing"),
         
         make_option("--pbs", default=None, action="store_true",
                     help="PBS for launching processes"),

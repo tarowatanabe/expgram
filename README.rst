@@ -14,7 +14,7 @@ data:
 - Better rest cost estimation for chart-based decoding in machine
   translation which estimates lower-order ngram language model
   parameters [3]_.
-- A transducer-like interface motiated by [4]_ and an efficient
+- A transducer-like interface motivated by [4]_ and an efficient
   prefix/suffix ngram context computation [3]_.
 
 Note this toolkit is primarily developed to handle large ngram count
@@ -51,7 +51,7 @@ Run
 
 Basically, you have only to use `expgram.py` (found at
 ``<build dir>/scripts`` or ``<install prefix>/bin``) which encapsulate all
-the routimes to estimate LM. For instance, you can run:
+the processes to estimate LM. For instance, you can run:
 
 .. code:: bash
 

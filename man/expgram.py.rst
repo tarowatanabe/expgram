@@ -70,7 +70,7 @@ You can learn ngram language model by:
 
 7. Quantize estimated ngram language model and output as *<output>.lm.quantize*.
 
-  -  We perofmr 8-bit quantization.
+  - We perform 8-bit quantization.
   - For details, see `expgram_counts_quantize(1)` or `expgram_counts_quantize_mpi(1)`.
 
 You can perform the whole pipeline in parallel either by specifying
@@ -80,7 +80,7 @@ or **--mpi-host-file** to specify the list of hosts).
 If PBS is set up in your environment, you can run on pbs nodes (via
 **--pbs** option with **--pbs-queue** to specify the batch queue).
 During indexing and or estimation, we use temporary disk space,
-specified either by **--temporary-dir** or the environment varialbles,
+specified either by **--temporary-dir** or the environment variables,
 **TMPDIR_SPEC** and/or **TMPDIR**.
 
 OPTIONS
@@ -126,7 +126,7 @@ Options:
                         mpirun
   --mpi-host-file=FILE  host list file to run job. Identical to --hostfile for
                         mpirun
-  --threads=THREADS     # of thrads for thread-based parallel processing
+  --threads=THREADS     # of threads for thread-based parallel processing
   --pbs                 PBS for launching processes
   --pbs-queue=NAME      PBS queue for launching processes (default: ltg)
   --debug=DEBUG         debug level
