@@ -1,4 +1,4 @@
-2013-x-x
+2013-8-2
         * INCOMPATIBLE: We employ backward sorted ngram language
 	  model, which is basically identical to KenLM, but with more
 	  succinct storage.
