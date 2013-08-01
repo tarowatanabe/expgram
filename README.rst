@@ -7,7 +7,7 @@ data:
 
 - A succinct data structure for compactly represent ngram data [1]_.
   Among ngram compression methods mentioned in [1]_, we do not
-  implement block-wise compression (or gzip every 8k-byte) for
+  implement block-wise compression (or zlib every 8k-byte) for
   computational efficiency reason.
 - Language model is estimated by MapReduce proposed by [2]_ using
   pthread and/or MPI.

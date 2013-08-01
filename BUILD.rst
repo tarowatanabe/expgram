@@ -40,7 +40,7 @@ expgram is dependent on `boost library <http://boost.org>`_. The
 minimum requirement is boost version 1.42.
 Optionally, following libraries are recommended:
 
-- MPI impllementation
+- MPI implementation
 
   We strongly recommends `open mpi <http://www.open-mpi.org>`_
   which is regularly tested by the author.
