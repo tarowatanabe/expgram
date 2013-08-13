@@ -42,7 +42,7 @@ Optionally, following libraries are recommended:
 
 - MPI implementation
 
-  We strongly recommends `open mpi <http://www.open-mpi.org>`_
+  We strongly recommend `open mpi <http://www.open-mpi.org>`_
   which is regularly tested by the author.
   The MPI libraries are automatically detected by the `configure`
   script by finding either `mpic++`, `mpicxx` or `mpiCC`. Thus, those
@@ -60,7 +60,7 @@ Optionally, following libraries are recommended:
   They are configured by ``--with-{jemalloc,tcmalloc}`` and should be
   enabled using ``--enable-{jemalloc,tcmalloc}``
 
-- docutils (http://docutils.sourceforge.net)
+- `docutils <http://docutils.sourceforge.net>`_
 
   Manpages are written in reStructuredText format, and if you want
   manpages, you need to install docutils.
