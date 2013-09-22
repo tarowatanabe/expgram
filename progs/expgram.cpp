@@ -117,15 +117,15 @@ int main(int argc, char** argv)
 	
 	if (verbose) {
 	  if (! karma::generate(std::ostream_iterator<char>(os),
-				standard::string << '=' << karma::uint_ << ' ' << karma::int_
+				standard::string << '=' << karma::uint_ << ' ' << karma::uint_
 				<< ' '
 				<< karma::bool_
 				<< ' '
-				<< karma::int_
+				<< karma::uint_
 				<< '-'
-				<< karma::int_
+				<< karma::uint_
 				<< ' '
-				<< karma::int_
+				<< karma::uint_
 				<< ' '
 				<< karma::double_ << '(' << karma::double_ << ')'<< '\n',
 				*siter, id, result.length, result.complete, result.state.shard(), result.state.node(), ngram_state.size(state), result.prob, result.prob * factor_log10))
@@ -142,15 +142,15 @@ int main(int argc, char** argv)
       
       if (verbose)
 	if (! karma::generate(std::ostream_iterator<char>(os),
-			      standard::string << '=' << karma::uint_ << ' ' << karma::int_
+			      standard::string << '=' << karma::uint_ << ' ' << karma::uint_
 			      << ' '
 			      << karma::bool_
 			      << ' '
-			      << karma::int_
+			      << karma::uint_
 			      << '-'
-			      << karma::int_
+			      << karma::uint_
 			      << ' '
-			      << karma::int_
+			      << karma::uint_
 			      << ' '
 			      << karma::double_ << '(' << karma::double_ << ')' << '\n',
 			      vocab_type::EOS, eos_id, result.length, result.complete, result.state.shard(), result.state.node(), ngram_state.size(state), result.prob, result.prob * factor_log10))
