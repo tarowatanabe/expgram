@@ -8,7 +8,8 @@ AC_INIT(expgram, 0.1.0, taro.watanabe@nict.go.jp)
 AC_CONFIG_AUX_DIR(config)
 AC_CONFIG_MACRO_DIR(config)
 
-AM_INIT_AUTOMAKE(expgram, 0.1.0)
+#AM_INIT_AUTOMAKE(expgram, 0.1.0)
+AM_INIT_AUTOMAKE([])
 
 # 1. Start with version information of ‘0:0:0’ for each libtool library.
 # 2. Update the version information only immediately before a public release of your software. More frequent updates are unnecessary, and only guarantee that the current interface number gets larger faster.
@@ -28,7 +29,6 @@ AC_CONFIG_HEADER(utils/config.h)
 # Checks for programs.
 AC_PROG_LIBTOOL
 AC_PROG_CXX
-AC_PROG_RANLIB
 
 AC_LANG_CPLUSPLUS
 

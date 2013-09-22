@@ -7,3 +7,5 @@
 
 * Support for ngram-suffix traversal in the backward ngram. Use
   an additional bit to indicate the end of context?
+
+* Port for other batch-queue systems, such as Torque.
