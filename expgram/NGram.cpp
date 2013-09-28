@@ -19,7 +19,6 @@
 #include <utils/lexical_cast.hpp>
 #include <utils/unordered_map.hpp>
 #include <utils/trie_compact.hpp>
-#include <utils/vector2.hpp>
 
 #include "NGram.hpp"
 #include "Quantizer.hpp"

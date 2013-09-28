@@ -160,7 +160,7 @@ namespace std
   inline
   void swap(utils::vector3_aligned<Tp, Alloc>& x, utils::vector3_aligned<Tp, Alloc>& y)
   {
-    x.swap(x);
+    x.swap(y);
   }
 };
 #endif
