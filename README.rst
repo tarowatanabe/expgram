@@ -31,7 +31,7 @@ If you have any questions about expgram, you can send them to
 Quick Start
 -----------
 
-The stable version is: `0.1.0 <http://www2.nict.go.jp/univ-com/multi_trans/expgram/expgram-0.1.0.tar.gz>`_.
+The stable version is: `0.1.1 <http://www2.nict.go.jp/univ-com/multi_trans/expgram/expgram-0.1.1.tar.gz>`_.
 The latest code is also available from `github.com <http://github.com/tarowatanabe/expgram>`_.
 
 Compile

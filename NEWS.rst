@@ -1,3 +1,7 @@
+2013-10-2
+        * Minor bug fix for two dimensional arrays, which do not
+	  affect anything.
+
 2013-8-2
         * INCOMPATIBLE: We employ backward sorted ngram language
 	  model, which is basically identical to KenLM, but with more

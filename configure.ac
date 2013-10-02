@@ -3,7 +3,7 @@
 
 AC_PREREQ(2.61)
 
-AC_INIT(expgram, 0.1.0, taro.watanabe@nict.go.jp)
+AC_INIT(expgram, 0.1.1, taro.watanabe@nict.go.jp)
 
 AC_CONFIG_AUX_DIR(config)
 AC_CONFIG_MACRO_DIR(config)
@@ -21,7 +21,7 @@ AM_INIT_AUTOMAKE([])
 EXPGRAM_LTVERSION=0:1:0
 AC_SUBST(EXPGRAM_LTVERSION)
 
-EXPGRAM_VERSION=0.1.0
+EXPGRAM_VERSION=0.1.1
 AC_SUBST(EXPGRAM_VERSION)
 
 AC_CONFIG_HEADER(utils/config.h)
