@@ -366,7 +366,7 @@ AC_HEADER_STDC
 AC_CHECK_HEADERS([fcntl.h stdint.h stdlib.h string.h sys/time.h unistd.h limits.h malloc.h])
 
 # hasn_{map,set}
-AC_CHECK_HEADERS([tr1/unordered_map tr1/unordered_set ext/hash_map ext/hash_set hash_map hash_set])
+AC_CHECK_HEADERS([unordered_map unordered_set tr1/unordered_map tr1/unordered_set ext/hash_map ext/hash_set hash_map hash_set])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_HEADER_STDBOOL
