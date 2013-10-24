@@ -64,7 +64,7 @@ namespace expgram
     
     const id_type   id() const { return __id; }
     operator const word_type&() const { return word(); }
-    operator piece_type() const { return word(); }
+    operator piece_type() const { return piece_type(word()); }
     
     const word_type& word() const
     {
@@ -179,7 +179,7 @@ namespace expgram
       if (result.second) {
 	
 	word_set_type& words = __words();
-	words.push_back(x);
+	words.push_back(static_cast<std::string>(x));
 	const_cast<piece_type&>(*result.first) = words.back();
       }
       
