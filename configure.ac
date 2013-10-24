@@ -3,12 +3,11 @@
 
 AC_PREREQ(2.61)
 
-AC_INIT(expgram, 0.1.1, taro.watanabe@nict.go.jp)
+AC_INIT(expgram, 0.1.2, taro.watanabe@nict.go.jp)
 
 AC_CONFIG_AUX_DIR(config)
 AC_CONFIG_MACRO_DIR(config)
 
-#AM_INIT_AUTOMAKE(expgram, 0.1.0)
 AM_INIT_AUTOMAKE([])
 
 # 1. Start with version information of ‘0:0:0’ for each libtool library.
@@ -21,7 +20,7 @@ AM_INIT_AUTOMAKE([])
 EXPGRAM_LTVERSION=0:1:0
 AC_SUBST(EXPGRAM_LTVERSION)
 
-EXPGRAM_VERSION=0.1.1
+EXPGRAM_VERSION=0.1.2
 AC_SUBST(EXPGRAM_VERSION)
 
 AC_CONFIG_HEADER(utils/config.h)

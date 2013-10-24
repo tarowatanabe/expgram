@@ -1,3 +1,6 @@
+2013-10-25
+        * Update to compile for OS X 10.9 (with libc++ and libstdc++).
+
 2013-10-2
         * Minor bug fix for two dimensional arrays, which do not
 	  affect anything.

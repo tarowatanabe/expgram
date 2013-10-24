@@ -33,6 +33,11 @@ You can set several configure options. For details see the dependencies section.
   --with-profiler=DIR     profiler in DIR
   --with-boost=DIR        prefix of Boost 1.42 [guess]
 
+In addition to configuration options, it is better to set ``-O3`` for
+the ``CFLAGS`` and ``CXXFLAGS`` environment variables for faster
+execution, when compiled by gcc and clang.
+
+
 Dependencies
 ------------
 
