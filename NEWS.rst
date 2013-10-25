@@ -1,3 +1,7 @@
+2013-10-26
+        * Bugfix for MPI libraries linking (thanks to the problem
+	  reported by Hiroshi Umemoto)
+
 2013-10-25
         * Update to compile for OS X 10.9 (with libc++ and libstdc++).
 
