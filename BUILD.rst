@@ -35,8 +35,7 @@ You can set several configure options. For details see the dependencies section.
 
 In addition to the configuration options, it is better to set ``-O3``
 for the ``CFLAGS`` and ``CXXFLAGS`` environment variables for faster
-execution, when compiled by **gcc**. For **clang** with **libc++**, it
-is still better to use the default of ``-O2``.
+execution, when compiled by **gcc** or **clang**.
 
 Dependencies
 ------------
