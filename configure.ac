@@ -28,16 +28,19 @@ AC_CONFIG_HEADER(utils/config.h)
 # Checks for programs.
 AC_PROG_LIBTOOL
 AC_PROG_CXX
+AC_PROG_AWK
 
 AC_LANG_CPLUSPLUS
 
 AC_SYS_LARGEFILE
 
+AM_PATH_PYTHON(,, [:])
+
 # Check for binaries...
-AC_PATH_PROG(RST2MAN, rst2man.py, no)
+AC_PATH_PROGS(RST2MAN, [rst2man-${PYTHON_VERSION}.py rst2man.py] , no)
 AM_CONDITIONAL(WITH_RST2MAN, test "$RST2MAN" != no)
 
-AC_PATH_PROG(RST2HTML, rst2html.py, no)
+AC_PATH_PROGS(RST2HTML, [rst2html-${PYTHON_VERSION}.py rst2html.py], no)
 AM_CONDITIONAL(WITH_RST2HTML, test "$RST2HTML" != no)
 
 # Checks for libraries.
@@ -196,11 +199,11 @@ MPI_CPPFLAGS=""
 MPI_LDFLAGS=""
 if test "x$MPI_CXX_COMPILER" != "xno"; then
   AC_MSG_CHECKING(mpi cppflags)
-  MPI_CPPFLAGS=`$MPI_CXX_COMPILER -showme | awk '{for(i=1;i<=NF;i++){if($i~/^-I/ || $i~/^-D/){printf "%s ", $i;}}}'`
+  MPI_CPPFLAGS=`$MPI_CXX_COMPILER -showme | $AWK '{for(i=1;i<=NF;i++){if($i~/^-I/ || $i~/^-D/){printf "%s ", $i;}}}'`
   AC_MSG_RESULT($MPI_CPPFLAGS)
   
   AC_MSG_CHECKING(mpi ldflags)
-  MPI_LDFLAGS=`$MPI_CXX_COMPILER -showme | awk '{for(i=1;i<=NF;i++){if($i~/^-L/ || $i~/^-l/ || $i~/^-Wl/){printf "%s ", $i;}}}'`
+  MPI_LDFLAGS=`$MPI_CXX_COMPILER -showme | $AWK '{for(i=1;i<=NF;i++){if($i~/^-L/ || $i~/^-l/ || $i~/^-Wl/){printf "%s ", $i;}}}'`
   AC_MSG_RESULT($MPI_LDFLAGS)
 fi 
 
