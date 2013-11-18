@@ -390,6 +390,23 @@ if test "x$ac_cv_header_cmath" = "xyes"; then
 
 fi
 
+if test "x$ac_cv_header_tr1_cmath" = "xyes"; then
+  AC_MSG_CHECKING([for std::log1p at tr1/cmath])
+  AC_TRY_COMPILE([#include <tr1/cmath>],
+     [ std::log1p(1.0); ],
+     [AC_MSG_RESULT([yes])
+      AC_DEFINE([HAVE_STD_LOG1P], 1, [Define to 1 if you have the std::log1p.])],
+     [AC_MSG_RESULT([no])])
+
+  AC_MSG_CHECKING([for std::lgamma at tr1/cmath])
+  AC_TRY_COMPILE([#include <tr1/cmath>],
+     [ std::lgamma(1.0); ],
+     [AC_MSG_RESULT([yes])
+      AC_DEFINE([HAVE_STD_LOG1P], 1, [Define to 1 if you have the std::lgamma.])],
+     [AC_MSG_RESULT([no])])
+
+fi
+
 # Checks for typedefs, structures, and compiler characteristics.
 AC_HEADER_STDBOOL
 AC_C_CONST
