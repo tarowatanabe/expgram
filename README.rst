@@ -118,6 +118,13 @@ which writes LM in ARPA format using the common logarithm with base 10.
 
 computes the perplexity on the text-file.
 
+Systems
+-------
+
+It has been successfully compiled on x86\_64 on Linux, OS X and
+Cygwin, and regularly tested on Linux and OS X.
+
+
 References
 ----------
 
